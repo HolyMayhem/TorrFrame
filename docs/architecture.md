@@ -45,7 +45,7 @@ calls; explicit search submission cancels prior work. Handle HTTP and Torznab er
 without showing server text or credential-bearing URLs. Prefer magnets, otherwise
 download torrent on the client and upload bytes to TorrServer.
 
-Android Keystore AES-GCM protects API keys in private preferences, excluded from
+Android Keystore AES-GCM protects the user-specific Jackett key in private preferences, excluded from
 backup. TLS verification stays enabled. Cleartext is needed for loopback and
 user-configured LAN Jackett; HTTPS remains supported.
 
@@ -58,8 +58,19 @@ Support bilingual slash aliases and parenthetical aliases without mistaking
 director/release annotations for titles. Cache by parser version, provider,
 language and candidates: 30 days found, 24 hours not found. Network failures are
 not cached as misses. Metadata absence cannot prevent adding or playing torrents.
-TMDB is default; user configures keys. OMDb, Kinopoisk and AniList are separate
-provider adapters. No bundled private keys.
+The default fallback order is OMDb (IMDb) → TMDB → Kinopoisk; the user can reorder
+all three with the remote. Stop at the first confident result; misses, service
+errors and failed details continue to the next provider. Cache records remain
+provider-specific, so changing priority cannot reuse a lower-priority result
+before checking higher-priority providers. Force refresh removes cached misses.
+AniList remains opt-in and is checked first for strict anime matching, like macOS.
+
+Three metadata keys are generated into BuildConfig from an ignored local
+properties file or CI environment variables. No manual metadata key UI/state or
+persisted key overrides remain. Legacy key preferences are removed without
+attempting to decrypt them; Jackett's encrypted credential is retained. Keys can
+be extracted from a distributed APK and are not protected by the private source
+repository. Actual values are not committed to Git or included in source archives.
 
 ## UI and player
 
@@ -72,7 +83,18 @@ per-file progress at checkpoints and pause/stop; no per-second database writes.
 
 ## Updates and measurements
 
-Server updates arrive with a signed APK. No fake standalone ELF updater.
+Server updates arrive with a signed APK. The ELF runs from nativeLibraryDir,
+which the Android package installer manages; downloading a file into filesDir
+and executing it is blocked for target API 29+ on Android 10+.
+UpdatesViewModel checks the latest TorrServer tag, but does not replace the ELF.
+The app updater downloads an APK, validates SHA-256, package ID, signing
+certificate and increasing versionCode, then opens Android's installer.
+The current private GitHub repository has no anonymously accessible release
+channel; distribution and a persistent production certificate still need setup.
+For independent engine updates, a separate server APK/service could be designed
+as a future architecture change, with IPC and separate lifecycle/version handling.
+
+Platform reference: https://developer.android.com/about/versions/10/behavior-changes-10#execute-permission
 GitHub release check + integrity and certificate checks + system installer for
 app updates, after user consent. Release repository is configurable until created.
 No publication or production signing is implicit in this local build.

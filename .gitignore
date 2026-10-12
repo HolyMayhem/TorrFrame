@@ -10,6 +10,7 @@ artifacts/
 *.keystore
 .env
 .env.*
+android-tv/metadata-keys.properties
 **/.kotlin/
 *.hprof
 **/captures/

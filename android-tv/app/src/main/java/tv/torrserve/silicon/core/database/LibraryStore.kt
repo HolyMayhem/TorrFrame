@@ -13,8 +13,14 @@ import org.json.JSONObject
 import org.json.JSONArray
 import tv.torrserve.silicon.core.models.*
 
+interface MetadataCache {
+    suspend fun cached(key: String): LibraryStore.Cached
+    suspend fun cache(key: String, value: Metadata?)
+    suspend fun removeCache(key: String)
+}
+
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class LibraryStore(context: Context) : SQLiteOpenHelper(context, "library.sqlite", null, 1) {
+class LibraryStore(context: Context) : SQLiteOpenHelper(context, "library.sqlite", null, 1), MetadataCache {
     private val revision = MutableStateFlow(0L)
     val library = revision.mapLatest { list() }
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true); db.enableWriteAheadLogging() }
@@ -73,12 +79,12 @@ class LibraryStore(context: Context) : SQLiteOpenHelper(context, "library.sqlite
         }
     }
     data class Cached(val present: Boolean, val value: Metadata?)
-    suspend fun cached(key: String): Cached = withContext(Dispatchers.IO) {
+    override suspend fun cached(key: String): Cached = withContext(Dispatchers.IO) {
         readableDatabase.rawQuery("SELECT payload FROM metadata_cache WHERE cache_key=? AND expires_at>?", arrayOf(key, System.currentTimeMillis().toString())).use {
             if (it.moveToFirst()) Cached(true, it.getString(0)?.let { s -> Metadata.from(JSONObject(s)) }) else Cached(false, null)
         }
     }
-    suspend fun cache(key: String, value: Metadata?) = withContext(Dispatchers.IO) {
+    override suspend fun cache(key: String, value: Metadata?) = withContext(Dispatchers.IO) {
         val db = writableDatabase
         db.delete("metadata_cache", "expires_at<?", arrayOf(System.currentTimeMillis().toString()))
         db.insertWithOnConflict("metadata_cache", null, ContentValues().apply {
@@ -88,5 +94,5 @@ class LibraryStore(context: Context) : SQLiteOpenHelper(context, "library.sqlite
         db.execSQL("DELETE FROM metadata_cache WHERE cache_key IN (SELECT cache_key FROM metadata_cache ORDER BY expires_at DESC LIMIT -1 OFFSET 1000)")
     }
     suspend fun clearCache() = withContext(Dispatchers.IO) { writableDatabase.delete("metadata_cache", null, null); Unit }
-    suspend fun removeCache(key: String) = withContext(Dispatchers.IO) { writableDatabase.delete("metadata_cache", "cache_key=?", arrayOf(key)); Unit }
+    override suspend fun removeCache(key: String) = withContext(Dispatchers.IO) { writableDatabase.delete("metadata_cache", "cache_key=?", arrayOf(key)); Unit }
 }

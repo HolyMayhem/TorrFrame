@@ -36,7 +36,8 @@ object MediaNameParser {
                     .minOrNull() ?: raw.length; raw.take(cut)
             }
             val noParentheses = prefix.replace(Regex("\\([^)]*(?:\\)|$)"), " ")
-            val clean = noParentheses.replace(Regex("\\[[^]]*(?:]|$)|\\{[^}]*(?:}|$)"), " ")
+            // Escape closing delimiters explicitly: Android ICU rejects a bare }.
+            val clean = noParentheses.replace(Regex("""\[[^\]]*(?:\]|$)|\{[^\}]*(?:\}|$)"""), " ")
                 .replace(Regex("\\s+[-–—]\\s*\\d{1,4}\\s*$"), "")
             val variants = mutableListOf(prefix to 0, noParentheses to 24, clean to 36)
             val split = Regex("\\s*(?:/|\\||\\baka\\b)\\s*", RegexOption.IGNORE_CASE)

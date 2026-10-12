@@ -1,8 +1,17 @@
 import java.security.MessageDigest
+import java.util.Properties
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+val metadataKeys = Properties().apply {
+    rootProject.file("metadata-keys.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
+}
+fun embeddedKey(property: String, environment: String): String {
+    val value = providers.environmentVariable(environment).orNull ?: metadataKeys.getProperty(property, "")
+    require(value.isNotBlank()) { "Configure $environment or metadata-keys.properties before building." }
+    return "\"" + value.trim().replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
 android {
     namespace = "tv.torrserve.silicon"
@@ -11,8 +20,11 @@ android {
         applicationId = "tv.torrserve.silicon"
         minSdk = 26
         targetSdk = 37
-        versionCode = 4
-        versionName = "0.1.3"
+        versionCode = 5
+        versionName = "0.1.4"
+        buildConfigField("String", "TMDB_API_KEY", embeddedKey("TMDB", "TORRSERVE_TMDB_API_KEY"))
+        buildConfigField("String", "OMDB_API_KEY", embeddedKey("OMDB", "TORRSERVE_OMDB_API_KEY"))
+        buildConfigField("String", "KINOPOISK_API_KEY", embeddedKey("Kinopoisk", "TORRSERVE_KINOPOISK_API_KEY"))
         ndk { abiFilters += "arm64-v8a" }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -16,9 +16,9 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
     fun edit(block: (Settings) -> Settings) { mutable.update {
         val s = block(it.draft); it.copy(draft = s, connection = if(s.jackettUrl != it.draft.jackettUrl || s.jackettKey != it.draft.jackettKey) "Disconnected" else it.connection)
     } }
-    fun provider(value: String) { viewModelScope.launch {
-        val key = graph.settings.providerKey(value); edit { it.copy(metadataProvider = value, metadataKey = key) }
-    } }
+    fun moveProvider(provider: String, direction: Int) {
+        edit { it.copy(metadataOrder = tv.torrserve.silicon.core.storage.MetadataPriority.move(it.metadataOrder, provider, direction)) }
+    }
     private fun action(block: suspend () -> String) {
         if (state.value.busy) return
         mutable.update { it.copy(busy = true, message = "") }

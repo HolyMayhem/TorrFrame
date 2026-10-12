@@ -4,13 +4,18 @@ Native Android TV client with a bundled ARM64 TorrServer, a local media library,
 Jackett search, metadata providers and a Media3 player. Kotlin, Compose for TV,
 Coroutines and SQLite. The macOS project is maintained separately.
 
-Current local preview: **0.1.3**. Android 8.0+ / API 26+, ARM64 only.
+Current local preview: **0.1.4**. Android 8.0+ / API 26+, ARM64 only.
 
 ## Build and run
 
 Open `android-tv/` in Android Studio. Install the SDK versions declared by the
 project and choose an **ARM64 Android TV** device or emulator. Run the `app` module.
 The bundled server starts automatically; Jackett is an external service.
+Metadata keys are embedded at build time. Copy
+`android-tv/metadata-keys.properties.example` to the ignored
+`android-tv/metadata-keys.properties`, or supply the three `TORRSERVE_*_API_KEY`
+environment variables described in the setup guide. The development Mac already
+has its local key file; key values are excluded from Git and source archives.
 
 On the development Mac, the local SDK and JDK are already configured:
 
@@ -56,9 +61,9 @@ still needs playback, codec and performance checks.
 - [Architecture](docs/architecture.md)
 - [Icon and banner source specifications](docs/icon-assets.md)
 - [Verification evidence](docs/verification.md)
-- [0.1.3 preview notes](docs/release-notes-0.1.3.md)
+- [0.1.4 preview notes](docs/release-notes-0.1.4.md)
 
-API credentials stay in encrypted application storage. Local SDKs, JDKs, Gradle
+Jackett credentials stay in encrypted application storage. Metadata keys are built into the APK. Local SDKs, JDKs, Gradle
 outputs, signing keys and APK artifacts are excluded from Git. Preview APKs use a
 local debug certificate; production release signing is configured separately.
 TorrServer is by YouROK and distributed under GPL-3.0; its license and source link

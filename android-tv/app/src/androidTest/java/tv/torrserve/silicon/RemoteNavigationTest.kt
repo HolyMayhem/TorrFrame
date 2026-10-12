@@ -28,6 +28,10 @@ import org.junit.runner.RunWith
 import tv.torrserve.silicon.ui.theme.TextPrimary
 import tv.torrserve.silicon.ui.theme.TorrServeTheme
 import tv.torrserve.silicon.features.home.HomeScreen
+import tv.torrserve.silicon.features.settings.MetadataPriorityControls
+import tv.torrserve.silicon.core.storage.MetadataPriority
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.layout.fillMaxWidth
 import org.junit.Assert.assertTrue
 
 @RunWith(AndroidJUnit4::class)
@@ -124,6 +128,39 @@ class RemoteNavigationTest {
         compose.onNodeWithText("Make it yours").assertDoesNotExist()
         val bounds = compose.onNodeWithTag("home:settings").getUnclippedBoundsInRoot()
         assertTrue(bounds.right <= 720.dp && bounds.bottom <= 400.dp)
+    }
+    @Test fun metadataPriorityMovesWithRemoteAndKeepsFocus() {
+        val order = mutableStateOf(MetadataPriority.defaultOrder)
+        compose.runOnUiThread {
+            compose.activity.setContent {
+                TorrServeTheme { Box(Modifier.fillMaxWidth()) {
+                    MetadataPriorityControls(order.value) { provider, direction ->
+                        order.value = MetadataPriority.move(order.value, provider, direction)
+                    }
+                } }
+            }
+        }
+        compose.onNodeWithTag("priority:TMDB:up").performSemanticsAction(SemanticsActions.RequestFocus)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNodeWithTag("priority:TMDB:label").assertTextEquals("1. TMDB")
+        focused("priority:TMDB:down")
+        remote(KeyEvent.KEYCODE_ENTER)
+        compose.onNodeWithTag("priority:OMDb:label").assertTextEquals("1. IMDb (OMDb)")
+        compose.onNodeWithTag("priority:TMDB:label").assertTextEquals("2. TMDB")
+        focused("priority:TMDB:down")
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNodeWithTag("priority:TMDB:label").assertTextEquals("3. TMDB")
+        focused("priority:TMDB:up")
+    }
+    @Test fun settingsHasPriorityAndNoManualMetadataKeyFields() {
+        for(i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("priority:OMDb:label"))
+        compose.onNodeWithTag("priority:OMDb:label").assertTextEquals("1. IMDb (OMDb)")
+        for(label in listOf("TMDB API Key", "OMDb API Key", "Kinopoisk API Key")) {
+            compose.onNodeWithTag("field:$label").assertDoesNotExist()
+        }
+        compose.onNodeWithText("AniList for anime: Off").assertExists()
     }
     @Test fun themeProvidesLightTextOutsideButtonsAndSurfaces() {
         var inherited = Color.Unspecified

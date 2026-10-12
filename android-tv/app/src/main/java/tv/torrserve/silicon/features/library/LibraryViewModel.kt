@@ -36,8 +36,6 @@ class LibraryViewModel(private val graph: AppGraph) : ViewModel() {
     fun closeFiles() { mutable.update { it.copy(files = emptyList(), fileHash = null) } }
     fun remove(hash: String, done: () -> Unit) = operation { graph.library.remove(hash); done() }
     fun metadata(hash: String) = operation {
-        val settings = graph.settings.state.value
-        check(settings.metadataKey.isNotBlank() || settings.metadataProvider == "AniList") { "Set the metadata provider API key in Settings first." }
         val found = graph.library.refreshMetadata(hash, force = true)
         mutable.update { it.copy(message = if(found) "Metadata updated." else "No confident match found, or the provider is unavailable. The original title is retained.") }
     }

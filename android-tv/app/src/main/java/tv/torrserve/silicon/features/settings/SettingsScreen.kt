@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.*
@@ -18,6 +19,7 @@ import tv.torrserve.silicon.core.server.ServerState
 import tv.torrserve.silicon.ui.components.*
 import tv.torrserve.silicon.ui.theme.*
 import tv.torrserve.silicon.BuildConfig
+import tv.torrserve.silicon.core.storage.MetadataPriority
 
 @Composable fun SettingsScreen(state: SettingsUi, server: ServerState, vm: SettingsViewModel, entryFocus: FocusRequester? = null, updates: @Composable () -> Unit) {
     val s = state.draft
@@ -48,8 +50,10 @@ import tv.torrserve.silicon.BuildConfig
                 TvAction("Test Connection", !state.busy, action = vm::test)
             } }
             item { SettingsGroup("Metadata") {
-                ChoiceRow(listOf("TMDB", "OMDb", "Kinopoisk", "AniList"), s.metadataProvider, vm::provider)
-                if(s.metadataProvider != "AniList") EditField("${s.metadataProvider} API Key", s.metadataKey, secret = true) { value -> vm.edit { it.copy(metadataKey = value) } }
+                Text("Lookup priority · first matching source wins", color = Muted)
+                MetadataPriorityControls(s.metadataOrder, vm::moveProvider)
+                TvAction("AniList for anime: ${if(s.aniListEnabled) "On" else "Off"}") { vm.edit { it.copy(aniListEnabled = !it.aniListEnabled) } }
+                Text("When enabled, AniList is checked before the sources above.", color = Muted)
                 Text("Metadata language", color = Muted)
                 ChoiceRow(listOf("en-US", "ru-RU"), s.language) { value -> vm.edit { it.copy(language = value) } }
                 TvAction("Clear Metadata Cache", !state.busy, action = vm::clearCache)
@@ -73,6 +77,35 @@ import tv.torrserve.silicon.BuildConfig
         }
     }
     if(licenses) LicensesDialog { licenses = false }
+}
+
+@Composable internal fun MetadataPriorityControls(values: List<String>, move: (String, Int) -> Unit) {
+    val order = MetadataPriority.normalized(values)
+    val focuses = remember { MetadataPriority.defaultOrder.flatMap { p ->
+        listOf("$p:up" to FocusRequester(), "$p:down" to FocusRequester())
+    }.toMap() }
+    var pendingFocus by remember { mutableStateOf<String?>(null) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        order.forEachIndexed { index, provider -> key(provider) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text("${index + 1}. ${MetadataPriority.label(provider)}", modifier = Modifier.weight(1f).testTag("priority:$provider:label"))
+                TvAction("Move up", enabled = index > 0,
+                    modifier = Modifier.testTag("priority:$provider:up").focusRequester(focuses.getValue("$provider:up"))) {
+                    pendingFocus = "$provider:${if(index == 1) "down" else "up"}"
+                    move(provider, -1)
+                }
+                TvAction("Move down", enabled = index < order.lastIndex,
+                    modifier = Modifier.testTag("priority:$provider:down").focusRequester(focuses.getValue("$provider:down"))) {
+                    pendingFocus = "$provider:${if(index == order.lastIndex - 1) "up" else "down"}"
+                    move(provider, 1)
+                }
+            }
+        } }
+    }
+    LaunchedEffect(order) {
+        pendingFocus?.let { focuses.getValue(it).requestFocus() }
+        pendingFocus = null
+    }
 }
 
 @Composable private fun SettingsGroup(title: String, content: @Composable () -> Unit) {
