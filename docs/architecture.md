@@ -13,8 +13,14 @@ Images live in Coil's bounded file/memory caches, never in SQLite.
 
 ## TorrServer
 
-Official `MatriX.146.1` Android ARM64 ELF is packaged as
-`jniLibs/arm64-v8a/libtorrserver.so`. This is an executable, not a JNI library:
+Official `MatriX.146.1` Android ELF binaries are packaged as
+`jniLibs/arm64-v8a/libtorrserver.so` and `jniLibs/armeabi-v7a/libtorrserver.so`.
+The default APK supports both architectures; `-PtorrserveAbi=…` builds one ABI
+for faster wireless deployment. Android's package installer selects the ABI.
+ARMv7 is required for the tested Mi Box whose Android OS is 32-bit.
+SHA-256 pins: ARM64 `27fc76161b1fcab64b6f71bb7d62ff7178061624a957f4dcbe66c566f5b54a42`,
+ARMv7 `816a44e35f6e8802eb52bfa65263da44611b4b36e62b0b517decaf20f2ac5689`.
+Source: https://github.com/YouROK/TorrServer/releases/tag/MatriX.146.1. This is an executable, not a JNI library:
 do not call System.loadLibrary. Legacy JNI packaging makes Package Manager extract
 it into the read-only nativeLibraryDir. ProcessBuilder runs that installed copy;
 only data/config live in filesDir. Bind HTTP explicitly to 127.0.0.1.

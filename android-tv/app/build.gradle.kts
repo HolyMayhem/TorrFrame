@@ -13,6 +13,13 @@ fun embeddedKey(property: String, environment: String): String {
     require(value.isNotBlank()) { "Configure $environment or metadata-keys.properties before building." }
     return "\"" + value.trim().replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
+val supportedServerAbis = mapOf(
+    "arm64-v8a" to "27fc76161b1fcab64b6f71bb7d62ff7178061624a957f4dcbe66c566f5b54a42",
+    "armeabi-v7a" to "816a44e35f6e8802eb52bfa65263da44611b4b36e62b0b517decaf20f2ac5689",
+)
+val selectedServerAbis = providers.gradleProperty("torrserveAbi").orNull?.let { listOf(it) }
+    ?: supportedServerAbis.keys.toList()
+require(selectedServerAbis.all { it in supportedServerAbis }) { "Supported TorrServer ABIs: arm64-v8a, armeabi-v7a." }
 android {
     namespace = "tv.torrserve.silicon"
     compileSdk = 37
@@ -20,12 +27,12 @@ android {
         applicationId = "tv.torrserve.silicon"
         minSdk = 26
         targetSdk = 37
-        versionCode = 6
-        versionName = "0.1.5"
+        versionCode = 7
+        versionName = "0.1.6"
         buildConfigField("String", "TMDB_API_KEY", embeddedKey("TMDB", "TORRSERVE_TMDB_API_KEY"))
         buildConfigField("String", "OMDB_API_KEY", embeddedKey("OMDB", "TORRSERVE_OMDB_API_KEY"))
         buildConfigField("String", "KINOPOISK_API_KEY", embeddedKey("Kinopoisk", "TORRSERVE_KINOPOISK_API_KEY"))
-        ndk { abiFilters += "arm64-v8a" }
+        ndk { abiFilters += selectedServerAbis }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -73,16 +80,18 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }
 val verifyTorrServer by tasks.registering {
-    val binary = layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libtorrserver.so")
-    inputs.file(binary)
+    val binaries = selectedServerAbis.associateWith { abi -> layout.projectDirectory.file("src/main/jniLibs/$abi/libtorrserver.so") }
+    inputs.files(binaries.values)
     doLast {
-        val digest = MessageDigest.getInstance("SHA-256")
-        binary.asFile.inputStream().use { input ->
-            val buffer = ByteArray(32 * 1024)
-            while (true) { val n = input.read(buffer); if(n < 0) break; digest.update(buffer,0,n) }
-        }
-        check(digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == "27fc76161b1fcab64b6f71bb7d62ff7178061624a957f4dcbe66c566f5b54a42") {
-            "The bundled TorrServer does not match the pinned official MatriX.146.1 release."
+        binaries.forEach { (abi, binary) ->
+            val digest = MessageDigest.getInstance("SHA-256")
+            binary.asFile.inputStream().use { input ->
+                val buffer = ByteArray(32 * 1024)
+                while (true) { val n = input.read(buffer); if(n < 0) break; digest.update(buffer,0,n) }
+            }
+            check(digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == supportedServerAbis.getValue(abi)) {
+                "The bundled $abi TorrServer does not match the pinned official MatriX.146.1 release."
+            }
         }
     }
 }

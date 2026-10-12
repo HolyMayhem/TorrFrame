@@ -6,12 +6,14 @@
 ## Быстрый запуск
 
 Откройте каталог **android-tv** в Android Studio. APK для проверки лежит в
-`artifacts/TorrServe-Silicon-TV-0.1.5-preview-arm64.apk`.
-Нужны Android 8.0+ (API 26+) и ARM64. ARM32 и x86 не включены.
+`artifacts/TorrServe-Silicon-TV-0.1.6-preview-universal.apk`.
+Нужны Android 8.0+ (API 26+) и ARM64 либо ARMv7. x86 не включён.
+В ручных командах ниже замените IP:PORT адресом приставки. Для повседневной
+разработки используйте автоматическую отправку через VS Code, описанную ниже.
 
 ```sh
-.tools/sdk/platform-tools/adb install -r artifacts/TorrServe-Silicon-TV-0.1.5-preview-arm64.apk
-.tools/sdk/platform-tools/adb shell am start -n tv.torrserve.silicon/.MainActivity
+.tools/sdk/platform-tools/adb -s IP:PORT install -r artifacts/TorrServe-Silicon-TV-0.1.6-preview-universal.apk
+.tools/sdk/platform-tools/adb -s IP:PORT shell am start -n tv.torrserve.silicon/.MainActivity
 ```
 
 Preview APK собран с R8 и сокращением ресурсов, но подписан **локальным debug-ключом**.
@@ -25,6 +27,52 @@ TorrServer MatriX.146.1 уже включён в APK. Отдельно уста�
 
 Добавление фильмов выполняется через поиск Jackett. Ручной ввод magnet-ссылок
 в интерфейсе отсутствует.
+
+## Быстрая отправка на Mi Box из VS Code
+
+Отладка и сопряжение выполняются один раз на приставке. После этого откройте
+**корень репозитория** в VS Code и нажмите **⌘⇧B**. Задача
+`Mi Box: Build & Deploy` автоматически подключается к сохранённому устройству,
+определяет ABI, собирает Debug APK для него, устанавливает поверх существующей
+версии и запускает приложение. Настройки и медиатека не очищаются.
+
+Для Mi Box с 32-битным Android выбирается armeabi-v7a, для ARM64 — arm64-v8a.
+Архитектура определяется системой, а не моделью процессора. APK содержит только
+нужный ABI, сокращая передачу по Wi-Fi. Gradle daemon сохраняется между сборками.
+Результаты каждой архитектуры хранятся отдельно в Library/Caches, рядом с
+обычными сборками проекта, но не в каталоге Documents.
+
+Другие задачи доступны через **Terminal → Run Task**:
+
+- `Mi Box: Install Last Build` — отправить последний Debug APK без сборки.
+- `Mi Box: Build & Deploy Preview` — собрать и отправить оптимизированный R8 Release.
+- `Mi Box: App Logs` — логи только процесса приложения; Ctrl+C завершает просмотр.
+  После переустановки запустите просмотр заново, поскольку PID изменится.
+
+Из терминала:
+
+```sh
+./scripts/deploy-tv.sh
+./scripts/deploy-tv.sh --no-build
+./scripts/deploy-tv.sh --preview
+./scripts/deploy-tv.sh --logs
+./scripts/deploy-tv.sh --device IP:PORT
+```
+
+Адрес хранится локально в `.tools/tv-device` и не попадает в Git. Его можно
+переопределить `TV_SERIAL` или `--device`. Если адреса нет, скрипт выберет ровно
+одно подключённое физическое устройство; эмулятор автоматически не выбирается.
+При смене IP задайте новый адрес; если ADB требует разрешения, подтвердите его
+на телевизоре. Данные при ошибке подписи или версии автоматически не удаляются.
+Остановите воспроизведение перед отправкой сборки: установка перезапускает приложение.
+
+Проверено на MiTV-AFKR0 / Android 14 / armeabi-v7a: первая отправка — 41 секунду,
+повторная без изменения кода — 18 секунд, из них сборка заняла 668 ms.
+Это измерения одной сети, не обещание фиксированного времени; первая сборка
+после изменения зависимостей или Preview/R8 дольше.
+
+Документация: https://developer.android.com/tools/adb и
+https://code.visualstudio.com/docs/debugtest/tasks.
 
 ## Android Studio и SDK на Mac
 
@@ -170,7 +218,7 @@ Check TorrServer проверяет официальные GitHub Releases. Вс
 
 Для Check App задайте в Settings репозиторий Android TV в формате owner/repository
 и сохраните его. Публичный репозиторий и релиз этим запуском не создавались.
-Нужен GitHub Release с одним ARM64/universal APK и GitHub SHA-256 digest для asset.
+Нужен GitHub Release с одним universal APK (ARM64 + ARMv7) и GitHub SHA-256 digest для asset.
 Проверяются checksum, applicationId, увеличение versionCode и сертификат подписи.
 Install Update открывает стандартный Android Package Installer; при необходимости
 сначала настройки разрешения установки из этого источника. Тихой установки нет.
@@ -212,5 +260,5 @@ FrameMonitor считает кадры выше бюджета текущей ч
 
 - [Архитектура и источники](docs/architecture.md)
 - [Проверки и ручная приёмка](docs/verification.md)
-- [Release notes](docs/release-notes-0.1.5.md)
+- [Release notes](docs/release-notes-0.1.6.md)
 - `android-tv/TORRSERVER_LICENSE` и встроенный экран Open Source Licenses.

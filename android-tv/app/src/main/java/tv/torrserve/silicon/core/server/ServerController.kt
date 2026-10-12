@@ -44,7 +44,7 @@ class ServerController(context: Context, private val api: TorrServerApi,
         mutable.value = ServerState.Starting
         val began = tv.torrserve.silicon.core.performance.Diagnostics.mark()
         try {
-            check(executable.isFile && executable.canExecute()) { "The installed APK has no executable ARM64 TorrServer." }
+            check(executable.isFile && executable.canExecute()) { "The installed APK has no executable TorrServer for this device." }
             recoverOrphan()
             java.net.ServerSocket().use { it.bind(java.net.InetSocketAddress("127.0.0.1",port())) }
             // Android's java.lang.Process has no pid(). The shell records its own PID
@@ -84,7 +84,7 @@ class ServerController(context: Context, private val api: TorrServerApi,
         } catch (e: Exception) {
             process?.destroyForcibly(); process = null; marker.delete()
             if (e is CancellationException) { mutable.value = ServerState.Stopped; throw e }
-            mutable.value = ServerState.Error("Could not start TorrServer. Check the port and installed ARM64 APK.")
+            mutable.value = ServerState.Error("Could not start TorrServer. Check the port and installed APK compatibility.")
         }
     } }
     private fun recoverOrphan() {

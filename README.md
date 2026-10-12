@@ -1,15 +1,15 @@
 # TorrServe Silicon — Android TV
 
-Native Android TV client with a bundled ARM64 TorrServer, a local media library,
+Native Android TV client with a bundled ARM64/ARMv7 TorrServer, a local media library,
 Jackett search, metadata providers and a Media3 player. Kotlin, Compose for TV,
 Coroutines and SQLite. The macOS project is maintained separately.
 
-Current local preview: **0.1.5**. Android 8.0+ / API 26+, ARM64 only.
+Current local preview: **0.1.6**. Android 8.0+ / API 26+, ARM64 and ARMv7 (32-bit Android).
 
 ## Build and run
 
 Open `android-tv/` in Android Studio. Install the SDK versions declared by the
-project and choose an **ARM64 Android TV** device or emulator. Run the `app` module.
+project and choose an **ARM Android TV** device or ARM64 emulator. Run the `app` module.
 The bundled server starts automatically; Jackett is an external service.
 Metadata keys are embedded at build time. Copy
 `android-tv/metadata-keys.properties.example` to the ignored
@@ -23,8 +23,8 @@ On the development Mac, the local SDK and JDK are already configured:
 ./scripts/build-local.sh :app:assembleDebug
 ./scripts/emulator.sh -no-snapshot
 # In a second terminal, after Android TV has booted:
-.tools/sdk/platform-tools/adb install -r "$HOME/Library/Caches/TorrServeSiliconAndroidTV/build/app/outputs/apk/debug/app-debug.apk"
-.tools/sdk/platform-tools/adb shell am start -n tv.torrserve.silicon/.MainActivity
+.tools/sdk/platform-tools/adb -s emulator-5554 install -r "$HOME/Library/Caches/TorrServeSiliconAndroidTV/build/app/outputs/apk/debug/app-debug.apk"
+.tools/sdk/platform-tools/adb -s emulator-5554 shell am start -n tv.torrserve.silicon/.MainActivity
 ```
 
 Enable the hardware keyboard in the AVD. With the emulator window active, use
@@ -40,6 +40,28 @@ On macOS, Gradle outputs are stored in `~/Library/Caches/TorrServeSiliconAndroid
 to avoid duplicate generated files in synchronized Documents folders. Override
 the location with `-PtorrserveBuildRoot=/absolute/path` if needed.
 
+## Wi-Fi deployment to Mi Box
+
+Open this repository root in VS Code. **Cmd+Shift+B** runs the default
+`Mi Box: Build & Deploy` task. It connects to the saved TV, detects its ABI,
+uses a warm Gradle daemon and a separate per-ABI build cache, installs with
+`adb install -r` and launches MainActivity. No app data is cleared.
+
+```sh
+./scripts/deploy-tv.sh
+./scripts/deploy-tv.sh --no-build
+./scripts/deploy-tv.sh --preview
+./scripts/deploy-tv.sh --logs
+# If the TV address changes:
+./scripts/deploy-tv.sh --device IP:PORT
+```
+
+The device address is local-only in `.tools/tv-device`; `TV_SERIAL` overrides it.
+Without a saved address, exactly one connected physical device is required;
+emulators are never selected automatically. ADB comes from the configured local
+SDK, so no additional Homebrew installation is needed on the development Mac.
+The preview task uses R8 Release; default Debug avoids the R8 pass during editing.
+
 ## Checks
 
 ```sh
@@ -50,7 +72,8 @@ the location with `-PtorrserveBuildRoot=/absolute/path` if needed.
 
 The navigation regression tests exercise Android key events, tab selection,
 content focus transfer, settings dialog cancellation and inherited dark-theme text color.
-Run UI tests on a dedicated fresh emulator profile; the tests expect no Jackett
+Run UI tests on a dedicated fresh emulator profile with the Mi Box disconnected
+from ADB; connectedDebugAndroidTest targets all connected devices. The tests expect no Jackett
 credentials and must not uninstall the app from a manual-testing device.
 Visual acceptance is performed manually by the project owner. A physical TV
 still needs playback, codec and performance checks.
@@ -61,7 +84,7 @@ still needs playback, codec and performance checks.
 - [Architecture](docs/architecture.md)
 - [Icon and banner source specifications](docs/icon-assets.md)
 - [Verification evidence](docs/verification.md)
-- [0.1.5 preview notes](docs/release-notes-0.1.5.md)
+- [0.1.6 preview notes](docs/release-notes-0.1.6.md)
 
 Jackett credentials stay in encrypted application storage. Metadata keys are built into the APK. Local SDKs, JDKs, Gradle
 outputs, signing keys and APK artifacts are excluded from Git. Preview APKs use a
