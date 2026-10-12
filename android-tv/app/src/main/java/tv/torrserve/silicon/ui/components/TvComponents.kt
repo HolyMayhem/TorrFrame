@@ -62,7 +62,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
     TvAction(label, modifier = modifier.testTag("nav:$label").semantics { selected = isSelected }, selected = isSelected, action = action)
 }
 @Composable fun BrandMark(modifier: Modifier = Modifier) {
-    Image(painterResource(R.drawable.torrserve_original_icon), contentDescription = null, modifier = modifier.size(28.dp))
+    Image(painterResource(R.mipmap.app_icon), contentDescription = null, modifier = modifier.size(28.dp))
 }
 @Composable fun SectionHeading(title: String, subtitle: String? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

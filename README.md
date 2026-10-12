@@ -4,7 +4,7 @@ Native Android TV client with a bundled ARM64 TorrServer, a local media library,
 Jackett search, metadata providers and a Media3 player. Kotlin, Compose for TV,
 Coroutines and SQLite. The macOS project is maintained separately.
 
-Current local preview: **0.1.2**. Android 8.0+ / API 26+, ARM64 only.
+Current local preview: **0.1.3**. Android 8.0+ / API 26+, ARM64 only.
 
 ## Build and run
 
@@ -56,7 +56,7 @@ still needs playback, codec and performance checks.
 - [Architecture](docs/architecture.md)
 - [Icon and banner source specifications](docs/icon-assets.md)
 - [Verification evidence](docs/verification.md)
-- [0.1.2 preview notes](docs/release-notes-0.1.2.md)
+- [0.1.3 preview notes](docs/release-notes-0.1.3.md)
 
 API credentials stay in encrypted application storage. Local SDKs, JDKs, Gradle
 outputs, signing keys and APK artifacts are excluded from Git. Preview APKs use a

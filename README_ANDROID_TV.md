@@ -6,11 +6,11 @@
 ## Быстрый запуск
 
 Откройте каталог **android-tv** в Android Studio. APK для проверки лежит в
-`artifacts/TorrServe-Silicon-TV-0.1.2-preview-arm64.apk`.
+`artifacts/TorrServe-Silicon-TV-0.1.3-preview-arm64.apk`.
 Нужны Android 8.0+ (API 26+) и ARM64. ARM32 и x86 не включены.
 
 ```sh
-.tools/sdk/platform-tools/adb install -r artifacts/TorrServe-Silicon-TV-0.1.2-preview-arm64.apk
+.tools/sdk/platform-tools/adb install -r artifacts/TorrServe-Silicon-TV-0.1.3-preview-arm64.apk
 .tools/sdk/platform-tools/adb shell am start -n tv.torrserve.silicon/.MainActivity
 ```
 
@@ -201,5 +201,5 @@ FrameMonitor считает кадры выше бюджета текущей ч
 
 - [Архитектура и источники](docs/architecture.md)
 - [Проверки и ручная приёмка](docs/verification.md)
-- [Release notes](docs/release-notes-0.1.2.md)
+- [Release notes](docs/release-notes-0.1.3.md)
 - `android-tv/TORRSERVER_LICENSE` и встроенный экран Open Source Licenses.
