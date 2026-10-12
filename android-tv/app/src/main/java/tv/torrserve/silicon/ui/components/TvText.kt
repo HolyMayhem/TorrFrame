@@ -11,6 +11,10 @@ import androidx.tv.material3.LocalTextStyle
 
 val LocalUiLanguage = compositionLocalOf { "en" }
 private val russian = mapOf(
+    "Find films with Jackett. Your library and viewing progress will appear here." to "Находите фильмы через Jackett. Здесь появятся ваша медиатека и история просмотра.",
+    "01  Connect Jackett" to "01  Подключите Jackett",
+    "Search your trackers in one place." to "Поиск по вашим трекерам в одном месте.",
+    "Find a film in Search and add it to your library. Posters and film details are loaded automatically." to "Найдите фильм в поиске и добавьте его в медиатеку. Постеры и информация загрузятся автоматически.",
     "YOUR PERSONAL CINEMA" to "ВАШ ДОМАШНИЙ КИНОЗАЛ",
     "Your next movie starts here." to "Ваш следующий фильм — здесь.",
     "Add a magnet link or search with Jackett. Your films and viewing progress will appear here." to "Добавьте magnet-ссылку или найдите фильм через Jackett. Здесь появятся ваши фильмы и история просмотра.",

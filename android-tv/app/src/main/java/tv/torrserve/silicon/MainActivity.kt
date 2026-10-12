@@ -87,7 +87,6 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     val server by graph.server.state.collectAsStateWithLifecycle()
     var section by rememberSaveable { mutableStateOf("Home") }
     var detail by rememberSaveable { mutableStateOf<String?>(null) }
-    var magnet by remember { mutableStateOf(false) }
     val screens = rememberSaveableStateHolder()
     val initialFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
@@ -102,9 +101,10 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
             .putExtra("title", lib.items.find { it.hash == hash }?.title ?: file.path.substringAfterLast('/')))
     }
     val selected = lib.items.find { it.hash == detail }
-    Column(Modifier.fillMaxSize().background(Background).padding(TvDimensions.screenInset), verticalArrangement = Arrangement.spacedBy(TvDimensions.sectionGap)) {
-        Row(Modifier.fillMaxWidth().focusGroup(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Row(Modifier.padding(end = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+    val layout = LocalTvLayout.current
+    Column(Modifier.fillMaxSize().background(Background).padding(layout.screenInset), verticalArrangement = Arrangement.spacedBy(layout.sectionGap)) {
+        Row(Modifier.fillMaxWidth().focusGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Row(Modifier.padding(end = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 BrandMark()
                 Column {
                     Text("TorrServe", style = MaterialTheme.typography.titleMedium, translate = false)
@@ -128,8 +128,8 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
             }, ::play)
             else screens.SaveableStateProvider(section) {
                 when(section) {
-                    "Home" -> Column { Message(lib.message); HomeScreen(lib.items, { navigateFromContent("Search") }, { navigateFromContent("Library") }, { magnet = true }, initialFocus, contentFocus) { detail = it } }
-                    "Library" -> LibraryScreen(lib, library::refresh, { magnet = true }, contentFocus) { detail = it }
+                    "Home" -> Column { Message(lib.message); HomeScreen(lib.items, { navigateFromContent("Search") }, { navigateFromContent("Library") }, { navigateFromContent("Settings") }, initialFocus, contentFocus) { detail = it } }
+                    "Library" -> LibraryScreen(lib, library::refresh, { navigateFromContent("Search") }, contentFocus) { detail = it }
                     "Search" -> SearchScreen(query, saved.jackettConfigured, search, { navigateFromContent("Settings") }, contentFocus) { hash ->
                         detail = hash; library.files(hash) { files -> if(files.size == 1) { library.closeFiles(); play(hash, files.single()) } }
                     }
@@ -146,8 +146,6 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
             Text("Android TV", color = Muted.copy(alpha = .7f), fontSize = 12.sp, translate = false)
         }
     }
-    if(magnet) TextEditor("Add Magnet Link", "", keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
-        dismiss = { magnet = false }) { value -> magnet = false; library.addMagnet(value) { detail = it } }
     LaunchedEffect(Unit) { initialFocus.requestFocus() }
     LaunchedEffect(pendingContentFocus) {
         if(pendingContentFocus != null) {

@@ -12,8 +12,9 @@ import androidx.tv.material3.*
 import tv.torrserve.silicon.ui.components.TvText as Text
 import tv.torrserve.silicon.core.models.*
 import tv.torrserve.silicon.ui.components.*
+import tv.torrserve.silicon.ui.theme.TvDimensions
 
-@Composable fun LibraryScreen(state: LibraryUi, refresh: () -> Unit, add: () -> Unit, entryFocus: FocusRequester? = null, open: (String) -> Unit) {
+@Composable fun LibraryScreen(state: LibraryUi, refresh: () -> Unit, search: () -> Unit, entryFocus: FocusRequester? = null, open: (String) -> Unit) {
     var sort by rememberSaveable { mutableStateOf("Recently Added") }
     var filter by rememberSaveable { mutableStateOf("All") }
     var focused by rememberSaveable { mutableStateOf<String?>(null) }
@@ -30,12 +31,12 @@ import tv.torrserve.silicon.ui.components.*
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("My Library", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
-            TvAction("Refresh", !state.busy, modifier = Modifier.focusRequester(fallback), action = refresh); TvAction("Add Magnet", !state.busy, primary = true, action = add)
+            TvAction("Refresh", !state.busy, modifier = Modifier.focusRequester(fallback), action = refresh); TvAction("Find Torrents", primary = true, action = search)
         }
         if(state.items.isEmpty() && !state.busy) {
             Message(state.message)
-            InfoPanel("Your library is empty.", "Add a magnet link to start your collection. Posters and film details are loaded automatically.", Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                TvAction("Add Magnet Link", primary = true, action = add)
+            InfoPanel("Your library is empty.", "Find a film in Search and add it to your library. Posters and film details are loaded automatically.", Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                TvAction("Search Torrents", primary = true, action = search)
             }
             return@Column
         }
@@ -44,8 +45,8 @@ import tv.torrserve.silicon.ui.components.*
         Message(state.message)
         if (state.busy) Text("Loading…")
         if (items.isEmpty()) Text("No titles match this filter.")
-        LazyVerticalGrid(columns = GridCells.Adaptive(140.dp), state = grid,
-            verticalArrangement = Arrangement.spacedBy(20.dp), horizontalArrangement = Arrangement.spacedBy(20.dp),
+        LazyVerticalGrid(columns = GridCells.Adaptive(TvDimensions.posterWidth), state = grid,
+            verticalArrangement = Arrangement.spacedBy(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(8.dp), modifier = Modifier.weight(1f)) {
             items(items, key = { it.hash }) { item -> Poster(item,
                 if (item.hash == focused) Modifier.focusRequester(requester) else Modifier,

@@ -4,7 +4,7 @@ Native Android TV client with a bundled ARM64 TorrServer, a local media library,
 Jackett search, metadata providers and a Media3 player. Kotlin, Compose for TV,
 Coroutines and SQLite. The macOS project is maintained separately.
 
-Current local preview: **0.1.1**. Android 8.0+ / API 26+, ARM64 only.
+Current local preview: **0.1.2**. Android 8.0+ / API 26+, ARM64 only.
 
 ## Build and run
 
@@ -44,7 +44,9 @@ the location with `-PtorrserveBuildRoot=/absolute/path` if needed.
 ```
 
 The navigation regression tests exercise Android key events, tab selection,
-content focus transfer, dialog cancellation and inherited dark-theme text color.
+content focus transfer, settings dialog cancellation and inherited dark-theme text color.
+Run UI tests on a dedicated fresh emulator profile; the tests expect no Jackett
+credentials and must not uninstall the app from a manual-testing device.
 Visual acceptance is performed manually by the project owner. A physical TV
 still needs playback, codec and performance checks.
 
@@ -52,8 +54,9 @@ still needs playback, codec and performance checks.
 
 - [Setup and functional guide](README_ANDROID_TV.md)
 - [Architecture](docs/architecture.md)
+- [Icon and banner source specifications](docs/icon-assets.md)
 - [Verification evidence](docs/verification.md)
-- [0.1.1 preview notes](docs/release-notes-0.1.1.md)
+- [0.1.2 preview notes](docs/release-notes-0.1.2.md)
 
 API credentials stay in encrypted application storage. Local SDKs, JDKs, Gradle
 outputs, signing keys and APK artifacts are excluded from Git. Preview APKs use a

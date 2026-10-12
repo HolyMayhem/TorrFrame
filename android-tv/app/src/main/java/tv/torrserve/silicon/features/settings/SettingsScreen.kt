@@ -28,7 +28,7 @@ import tv.torrserve.silicon.BuildConfig
             TvAction(if(state.busy) "Saving…" else "Save", !state.busy, modifier = if(entryFocus != null) Modifier.focusRequester(entryFocus) else Modifier, primary = true, action = vm::save)
         }
         Message(state.message)
-        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(18.dp), contentPadding = PaddingValues(8.dp)) {
+        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(8.dp)) {
             item { SettingsGroup("Server") {
                 Text(when(server) { is ServerState.Running -> "Running · ${server.version}"; ServerState.Starting -> "Starting…"; ServerState.Stopped -> "Stopped"; is ServerState.Error -> server.message }, color = Muted)
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -77,7 +77,7 @@ import tv.torrserve.silicon.BuildConfig
 
 @Composable private fun SettingsGroup(title: String, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().focusGroup().background(Surface, RoundedCornerShape(20.dp))
-        .border(1.dp, Outline, RoundedCornerShape(20.dp)).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        .border(1.dp, Outline, RoundedCornerShape(20.dp)).padding(LocalTvLayout.current.panelPadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(title, style = MaterialTheme.typography.headlineSmall)
         content()
     }

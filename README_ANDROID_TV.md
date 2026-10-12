@@ -6,11 +6,11 @@
 ## Быстрый запуск
 
 Откройте каталог **android-tv** в Android Studio. APK для проверки лежит в
-`artifacts/TorrServe-Silicon-TV-0.1.1-preview-arm64.apk`.
+`artifacts/TorrServe-Silicon-TV-0.1.2-preview-arm64.apk`.
 Нужны Android 8.0+ (API 26+) и ARM64. ARM32 и x86 не включены.
 
 ```sh
-.tools/sdk/platform-tools/adb install -r artifacts/TorrServe-Silicon-TV-0.1.1-preview-arm64.apk
+.tools/sdk/platform-tools/adb install -r artifacts/TorrServe-Silicon-TV-0.1.2-preview-arm64.apk
 .tools/sdk/platform-tools/adb shell am start -n tv.torrserve.silicon/.MainActivity
 ```
 
@@ -23,7 +23,8 @@ TorrServer MatriX.146.1 уже включён в APK. Отдельно уста�
 сохраняются на устройстве. После сворачивания приложение держит сервер во время
 воспроизведения; без плеера останавливает его после короткой задержки.
 
-Если Jackett не настроен, можно добавлять magnet через Home или Library.
+Добавление фильмов выполняется через поиск Jackett. Ручной ввод magnet-ссылок
+в интерфейсе отсутствует.
 
 ## Android Studio и SDK на Mac
 
@@ -200,5 +201,5 @@ FrameMonitor считает кадры выше бюджета текущей ч
 
 - [Архитектура и источники](docs/architecture.md)
 - [Проверки и ручная приёмка](docs/verification.md)
-- [Release notes](docs/release-notes-0.1.1.md)
+- [Release notes](docs/release-notes-0.1.2.md)
 - `android-tv/TORRSERVER_LICENSE` и встроенный экран Open Source Licenses.

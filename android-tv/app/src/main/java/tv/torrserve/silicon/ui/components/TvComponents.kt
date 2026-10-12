@@ -3,7 +3,7 @@ package tv.torrserve.silicon.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -32,7 +32,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
+import tv.torrserve.silicon.R
 import androidx.tv.material3.*
 import coil3.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
@@ -42,7 +43,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
 @Composable fun TvAction(label: String, enabled: Boolean = true, modifier: Modifier = Modifier,
     primary: Boolean = false, selected: Boolean = false, action: () -> Unit) {
     val shape = RoundedCornerShape(TvDimensions.buttonRadius)
-    Button(onClick = action, enabled = enabled, modifier = modifier,
+    Button(onClick = action, enabled = enabled, modifier = modifier.heightIn(min = TvDimensions.actionHeight),
         shape = ButtonDefaults.shape(shape),
         colors = ButtonDefaults.colors(
             containerColor = if(primary) Accent else if(selected) SurfaceSecondary else Surface,
@@ -52,7 +53,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
         border = ButtonDefaults.border(
             border = Border(BorderStroke(1.dp, if(primary || selected) Accent.copy(alpha = .6f) else Outline), shape = shape),
             focusedBorder = Border(BorderStroke(2.dp, TextPrimary), inset = (-3).dp, shape = shape)),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         scale = ButtonDefaults.scale(focusedScale = 1.04f)) {
         TvText(label, style = MaterialTheme.typography.labelLarge)
     }
@@ -61,17 +62,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
     TvAction(label, modifier = modifier.testTag("nav:$label").semantics { selected = isSelected }, selected = isSelected, action = action)
 }
 @Composable fun BrandMark(modifier: Modifier = Modifier) {
-    Canvas(modifier.size(36.dp)) {
-        val stroke = Stroke(width = 2.dp.toPx())
-        val inset = 5.dp.toPx()
-        drawRoundRect(Accent, topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
-            size = androidx.compose.ui.geometry.Size(size.width - inset * 2, size.height - inset * 2),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()), style = stroke)
-        val y = size.height * .5f
-        drawLine(Accent, androidx.compose.ui.geometry.Offset(size.width * .32f, y),
-            androidx.compose.ui.geometry.Offset(size.width * .68f, y), 2.dp.toPx())
-        drawCircle(Positive, 2.dp.toPx(), androidx.compose.ui.geometry.Offset(size.width * .67f, size.height * .68f))
-    }
+    Image(painterResource(R.drawable.torrserve_original_icon), contentDescription = null, modifier = modifier.size(28.dp))
 }
 @Composable fun SectionHeading(title: String, subtitle: String? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -80,8 +71,8 @@ import tv.torrserve.silicon.core.models.LibraryItem
     }
 }
 @Composable fun InfoPanel(title: String, text: String, modifier: Modifier = Modifier, action: @Composable () -> Unit = {}) {
-    Column(modifier.background(Surface, RoundedCornerShape(20.dp)).border(1.dp, Outline, RoundedCornerShape(20.dp)).padding(28.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier.background(Surface, RoundedCornerShape(16.dp)).border(1.dp, Outline, RoundedCornerShape(16.dp)).padding(LocalTvLayout.current.panelPadding),
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
         TvText(title, style = MaterialTheme.typography.headlineSmall)
         TvText(text, color = Muted)
         action()
@@ -93,7 +84,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         TvText(label, color = Muted, fontSize = 14.sp)
         TvAction(if (value.isBlank()) "Enter $label" else if(secret) "••••••••" else value,
-            modifier = Modifier.fillMaxWidth()) { editing = true }
+            modifier = Modifier.fillMaxWidth().testTag("field:$label")) { editing = true }
     }
     if (editing) TextEditor(label, value, secret, keyboardType, { editing = false }) { onValue(it); editing = false }
 }
@@ -104,10 +95,10 @@ import tv.torrserve.silicon.core.models.LibraryItem
     val hardwareKeyboard = LocalConfiguration.current.keyboard != Configuration.KEYBOARD_NOKEYS
     Dialog(onDismissRequest = dismiss) {
         val keyboard = LocalSoftwareKeyboardController.current
-        Column(Modifier.width(560.dp).background(Surface, RoundedCornerShape(24.dp)).border(1.dp, Outline, RoundedCornerShape(24.dp)).padding(28.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Column(Modifier.widthIn(max = 520.dp).fillMaxWidth(.8f).background(Surface, RoundedCornerShape(20.dp)).border(1.dp, Outline, RoundedCornerShape(20.dp)).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
             TvText(title, style = MaterialTheme.typography.headlineSmall)
-            val fieldModifier = Modifier.fillMaxWidth().border(1.dp, Muted, RoundedCornerShape(12.dp)).padding(16.dp)
+            val fieldModifier = Modifier.fillMaxWidth().border(1.dp, Muted, RoundedCornerShape(12.dp)).padding(12.dp)
                 .focusRequester(focus).testTag("dialog:editor").onPreviewKeyEvent { event ->
                     if(event.key == Key.DirectionDown) {
                         if(event.type == KeyEventType.KeyDown) { keyboard?.hide(); doneFocus.requestFocus() }
@@ -121,11 +112,11 @@ import tv.torrserve.silicon.core.models.LibraryItem
                 inputTransformation = InputTransformation.maxLength(4096),
                 keyboardOptions = options, onKeyboardAction = finishEditing,
                 textObfuscationMode = TextObfuscationMode.Hidden,
-                textStyle = TextStyle(color = TextPrimary, fontSize = 20.sp), cursorBrush = SolidColor(Accent))
+                textStyle = TextStyle(color = TextPrimary, fontSize = 16.sp), cursorBrush = SolidColor(Accent))
             else BasicTextField(state = field, modifier = fieldModifier,
                 inputTransformation = InputTransformation.maxLength(4096), lineLimits = TextFieldLineLimits.SingleLine,
                 keyboardOptions = options, onKeyboardAction = finishEditing,
-                textStyle = TextStyle(color = TextPrimary, fontSize = 20.sp), cursorBrush = SolidColor(Accent))
+                textStyle = TextStyle(color = TextPrimary, fontSize = 16.sp), cursorBrush = SolidColor(Accent))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 TvAction("Done", modifier = Modifier.focusRequester(doneFocus).testTag("dialog:done"), primary = true) { keyboard?.hide(); save(field.text.toString()) }
                 TvAction("Cancel", modifier = Modifier.testTag("dialog:cancel")) { keyboard?.hide(); dismiss() }

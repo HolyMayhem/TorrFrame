@@ -1,12 +1,22 @@
 package tv.torrserve.silicon
 
 import android.view.KeyEvent
+import android.content.res.Configuration
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -17,6 +27,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import tv.torrserve.silicon.ui.theme.TextPrimary
 import tv.torrserve.silicon.ui.theme.TorrServeTheme
+import tv.torrserve.silicon.features.home.HomeScreen
+import org.junit.Assert.assertTrue
 
 @RunWith(AndroidJUnit4::class)
 class RemoteNavigationTest {
@@ -61,12 +73,13 @@ class RemoteNavigationTest {
         remote(KeyEvent.KEYCODE_BACK)
         compose.onNodeWithTag("nav:Home").assertIsFocused()
     }
-    @Test fun magnetDialogCanBeCancelledWithRemoteAndRestoresFocus() {
+    @Test fun settingsDialogCanBeCancelledWithRemoteAndRestoresFocus() {
         compose.onNodeWithTag("nav:Home").assertIsFocused()
-        remote(KeyEvent.KEYCODE_DPAD_DOWN)
-        focused("home:search")
-        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
-        compose.onNodeWithTag("home:add").assertIsFocused()
+        for(i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNodeWithTag("nav:Settings").assertIsSelected()
+        compose.onNodeWithTag("field:Port").performSemanticsAction(SemanticsActions.RequestFocus)
+        focused("field:Port")
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         focused("dialog:editor")
         compose.waitUntil(3000) { !compose.activity.hasWindowFocus() }
@@ -77,7 +90,40 @@ class RemoteNavigationTest {
         compose.onNodeWithTag("dialog:cancel").assertIsFocused()
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.onNodeWithTag("dialog:cancel").assertDoesNotExist()
-        compose.onNodeWithTag("home:add").assertIsFocused()
+        focused("field:Port")
+    }
+    @Test fun manualMagnetActionsAreAbsentFromHomeAndLibrary() {
+        compose.onNodeWithTag("nav:Home").assertIsFocused()
+        compose.onNodeWithText("Add Magnet Link").assertDoesNotExist()
+        compose.onNodeWithTag("home:settings").assertExists()
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNodeWithText("Add Magnet").assertDoesNotExist()
+        compose.onNodeWithText("Add Magnet Link").assertDoesNotExist()
+        compose.onNodeWithText("Find Torrents").assertExists()
+    }
+    @Test fun compactHomeFitsShortTvWindow() {
+        val fallback = FocusRequester()
+        val config = Configuration(compose.activity.resources.configuration).apply {
+            screenWidthDp = 720; screenHeightDp = 400
+        }
+        compose.runOnUiThread {
+            compose.activity.setContent {
+                CompositionLocalProvider(LocalConfiguration provides config) {
+                    TorrServeTheme {
+                        Box(Modifier.width(720.dp).height(400.dp)) {
+                            HomeScreen(emptyList(), {}, {}, {}, fallback) {}
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("home:search").assertIsDisplayed()
+        compose.onNodeWithTag("home:settings").assertIsDisplayed()
+        compose.onNodeWithText("Make it yours").assertDoesNotExist()
+        val bounds = compose.onNodeWithTag("home:settings").getUnclippedBoundsInRoot()
+        assertTrue(bounds.right <= 720.dp && bounds.bottom <= 400.dp)
     }
     @Test fun themeProvidesLightTextOutsideButtonsAndSurfaces() {
         var inherited = Color.Unspecified
