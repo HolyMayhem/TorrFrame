@@ -34,3 +34,4 @@ def export(source: str, folder: str, name: str, base_size: tuple[int, int]) -> N
 if __name__ == "__main__":
     export("square icon.png", "mipmap", "app_icon", (80, 80))
     export("icon16x9.png", "drawable", "tv_banner", (160, 90))
+    export("round icon.png", "drawable", "brand_mark", (32, 32))
