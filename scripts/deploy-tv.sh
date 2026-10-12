@@ -76,7 +76,7 @@ STARTED=$SECONDS
 if [ "$BUILD" -eq 1 ]; then
     printf 'Building %s for %s (Gradle daemon and incremental compilation)…\n' "$VARIANT" "$ABI"
     if [ "$VARIANT" = release ]; then TASK=:app:assembleRelease; else TASK=:app:assembleDebug; fi
-    "$TASK_ROOT/scripts/build-local.sh" --daemon --max-workers=4 "$TASK" \
+    "$TASK_ROOT/scripts/build-local.sh" --daemon --max-workers=4 --project-cache-dir "$BUILD_ROOT/.gradle" "$TASK" \
         "-PtorrserveAbi=$ABI" "-PtorrserveBuildRoot=$BUILD_ROOT" -PpreviewSigning=true
 fi
 METADATA="$BUILD_ROOT/app/outputs/apk/$VARIANT/output-metadata.json"

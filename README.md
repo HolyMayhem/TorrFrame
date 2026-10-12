@@ -44,7 +44,7 @@ the location with `-PtorrserveBuildRoot=/absolute/path` if needed.
 
 Open this repository root in VS Code. **Cmd+Shift+B** runs the default
 `Mi Box: Build & Deploy` task. It connects to the saved TV, detects its ABI,
-uses a warm Gradle daemon and a separate per-ABI build cache, installs with
+uses a warm Gradle daemon and separate per-ABI output/task-history caches, installs with
 `adb install -r` and launches MainActivity. No app data is cleared.
 
 ```sh
