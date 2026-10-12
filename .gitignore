@@ -1,0 +1,15 @@
+.tools/
+.gradle/
+**/.gradle/
+**/build/
+**/local.properties
+.idea/
+.DS_Store
+artifacts/
+*.jks
+*.keystore
+.env
+.env.*
+**/.kotlin/
+*.hprof
+**/captures/

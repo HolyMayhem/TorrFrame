@@ -1,0 +1,10 @@
+{
+  "version": "MatriX.146.1",
+  "architecture": "android-arm64",
+  "packagedPath": "app/src/main/jniLibs/arm64-v8a/libtorrserver.so",
+  "source": "https://github.com/YouROK/TorrServer",
+  "asset": "https://github.com/YouROK/TorrServer/releases/download/MatriX.146.1/TorrServer-android-arm64",
+  "sha256": "27fc76161b1fcab64b6f71bb7d62ff7178061624a957f4dcbe66c566f5b54a42",
+  "license": "GPL-3.0",
+  "integration": "Package Manager nativeLibraryDir executable; update with APK"
+}
