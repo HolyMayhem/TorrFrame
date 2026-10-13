@@ -30,6 +30,33 @@ class PhoneRemoteIntegrationTest {
         override suspend fun read() = data
         override suspend fun write(sessions: List<RemoteSession>) { data = sessions }
     }
+    @Test fun browserWithoutCameraPairsOverActualLanWithNumericCode() = runBlocking {
+        ActivityScenario.launch(MainActivity::class.java).use {
+            val graph = app.graph; graph.ready.await(); graph.phoneRemote.initialize()
+            assumeFalse(graph.phonePreferences.state.value.enabled)
+            try {
+                graph.phoneRemote.enabled(true)
+                val state = withTimeout(15_000) { graph.phoneRemote.state.first { s -> s.status == PhoneRemoteStatus.Running || s.status == PhoneRemoteStatus.Error } }
+                assertEquals(state.error, PhoneRemoteStatus.Running, state.status)
+                val challenge = graph.phoneRemote.pairingLink()
+                val body = JSONObject().put("code", challenge.code).put("device", "Camera-free integration").toString()
+                val media = okhttp3.MediaType.Companion.run { "application/json".toMediaType() }
+                val packet = okhttp3.RequestBody.Companion.run { body.toRequestBody(media) }
+                val request = okhttp3.Request.Builder().url("${state.url}/pair").header("Origin", state.url)
+                    .header("X-Phone-Remote", "1").post(packet).build()
+                var cookie = ""
+                graph.http.client.newCall(request).execute().use { response ->
+                    assertEquals(200, response.code)
+                    cookie = response.header("Set-Cookie")!!.substringBefore(';')
+                }
+                graph.http.client.newCall(okhttp3.Request.Builder().url("${state.url}/api/state").header("Cookie", cookie).build()).execute().use { response ->
+                    assertEquals(200, response.code)
+                    assertTrue(JSONObject(response.body.string()).has("settings"))
+                }
+                graph.http.client.newCall(request).execute().use { assertEquals(401, it.code) }
+            } finally { graph.phoneRemote.enabled(false) }
+        }
+    }
     @Test fun applicationAndTorrServerWorkWithPhoneRemoteDisabled(): Unit = runBlocking {
         ActivityScenario.launch(MainActivity::class.java).use {
             val graph = app.graph; graph.ready.await(); graph.phoneRemote.initialize()

@@ -68,6 +68,25 @@ class PhoneRemoteServerTests {
             request(port, "/api/state", cookie).use { assertEquals(200, it.code); assertTrue(JSONObject(it.body.string()).getBoolean("actual")) }
         }
     }
+    @Test fun numericCodeCreatesSameAuthenticatedSessionAndRejectsReuse() = runBlocking {
+        withServer { _, _, pairing, _, port ->
+            val origin = "http://127.0.0.1:$port"
+            val challenge = pairing.issue(origin)
+            val body = JSONObject().put("code", challenge.code).put("device", "No camera browser").toString()
+            var cookie = ""
+            request(port, "/pair", body = body, origin = "http://evil.test").use { assertEquals(403, it.code) }
+            request(port, "/pair", body = body, origin = origin).use {
+                assertEquals(200, it.code)
+                val header = it.header("Set-Cookie")!!
+                assertTrue(header.contains("HttpOnly")); assertTrue(header.contains("SameSite=Strict"))
+                cookie = header.substringBefore(';').substringAfter('=')
+            }
+            request(port, "/api/state", cookie).use { assertEquals(200, it.code) }
+            request(port, "/pair", body = body, origin = origin).use { assertEquals(401, it.code) }
+            val qr = JSONObject().put("token", challenge.url.substringAfter("#pair=")).toString()
+            request(port, "/pair", body = qr, origin = origin).use { assertEquals(401, it.code) }
+        }
+    }
     @Test fun stoppingFreesPortAndAllowsRestart() = runBlocking {
         withServer { server, _, _, _, port ->
             server.stop(); ServerSocket().use { it.bind(java.net.InetSocketAddress("127.0.0.1", port)) }

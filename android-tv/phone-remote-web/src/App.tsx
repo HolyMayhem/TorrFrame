@@ -21,6 +21,9 @@ export function App() {
     [itemHash, setItemHash] = useState<string | null>(null),
     [preset, setPreset] = useState(""),
     [toast, setToast] = useState(""),
+    [pairCode, setPairCode] = useState(""),
+    [pairBusy, setPairBusy] = useState(false),
+    [pairError, setPairError] = useState(""),
     [confirmation, setConfirmation] = useState<{
       title: string;
       description: string;
@@ -75,16 +78,39 @@ export function App() {
           <h1>{remote.pairRequired ? "Подключимся к TV?" : "Подключаемся…"}</h1>
           <p>
             {remote.pairRequired
-              ? "Откройте Phone Remote в настройках TorrServe на телевизоре и отсканируйте QR-код камерой телефона."
+              ? "Откройте Phone Remote на телевизоре. Отсканируйте QR или введите временный код ниже — камера не нужна."
               : "Устанавливаем соединение с TorrServe в вашей локальной сети."}
           </p>
           {remote.error && <div className="notice">{remote.error}</div>}
+          {remote.pairRequired && (
+            <form className="pair-code-form" onSubmit={(event) => {
+              event.preventDefault();
+              if (pairBusy || pairCode.length !== 6) return;
+              setPairBusy(true); setPairError("");
+              void remote.pairCode(pairCode).catch((error: unknown) => {
+                setPairError(error instanceof Error ? error.message : "Не удалось подключиться");
+              }).finally(() => setPairBusy(false));
+            }}>
+              <label className="field">
+                Код с экрана телевизора
+                <input aria-label="Код подключения" inputMode="numeric" autoComplete="one-time-code"
+                  pattern="[0-9]{6}" maxLength={12} value={pairCode}
+                  placeholder="000000" required
+                  onChange={(event) => setPairCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} />
+              </label>
+              <Button type="submit" kind="primary" disabled={pairBusy || pairCode.length !== 6}>
+                {pairBusy ? "Подключаемся…" : "Подключиться по коду"}
+              </Button>
+              {pairError && <div className="notice" role="alert">{pairError}</div>}
+              <small className="muted">Код одноразовый и действует 2 минуты.</small>
+            </form>
+          )}
           <div className="pair-steps">
             <span>
               <b>01</b>Та же сеть Wi-Fi
             </span>
             <span>
-              <b>02</b>QR-код на TV
+              <b>02</b>QR или код на TV
             </span>
             <span>
               <b>03</b>Готово к просмотру

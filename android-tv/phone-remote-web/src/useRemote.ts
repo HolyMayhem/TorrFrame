@@ -6,7 +6,8 @@ export function useRemote() {
   const [state, setState] = useState<Snapshot | null>(null),
     [connected, setConnected] = useState(false),
     [pairRequired, setPairRequired] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [pairGeneration, setPairGeneration] = useState(0);
   const latest = useRef<Snapshot | null>(null),
     socket = useRef<WebSocket | null>(null),
     refreshing = useRef<Promise<void> | null>(null),
@@ -163,7 +164,13 @@ export function useRemote() {
       socket.current?.close();
       socket.current = null;
     };
-  }, [refresh]);
+  }, [refresh, pairGeneration]);
+  const pairCode = useCallback(async (code: string) => {
+    await request("/pair", { code, device: "Браузер" });
+    setError("");
+    setPairRequired(false);
+    setPairGeneration((value) => value + 1);
+  }, []);
   const command = useCallback(
     async <T = Record<string, unknown>>(
       type: Command,
@@ -228,6 +235,6 @@ export function useRemote() {
     },
     [],
   );
-  return { state, connected, pairRequired, error, command, refresh };
+  return { state, connected, pairRequired, error, command, refresh, pairCode };
 }
 export type Remote = ReturnType<typeof useRemote>;

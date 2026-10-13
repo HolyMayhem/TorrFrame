@@ -1,6 +1,7 @@
 package tv.torrserve.silicon.phoneRemote.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +21,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.MaterialTheme
 import kotlinx.coroutines.*
@@ -31,7 +35,7 @@ import tv.torrserve.silicon.phoneRemote.server.*
 import tv.torrserve.silicon.ui.components.*
 import tv.torrserve.silicon.ui.theme.*
 
-@Composable fun PhoneRemoteSettings(graph: AppGraph) {
+@Composable fun PhoneRemoteSettings(graph: AppGraph, entryFocus: FocusRequester? = null) {
     val manager = graph.phoneRemote
     val state by manager.state.collectAsStateWithLifecycle()
     val preference by graph.phonePreferences.state.collectAsStateWithLifecycle()
@@ -40,7 +44,8 @@ import tv.torrserve.silicon.ui.theme.*
     var failure by remember { mutableStateOf("") }
     val failureText = stringResource(R.string.phone_operation_failed)
     val invalidPort = stringResource(R.string.phone_port_conflict)
-    TvToggle(stringResource(R.string.phone_enable), preference.enabled, Modifier.testTag("phone:enabled")) { enabled ->
+    TvToggle(stringResource(R.string.phone_enable), preference.enabled, Modifier.testTag("phone:enabled")
+        .then(if (entryFocus != null) Modifier.focusRequester(entryFocus) else Modifier)) { enabled ->
         scope.launch { try { manager.enabled(enabled); failure = "" } catch (e: Exception) { if (e is CancellationException) throw e; failure = failureText } }
     }
     PhoneStatus(state)
@@ -70,7 +75,7 @@ import tv.torrserve.silicon.ui.theme.*
         PhoneRemoteStatus.Running -> R.string.phone_running
         PhoneRemoteStatus.Error -> R.string.phone_error
         PhoneRemoteStatus.NoNetwork -> R.string.phone_no_network
-    }), color = if (state.status == PhoneRemoteStatus.Running) Accent else Muted, modifier = Modifier.testTag("phone:status"))
+    }), color = if (state.status == PhoneRemoteStatus.Running) AccentText else Muted, modifier = Modifier.testTag("phone:status"))
 }
 
 @Composable fun PhoneRemoteQrDialog(manager: PhoneRemoteManager, dismiss: () -> Unit) {
@@ -87,9 +92,10 @@ import tv.torrserve.silicon.ui.theme.*
     } }
     LaunchedEffect(state.status, state.url) { qrJob?.cancel(); image = null; link = null; if (state.status == PhoneRemoteStatus.Running) refresh() }
     LaunchedEffect(link) { link?.let { delay((it.expiresAt - System.currentTimeMillis()).coerceAtLeast(0)); expired = true; image = null } }
-    val maxHeight = (LocalConfiguration.current.screenHeightDp - 40).dp
-    Dialog(onDismissRequest = dismiss) {
-        Column(Modifier.widthIn(max = 720.dp).heightIn(max = maxHeight).fillMaxWidth(.92f).background(Surface, RoundedCornerShape(24.dp)).padding(24.dp),
+    val window = LocalWindowInfo.current.containerSize
+    val maxHeight = with(LocalDensity.current) { window.height.toDp() } - 32.dp
+    Dialog(onDismissRequest = dismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(Modifier.widthIn(max = 960.dp).heightIn(max = maxHeight).fillMaxWidth(.92f).testTag("phone:qr:panel").background(Surface, RoundedCornerShape(24.dp)).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
             TvText(stringResource(R.string.phone_title), style = MaterialTheme.typography.headlineSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -98,8 +104,13 @@ import tv.torrserve.silicon.ui.theme.*
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     PhoneStatus(state)
-                    TvText(state.url, color = Accent)
+                    TvText(state.url, color = AccentText)
                     TvText(stringResource(if (expired) R.string.phone_qr_expired else R.string.phone_qr_instruction), color = Muted)
+                    if (!expired) link?.let {
+                        TvText(stringResource(R.string.phone_pair_code_title), color = Muted)
+                        TvText(it.code.chunked(3).joinToString(" "), style = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp, lineHeight = 34.sp),
+                            modifier = Modifier.testTag("phone:pair-code"), translate = false)
+                    }
                     TvText(stringResource(R.string.phone_qr_security_hint), color = Muted, fontSize = 12.sp)
                 }
             }
@@ -136,6 +147,7 @@ import tv.torrserve.silicon.ui.theme.*
 
 @Composable fun PhoneRemoteShortcut(open: () -> Unit) {
     androidx.tv.material3.Button(onClick = open, modifier = Modifier.size(30.dp).testTag("phone:shortcut"), contentPadding = PaddingValues(6.dp),
+        border = androidx.tv.material3.ButtonDefaults.border(focusedBorder = androidx.tv.material3.Border(BorderStroke(2.dp, FocusBorderColor))),
         colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = Surface, contentColor = TextPrimary, focusedContainerColor = Accent, focusedContentColor = OnAccent)) {
         Image(painterResource(R.drawable.ic_phone), contentDescription = stringResource(R.string.phone_qr), colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(androidx.tv.material3.LocalContentColor.current))
     }

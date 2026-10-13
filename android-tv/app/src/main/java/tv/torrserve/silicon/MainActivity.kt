@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
         val graph = (application as TorrServeApplication).graph
         setContent {
             val settings by graph.settings.state.collectAsStateWithLifecycle()
-            TorrServeTheme(settings.uiScalePercent, light = settings.uiTheme == "light") {
+            TorrServeTheme(settings.uiScalePercent, light = settings.uiTheme == "light", accent = settings.uiAccent) {
                 CompositionLocalProvider(LocalUiLanguage provides settings.uiLanguage) { AppScreen(graph) }
                 LaunchedEffect(Unit) { withFrameNanos { }; reportFullyDrawn()
                     if(BuildConfig.DEBUG) Log.i("TorrServeTiming", "activity_ui_ms=${SystemClock.elapsedRealtime() - began}") }
@@ -109,14 +109,12 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     }
     val selected = lib.items.find { it.hash == detail }
     val layout = LocalTvLayout.current
-    Column(Modifier.fillMaxSize().background(Background).padding(layout.screenInset), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxSize().background(Background).padding(horizontal = layout.screenInset)
+        .padding(top = layout.screenInset, bottom = if (saved.showNavigationHints) layout.screenInset else 0.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth().testTag("app:header").focusGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Row(Modifier.padding(end = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 BrandMark()
-                Column {
-                    Text("TorrServe", style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp, lineHeight = 17.sp), translate = false)
-                    Text("Silicon", color = Muted, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 10.sp, lineHeight = 13.sp), translate = false)
-                }
+                Text("TorrServe", style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp, lineHeight = 17.sp), translate = false)
             }
             listOf("Search", "Library", "Settings").forEach { tab ->
                 TvNavItem(tab, section == tab && detail == null,
@@ -141,7 +139,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                     "Search" -> SearchScreen(query, saved.jackettConfigured, search, { navigateFromContent("Settings") }, contentFocus) { hash ->
                         detail = hash; library.files(hash) { files -> if(files.size == 1) { library.closeFiles(); play(hash, files.single()) } }
                     }
-                    "Settings" -> SettingsScreen(set, server, settings, torrSet, connection, torrSettings, contentFocus, phoneRemote = { tv.torrserve.silicon.phoneRemote.ui.PhoneRemoteSettings(graph) }) {
+                    "Settings" -> SettingsScreen(set, server, settings, torrSet, connection, torrSettings, contentFocus, phoneRemote = { tv.torrserve.silicon.phoneRemote.ui.PhoneRemoteSettings(graph, contentFocus) }) {
                         UpdatesPanel(update, set.draft, { value -> settings.edit { it.copy(updateRepository = value) } }, updates) {
                             updates.installer()?.let { intent -> runCatching { context.startActivity(intent) }.onFailure { updates.installerFailed() } }
                         }

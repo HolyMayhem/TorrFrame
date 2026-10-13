@@ -133,6 +133,13 @@
     <string name="ui_scale_title">Масштаб интерфейса</string>
     <string name="ui_language_title">Язык приложения</string>
     <string name="ui_theme_title">Тема приложения</string>
+    <string name="ui_accent_title">Акцентный цвет</string>
+    <string name="ui_accent_green">Зелёный</string>
+    <string name="ui_accent_white">Белый</string>
+    <string name="ui_accent_orange">Оранжевый</string>
+    <string name="ui_accent_pink">Розовый</string>
+    <string name="ui_accent_blue">Синий</string>
+    <string name="phone_pair_code_title">Без камеры: откройте адрес выше в браузере и введите этот код</string>
     <string name="ui_theme_dark">Тёмная</string>
     <string name="ui_theme_light">Светлая</string>
     <string name="ui_navigation_hints">Нижняя панель подсказок</string>
@@ -143,7 +150,7 @@
     <string name="ui_scale_hint" formatted="false">70–110%, шаг 5%. Изменения применяются сразу и сохраняются автоматически.</string>
     <string name="settings_dark_theme">Тема: тёмная</string>
     <string name="settings_updates">Обновления</string>
-    <string name="settings_about_text">TorrServe Silicon %1$s\nНативное приложение Android TV · Тёмная тема\nTorrServer от YouROK · Compose for TV · Media3\nTorrServer: GPL-3.0 · Kotlin, OkHttp, Media3, Coil: Apache-2.0</string>
+    <string name="settings_about_text">TorrServe Silicon %1$s\nНативное приложение Android TV\nTorrServer от YouROK · Compose for TV · Media3\nTorrServer: GPL-3.0 · Kotlin, OkHttp, Media3, Coil: Apache-2.0</string>
     <string name="settings_about">О приложении</string>
     <string name="settings_licenses">Лицензии открытого ПО</string>
     <string name="settings_move_up">Выше</string>
@@ -197,7 +204,7 @@
     <string name="phone_close">Закрыть</string>
     <string name="phone_qr_instruction">Подключите телефон к той же локальной сети и отсканируйте QR камерой. Ссылка одноразовая и действует 2 минуты.</string>
     <string name="phone_qr_expired">Ссылка истекла. Обновите QR-код.</string>
-    <string name="phone_qr_refresh">Обновить QR-код</string>
+    <string name="phone_qr_refresh">Новый QR-код и код</string>
     <string name="phone_http_warning">Используйте доверенную локальную сеть. HTTP не шифрует трафик. Порт не открывается в интернет автоматически. Отключение модуля отзывает все сессии.</string>
     <string name="phone_start_failed">Не удалось запустить Phone Remote. Проверьте, свободен ли порт и разрешена ли работа приложения в фоне.</string>
     <string name="phone_port_conflict">Выберите порт 1024–65535, отличный от порта TorrServer.</string>

@@ -1451,3 +1451,16 @@ small {
   line-height: 1.6;
   margin-bottom: 18px;
 }
+
+.pair-code-form {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0;
+  text-align: left;
+}
+.pair-code-form input {
+  font-size: 26px;
+  letter-spacing: .25em;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}

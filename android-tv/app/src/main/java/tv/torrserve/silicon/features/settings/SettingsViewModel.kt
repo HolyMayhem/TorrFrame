@@ -27,9 +27,28 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
             mutable.update { it.copy(message = graph.app.getString(tv.torrserve.silicon.R.string.settings_load_failed)) }
         }
     } }
-    fun edit(block: (Settings) -> Settings) { mutable.update {
-        val s = block(it.draft); it.copy(draft = s, connection = if(s.jackettUrl != it.draft.jackettUrl || s.jackettKey != it.draft.jackettKey) tv.torrserve.silicon.R.string.settings_disconnected else it.connection)
-    } }
+    fun edit(block: (Settings) -> Settings) {
+        if (block(state.value.draft) == state.value.draft) return
+        mutable.update {
+            val s = block(it.draft)
+            it.copy(draft = s, message = "", connection = if (s.jackettUrl != it.draft.jackettUrl || s.jackettKey != it.draft.jackettKey)
+                tv.torrserve.silicon.R.string.settings_disconnected else it.connection)
+        }
+        // Preserve writes when the Activity closes; the store serializes field updates.
+        graph.scope.launch {
+            try {
+                graph.ready.await()
+                graph.settings.update { current ->
+                    val next = block(current)
+                    if (next.jackettUrl != current.jackettUrl && next.jackettUrl.isNotBlank()) graph.jackett.endpoint(next, "caps")
+                    next
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                mutable.update { it.copy(message = graph.app.getString(tv.torrserve.silicon.R.string.settings_operation_failed)) }
+            }
+        }
+    }
     fun moveProvider(provider: String, direction: Int) {
         edit { it.copy(metadataOrder = tv.torrserve.silicon.core.storage.MetadataPriority.move(it.metadataOrder, provider, direction)) }
     }
@@ -38,17 +57,8 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
     fun theme(value: String) = appearance { it.copy(uiTheme = value) }
     fun hints(value: Boolean) = appearance { it.copy(showNavigationHints = value) }
     fun language(value: String) = appearance { it.copy(uiLanguage = value) }
-    private fun appearance(change: (Settings) -> Settings) {
-        viewModelScope.launch {
-            try {
-                graph.ready.await()
-                graph.settings.update(block = change)
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                mutable.update { it.copy(message = graph.app.getString(tv.torrserve.silicon.R.string.settings_operation_failed)) }
-            }
-        }
-    }
+    fun accent(value: String) = appearance { it.copy(uiAccent = value) }
+    private fun appearance(change: (Settings) -> Settings) = edit(change)
     private fun action(block: suspend () -> String) {
         if (state.value.busy) return
         mutable.update { it.copy(busy = true, message = "") }
@@ -61,13 +71,6 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
             } }
             finally { mutable.update { it.copy(busy = false) } }
         }
-    }
-    fun save() = action {
-        val s = state.value.draft
-        if (s.jackettUrl.isNotBlank()) graph.jackett.endpoint(s, "caps")
-        val base = baseline
-        graph.settings.update { current -> tv.torrserve.silicon.core.storage.SettingsMerge.rebase(s, base, current) }
-        graph.app.getString(tv.torrserve.silicon.R.string.settings_saved)
     }
     fun test() = action { graph.jackett.test(state.value.draft); mutable.update { it.copy(connection = tv.torrserve.silicon.R.string.server_connected) }; graph.app.getString(tv.torrserve.silicon.R.string.settings_jackett_connected) }
     fun clearCache() = action { graph.store.clearCache(); graph.app.getString(tv.torrserve.silicon.R.string.settings_metadata_cleared) }

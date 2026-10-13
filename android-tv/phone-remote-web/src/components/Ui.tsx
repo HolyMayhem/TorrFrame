@@ -55,7 +55,7 @@ export function Brand() {
       <img src="/app-icon.png" width="36" height="36" alt="" />
       <div>
         <strong>TorrServe</strong>
-        <small>Silicon · Phone Remote</small>
+        <small>Phone Remote</small>
       </div>
     </div>
   );

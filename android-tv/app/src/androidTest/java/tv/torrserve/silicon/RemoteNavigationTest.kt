@@ -205,6 +205,8 @@ class RemoteNavigationTest {
             remote(KeyEvent.KEYCODE_DPAD_CENTER)
             compose.waitUntil(5000) { !graph.settings.state.value.showNavigationHints }
             compose.onNodeWithTag("app:footer").assertDoesNotExist()
+            assertEquals(compose.onRoot().fetchSemanticsNode().boundsInRoot.bottom,
+                compose.onNodeWithTag("app:content").fetchSemanticsNode().boundsInRoot.bottom, 1f)
             assertTrue(compose.onNodeWithTag("app:content").fetchSemanticsNode().boundsInRoot.height > height)
             val reloaded = tv.torrserve.silicon.core.storage.SettingsStore(compose.activity)
             kotlinx.coroutines.runBlocking { reloaded.load() }
@@ -233,6 +235,79 @@ class RemoteNavigationTest {
             assertEquals(before.width, after.width, .5f)
             assertTrue(after.left >= group.left && after.right <= group.right && after.bottom <= group.bottom)
         }
+    }
+    @Test fun settingsAutosaveSurvivesViewModelClearAndMetadataActionsShareRow() {
+        val graph = (compose.activity.application as TorrServeApplication).graph
+        val original = graph.settings.state.value
+        val models = androidx.lifecycle.ViewModelStore()
+        val vm = tv.torrserve.silicon.features.settings.SettingsViewModel(graph)
+        models.put("autosave", vm)
+        val audio = if (original.audioLanguage == "ru") "en" else "ru"
+        val subtitles = if (original.subtitleLanguage == "en") "ru" else "en"
+        try {
+            compose.waitUntil(5000) { vm.state.value.draft == original }
+            compose.runOnUiThread {
+                vm.edit { it.copy(audioLanguage = audio) }
+                vm.edit { it.copy(subtitleLanguage = subtitles) }
+                vm.edit { it.copy(resume = !original.resume) }
+                models.clear()
+            }
+            compose.waitUntil(5000) { graph.settings.state.value.let { it.audioLanguage == audio && it.subtitleLanguage == subtitles && it.resume != original.resume } }
+            val reloaded = tv.torrserve.silicon.core.storage.SettingsStore(compose.activity)
+            kotlinx.coroutines.runBlocking { reloaded.load() }
+            assertEquals(audio, reloaded.state.value.audioLanguage)
+            assertEquals(subtitles, reloaded.state.value.subtitleLanguage)
+            remote(KeyEvent.KEYCODE_DPAD_RIGHT); remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            compose.onNodeWithText(compose.activity.getString(R.string.settings_save)).assertDoesNotExist()
+            compose.onNode(hasScrollAction()).performScrollToNode(hasText("en-US"))
+            val language = compose.onNodeWithText("en-US").fetchSemanticsNode().boundsInRoot
+            val clear = compose.onNodeWithText(compose.activity.getString(R.string.settings_clear_metadata)).fetchSemanticsNode().boundsInRoot
+            assertEquals(language.center.y, clear.center.y, 1f)
+        } finally {
+            models.clear()
+            kotlinx.coroutines.runBlocking { graph.settings.save(original) }
+        }
+    }
+    @Test fun allAccentChoicesPersistAndAboutIsLast() {
+        val graph = (compose.activity.application as TorrServeApplication).graph
+        val original = graph.settings.state.value
+        try {
+            remote(KeyEvent.KEYCODE_DPAD_RIGHT); remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("appearance:accent:green"))
+            for (key in tv.torrserve.silicon.core.storage.UiAccent.colors.keys) {
+                val tag = "appearance:accent:$key"
+                compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.RequestFocus)
+                remote(KeyEvent.KEYCODE_ENTER)
+                compose.waitUntil(5000) { graph.settings.state.value.uiAccent == key }
+                focused(tag)
+            }
+            val reloaded = tv.torrserve.silicon.core.storage.SettingsStore(compose.activity)
+            kotlinx.coroutines.runBlocking { reloaded.load() }
+            assertEquals("blue", reloaded.state.value.uiAccent)
+            compose.activityRule.scenario.recreate()
+            compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("appearance:accent:blue"))
+            compose.onNodeWithTag("appearance:accent:blue").assertExists()
+            compose.onNode(hasScrollAction()).performScrollToNode(hasText(compose.activity.getString(R.string.settings_about)))
+            compose.onNodeWithText(compose.activity.getString(R.string.settings_licenses)).assertIsDisplayed()
+        } finally { kotlinx.coroutines.runBlocking { graph.settings.update { it.copy(uiAccent = original.uiAccent) } } }
+    }
+    @Test fun qrPanelIsWideAndShowsSixDigitAlternative() {
+        val graph = (compose.activity.application as TorrServeApplication).graph
+        org.junit.Assume.assumeFalse(graph.phonePreferences.state.value.enabled)
+        try {
+            kotlinx.coroutines.runBlocking { graph.phoneRemote.enabled(true) }
+            compose.waitUntil(15_000) { graph.phoneRemote.state.value.status == tv.torrserve.silicon.phoneRemote.server.PhoneRemoteStatus.Running }
+            remote(KeyEvent.KEYCODE_DPAD_RIGHT); remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            compose.onNodeWithTag("phone:qr").performSemanticsAction(SemanticsActions.RequestFocus)
+            remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            compose.waitUntil(5000) { compose.onAllNodesWithTag("phone:pair-code").fetchSemanticsNodes().isNotEmpty() }
+            val panel = compose.onNodeWithTag("phone:qr:panel").fetchSemanticsNode().boundsInRoot
+            assertTrue(panel.width > compose.activity.window.decorView.width * .7f)
+            val digits = compose.onNodeWithTag("phone:pair-code").fetchSemanticsNode().config[SemanticsProperties.Text].joinToString("") { it.text }.replace(" ", "")
+            assertTrue(digits.matches(Regex("[0-9]{6}")))
+            remote(KeyEvent.KEYCODE_BACK)
+            compose.onNodeWithTag("phone:qr:panel").assertDoesNotExist()
+        } finally { kotlinx.coroutines.runBlocking { graph.phoneRemote.enabled(false) } }
     }
     @Test fun movieHasLoadedPosterBesideMetadataAndNoRemovedActions() {
         val graph = (compose.activity.application as TorrServeApplication).graph

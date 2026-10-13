@@ -91,7 +91,12 @@ class PhoneRemoteServer(val guard: RequestGuard, private val sessions: SessionMa
                 if (!rateLimit.allow(call.request.local.remoteAddress)) { call.failure(HttpStatusCode.TooManyRequests, "pair_rate_limit"); return@post }
                 try {
                     val request = call.body()
-                    if (call.request.headers["X-Phone-Remote"] != "1" || !pairing.consume(request.getString("token"), guard.origin)) {
+                    val authorized = call.request.headers["X-Phone-Remote"] == "1" && when {
+                        request.has("code") && !request.has("token") -> pairing.consumeCode(request.getString("code"), guard.origin)
+                        request.has("token") && !request.has("code") -> pairing.consume(request.getString("token"), guard.origin)
+                        else -> false
+                    }
+                    if (!authorized) {
                         call.failure(HttpStatusCode.Unauthorized, "pair_expired"); return@post
                     }
                     val grant = sessions.create(request.optString("device", "Телефон"))

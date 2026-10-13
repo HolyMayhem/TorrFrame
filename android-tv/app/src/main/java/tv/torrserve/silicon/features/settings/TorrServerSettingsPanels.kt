@@ -33,7 +33,7 @@ import tv.torrserve.silicon.ui.theme.*
             ConnectionStatus.Connecting -> R.string.server_connecting
             ConnectionStatus.Unavailable -> R.string.server_unavailable
             ConnectionStatus.Error -> R.string.server_connection_error
-        }), color = if (status == ConnectionStatus.Connected) Accent else Muted, modifier = Modifier.testTag("server:connection"))
+        }), color = if (status == ConnectionStatus.Connected) AccentText else Muted, modifier = Modifier.testTag("server:connection"))
         connection.failure?.let { failure ->
             TvText(stringResource(when (failure) {
                 408 -> R.string.server_timeout
@@ -96,7 +96,7 @@ import tv.torrserve.silicon.ui.theme.*
         // TV Material has no progress component; a time-based dot indicator keeps the existing UI stack.
         var dots by remember { mutableIntStateOf(0) }
         LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(400); dots = (dots + 1) % 4 } }
-        TvText(stringResource(R.string.server_busy) + "·".repeat(dots), color = Accent)
+        TvText(stringResource(R.string.server_busy) + "·".repeat(dots), color = AccentText)
     }
     Message(state.message)
 }

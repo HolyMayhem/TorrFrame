@@ -30,7 +30,7 @@ import tv.torrserve.silicon.features.metadata.MediaNameParser
     back: () -> Unit, play: (String, TorrentFile) -> Unit) {
     var removing by remember { mutableStateOf(false) }
     val watchFocus = remember { FocusRequester() }; val backFocus = remember { FocusRequester() }
-    LaunchedEffect(item.hash) { withFrameNanos { }; runCatching { watchFocus.requestFocus() }.onFailure { backFocus.requestFocus() } }
+    LaunchedEffect(item.hash) { withFrameNanos { }; backFocus.requestFocus() }
     fun watch() { vm.files(item.hash) { files ->
         tv.torrserve.silicon.features.player.preferredVideo(item, files)?.let { preferred -> vm.closeFiles(); play(item.hash, preferred) }
     } }
@@ -56,7 +56,7 @@ import tv.torrserve.silicon.features.metadata.MediaNameParser
                 }
             }
             item { Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                TvAction(if(item.inProgress) "Continue Watching" else "Watch", !state.busy, Modifier.focusRequester(watchFocus), primary = true) { watch() }
+                TvAction(if(item.inProgress) "Continue Watching" else "Watch", !state.busy, Modifier.focusRequester(watchFocus)) { watch() }
                 TvAction("Files", !state.busy) { vm.files(item.hash) }
                 TvAction("Refresh Metadata", !state.busy) { vm.metadata(item.hash) }
                 TvAction("Remove", !state.busy) { removing = true }

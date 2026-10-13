@@ -15,5 +15,6 @@ object SettingsMerge {
         uiLanguage = if (draft.uiLanguage != base.uiLanguage) draft.uiLanguage else current.uiLanguage,
         uiScalePercent = if (draft.uiScalePercent != base.uiScalePercent) draft.uiScalePercent else current.uiScalePercent,
         uiTheme = if (draft.uiTheme != base.uiTheme) draft.uiTheme else current.uiTheme,
-        showNavigationHints = if (draft.showNavigationHints != base.showNavigationHints) draft.showNavigationHints else current.showNavigationHints)
+        showNavigationHints = if (draft.showNavigationHints != base.showNavigationHints) draft.showNavigationHints else current.showNavigationHints,
+        uiAccent = if (draft.uiAccent != base.uiAccent) draft.uiAccent else current.uiAccent)
 }

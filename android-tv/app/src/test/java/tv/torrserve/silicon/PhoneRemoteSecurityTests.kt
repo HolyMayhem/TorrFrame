@@ -13,6 +13,36 @@ class MemorySessions : SessionPersistence {
     override suspend fun write(sessions: List<RemoteSession>) { stored = sessions }
 }
 class PhoneRemoteSecurityTests {
+    @Test fun numericPairingSharesExpiryOriginAndSingleUseWithQr() {
+        var time = 1000L
+        val pairing = PairingManager { time }
+        val origin = "http://192.168.1.50:8765"
+        val first = pairing.issue(origin)
+        assertTrue(first.code.matches(Regex("[0-9]{6}")))
+        assertFalse(pairing.consumeCode(first.code, "http://other.test"))
+        assertTrue(pairing.consumeCode(first.code, origin))
+        assertFalse(pairing.consumeCode(first.code, origin))
+        assertFalse(pairing.consume(first.url.substringAfter("#pair="), origin))
+        val second = pairing.issue(origin)
+        assertTrue(pairing.consume(second.url.substringAfter("#pair="), origin))
+        assertFalse(pairing.consumeCode(second.code, origin))
+        val expired = pairing.issue(origin)
+        time += 120_001
+        assertFalse(pairing.consumeCode(expired.code, origin))
+    }
+    @Test fun refreshingOrStoppingRevokesCodeAndGuessesAreGloballyBounded() {
+        val pairing = PairingManager(); val origin = "http://127.0.0.1:8765"
+        val old = pairing.issue(origin); val fresh = pairing.issue(origin)
+        assertNotEquals(old.code, fresh.code)
+        assertFalse(pairing.consumeCode(old.code, origin))
+        val wrong = if (fresh.code == "000000") "000001" else "000000"
+        repeat(7) { assertFalse(pairing.consumeCode(wrong, origin)) }
+        assertFalse(pairing.consumeCode(fresh.code, origin))
+        // Incorrect numeric guesses do not revoke the independent high-entropy QR.
+        assertTrue(pairing.consume(fresh.url.substringAfter("#pair="), origin))
+        val cleared = pairing.issue(origin); pairing.clear()
+        assertFalse(pairing.consumeCode(cleared.code, origin))
+    }
     @Test fun pairingIsSingleUseAndBoundToOrigin() {
         var time = 1_000L
         val pairing = PairingManager { time }

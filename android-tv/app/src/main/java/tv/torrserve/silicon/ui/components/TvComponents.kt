@@ -57,7 +57,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
             disabledContainerColor = Surface, disabledContentColor = Muted.copy(alpha = .55f)),
         border = ButtonDefaults.border(
             border = Border(BorderStroke(1.dp, if(primary || selected) Accent.copy(alpha = .6f) else Outline), shape = shape),
-            focusedBorder = Border(BorderStroke(2.dp, Accent), shape = shape)),
+            focusedBorder = Border(BorderStroke(2.dp, FocusBorderColor), shape = shape)),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         scale = ButtonDefaults.scale(focusedScale = 1f)) {
         TvText(label, style = MaterialTheme.typography.labelLarge)
@@ -117,11 +117,11 @@ import tv.torrserve.silicon.core.models.LibraryItem
                 inputTransformation = InputTransformation.maxLength(4096),
                 keyboardOptions = options, onKeyboardAction = finishEditing,
                 textObfuscationMode = TextObfuscationMode.Hidden,
-                textStyle = TextStyle(color = TextPrimary, fontSize = 16.sp), cursorBrush = SolidColor(Accent))
+                textStyle = TextStyle(color = TextPrimary, fontSize = 16.sp), cursorBrush = SolidColor(FocusBorderColor))
             else BasicTextField(state = field, modifier = fieldModifier,
                 inputTransformation = InputTransformation.maxLength(4096), lineLimits = TextFieldLineLimits.SingleLine,
                 keyboardOptions = options, onKeyboardAction = finishEditing,
-                textStyle = TextStyle(color = TextPrimary, fontSize = 16.sp), cursorBrush = SolidColor(Accent))
+                textStyle = TextStyle(color = TextPrimary, fontSize = 16.sp), cursorBrush = SolidColor(FocusBorderColor))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 TvAction(if (russian) stringResource(R.string.dialog_done) else "Done", modifier = Modifier.focusRequester(doneFocus).testTag("dialog:done"), primary = true) { keyboard?.hide(); save(field.text.toString()) }
                 TvAction(if (russian) stringResource(R.string.dialog_cancel) else "Cancel", modifier = Modifier.testTag("dialog:cancel")) { keyboard?.hide(); dismiss() }
@@ -136,7 +136,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
         shape = ButtonDefaults.shape(RoundedCornerShape(TvDimensions.buttonRadius)),
         colors = ButtonDefaults.colors(containerColor = SurfaceSecondary, contentColor = TextPrimary,
             focusedContainerColor = Accent, focusedContentColor = OnAccent),
-        border = ButtonDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Accent))),
+        border = ButtonDefaults.border(focusedBorder = Border(BorderStroke(2.dp, FocusBorderColor))),
         scale = ButtonDefaults.scale(focusedScale = 1f)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             TvText(label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
@@ -160,7 +160,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
         shape = CardDefaults.shape(shape),
         colors = CardDefaults.colors(containerColor = Surface, contentColor = TextPrimary,
             focusedContainerColor = SurfaceSecondary, focusedContentColor = TextPrimary),
-        border = CardDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Accent), inset = (-3).dp, shape = shape)),
+        border = CardDefaults.border(focusedBorder = Border(BorderStroke(2.dp, FocusBorderColor), inset = (-3).dp, shape = shape)),
         scale = CardDefaults.scale(focusedScale = 1.05f)) {
         Column {
             Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(SurfaceSecondary), contentAlignment = Alignment.Center) {

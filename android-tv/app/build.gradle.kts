@@ -27,8 +27,8 @@ android {
         applicationId = "tv.torrserve.silicon"
         minSdk = 26
         targetSdk = 37
-        versionCode = 10
-        versionName = "0.1.9"
+        versionCode = 11
+        versionName = "0.1.10"
         buildConfigField("String", "TMDB_API_KEY", embeddedKey("TMDB", "TORRSERVE_TMDB_API_KEY"))
         buildConfigField("String", "OMDB_API_KEY", embeddedKey("OMDB", "TORRSERVE_OMDB_API_KEY"))
         buildConfigField("String", "KINOPOISK_API_KEY", embeddedKey("Kinopoisk", "TORRSERVE_KINOPOISK_API_KEY"))

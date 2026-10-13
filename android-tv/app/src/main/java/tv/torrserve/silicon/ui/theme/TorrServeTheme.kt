@@ -6,10 +6,12 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Density
 import tv.torrserve.silicon.core.storage.UiScale
+import tv.torrserve.silicon.core.storage.UiAccent
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.tv.material3.LocalContentColor
@@ -52,11 +54,18 @@ val Muted: Color @Composable get() = LocalTvPalette.current.muted
 val TextPrimary: Color @Composable get() = LocalTvPalette.current.text
 val SurfaceSecondary: Color @Composable get() = LocalTvPalette.current.secondary
 val Outline: Color @Composable get() = LocalTvPalette.current.outline
-val Accent = Color(0xFF008800)
-val OnAccent = Color.White
+val LocalAccent = staticCompositionLocalOf { Color(0xFF008800) }
+val Accent: Color @Composable get() = LocalAccent.current
+val OnAccent: Color @Composable get() = if (Accent.luminance() > .179f) Color(0xFF101114) else Color.White
+val FocusBorderColor: Color @Composable get() = if (Accent.luminance() > .9f && Surface.luminance() > .5f) TextPrimary else Accent
+val AccentText: Color @Composable get() {
+    val a = Accent.luminance(); val b = Surface.luminance()
+    return if ((maxOf(a, b) + .05f) / (minOf(a, b) + .05f) >= 3f) Accent else TextPrimary
+}
 val Positive = Color(0xFF90B78E)
 
-@Composable fun TorrServeTheme(uiScalePercent: Int = UiScale.DEFAULT, light: Boolean = false, content: @Composable () -> Unit) {
+@Composable fun TorrServeTheme(uiScalePercent: Int = UiScale.DEFAULT, light: Boolean = false,
+    accent: String = UiAccent.DEFAULT, content: @Composable () -> Unit) {
     val window = LocalWindowInfo.current.containerSize
     val platformDensity = LocalDensity.current
     val density = Density(platformDensity.density * UiScale.factor(uiScalePercent), platformDensity.fontScale)
@@ -66,7 +75,8 @@ val Positive = Color(0xFF90B78E)
     val headingScale = if(layout.short) .92f else 1f
     // Changing density causes an actual reflow: smaller controls expose more content.
     CompositionLocalProvider(LocalDensity provides density, LocalTvLayout provides layout,
-        LocalTvPalette provides if (light) LightPalette else DarkPalette) {
+        LocalTvPalette provides if (light) LightPalette else DarkPalette,
+        LocalAccent provides Color(UiAccent.colors.getValue(UiAccent.normalized(accent)))) {
     val colors = if (light) lightColorScheme() else darkColorScheme()
     MaterialTheme(colorScheme = colors.copy(
         primary = Accent, onPrimary = OnAccent,

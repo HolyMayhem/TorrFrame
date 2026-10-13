@@ -1,6 +1,7 @@
 package tv.torrserve.silicon.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -13,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Border
 import tv.torrserve.silicon.R
 import tv.torrserve.silicon.core.server.*
 import tv.torrserve.silicon.ui.theme.*
@@ -35,7 +37,7 @@ fun serverIndicator(local: Boolean, server: ServerState, connection: ConnectionS
 @Composable fun ServerStatusIndicator(local: Boolean, server: ServerState, connection: ConnectionState, open: () -> Unit) {
     val status = serverIndicator(local, server, connection)
     val color = when (status) {
-        ServerIndicator.Online -> Accent
+        ServerIndicator.Online -> Color(0xFF008800)
         ServerIndicator.Offline -> Muted
         ServerIndicator.Error -> Color(0xFFD94747)
         ServerIndicator.Busy -> Color(0xFFE0AD24)
@@ -50,6 +52,7 @@ fun serverIndicator(local: Boolean, server: ServerState, connection: ConnectionS
         colors = ButtonDefaults.colors(containerColor = Surface, contentColor = TextPrimary,
             focusedContainerColor = Accent, focusedContentColor = OnAccent),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        border = ButtonDefaults.border(focusedBorder = Border(BorderStroke(2.dp, FocusBorderColor))),
         scale = ButtonDefaults.scale(focusedScale = 1f)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.size(7.dp).background(color, CircleShape).testTag("server:indicator:${status.name}"))

@@ -25,6 +25,7 @@ import tv.torrserve.silicon.ui.components.*
 import tv.torrserve.silicon.ui.theme.*
 import tv.torrserve.silicon.BuildConfig
 import tv.torrserve.silicon.core.storage.MetadataPriority
+import tv.torrserve.silicon.core.storage.UiAccent
 
 @Composable fun SettingsScreen(state: SettingsUi, server: ServerState, vm: SettingsViewModel, torrState: TorrServerSettingsUi, connection: ConnectionState, torrVm: TorrServerSettingsViewModel, entryFocus: FocusRequester? = null, phoneRemote: @Composable () -> Unit = {}, updates: @Composable () -> Unit) {
     var engineOpen by rememberSaveable { mutableStateOf(false) }
@@ -43,7 +44,6 @@ import tv.torrserve.silicon.core.storage.MetadataPriority
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) { SectionHeading(stringResource(R.string.settings_title), stringResource(R.string.settings_subtitle)) }
-            TvAction(stringResource(if(state.busy) R.string.settings_saving else R.string.settings_save), modifier = if(entryFocus != null) Modifier.focusRequester(entryFocus) else Modifier, primary = true, action = vm::save)
         }
         Message(state.message)
         ServerOperationStatus(torrState)
@@ -66,8 +66,10 @@ import tv.torrserve.silicon.core.storage.MetadataPriority
                 TvToggle(stringResource(R.string.settings_anilist), s.aniListEnabled, Modifier.testTag("metadata:anilist")) { value -> vm.edit { it.copy(aniListEnabled = value) } }
                 Text(stringResource(R.string.settings_anilist_hint), color = Muted)
                 Text(stringResource(R.string.settings_metadata_language), color = Muted)
-                ChoiceRow(listOf("en-US", "ru-RU"), s.language) { value -> vm.edit { it.copy(language = value) } }
-                TvAction(stringResource(R.string.settings_clear_metadata), action = vm::clearCache)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    ChoiceRow(listOf("en-US", "ru-RU"), s.language) { value -> vm.edit { it.copy(language = value) } }
+                    TvAction(stringResource(R.string.settings_clear_metadata), action = vm::clearCache)
+                }
             } }
             item { SettingsGroup(stringResource(R.string.settings_playback)) {
                 TvToggle(stringResource(R.string.settings_resume), s.resume) { value -> vm.edit { it.copy(resume = value) } }
@@ -77,10 +79,6 @@ import tv.torrserve.silicon.core.storage.MetadataPriority
                 }
             } }
             item { SettingsGroup(stringResource(R.string.settings_updates), updates) }
-            item { SettingsGroup(stringResource(R.string.settings_about)) {
-                Text(stringResource(R.string.settings_about_text, BuildConfig.VERSION_NAME), color = Muted)
-                TvAction(stringResource(R.string.settings_licenses)) { licenses = true }
-            } }
             item("appearance") { SettingsGroup(stringResource(R.string.settings_appearance)) {
                 UiScaleControls(s.uiScalePercent, vm::scale, vm::resetScale)
                 Text(stringResource(R.string.ui_language_title), color = Muted)
@@ -91,6 +89,23 @@ import tv.torrserve.silicon.core.storage.MetadataPriority
                     TvAction(stringResource(R.string.ui_theme_light), selected = s.uiTheme == "light", modifier = Modifier.testTag("appearance:light")) { vm.theme("light") }
                 }
                 TvToggle(stringResource(R.string.ui_navigation_hints), s.showNavigationHints, Modifier.testTag("appearance:hints"), vm::hints)
+                Text(stringResource(R.string.ui_accent_title), color = Muted)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    UiAccent.colors.keys.forEach { key ->
+                        val label = stringResource(when (key) {
+                            "white" -> R.string.ui_accent_white
+                            "orange" -> R.string.ui_accent_orange
+                            "pink" -> R.string.ui_accent_pink
+                            "blue" -> R.string.ui_accent_blue
+                            else -> R.string.ui_accent_green
+                        })
+                        TvAction(label, selected = s.uiAccent == key, modifier = Modifier.testTag("appearance:accent:$key")) { vm.accent(key) }
+                    }
+                }
+            } }
+            item("about") { SettingsGroup(stringResource(R.string.settings_about)) {
+                Text(stringResource(R.string.settings_about_text, BuildConfig.VERSION_NAME), color = Muted)
+                TvAction(stringResource(R.string.settings_licenses)) { licenses = true }
             } }
         }
     }
