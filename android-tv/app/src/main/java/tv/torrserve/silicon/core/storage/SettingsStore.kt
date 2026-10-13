@@ -23,8 +23,11 @@ data class Settings(val jackettUrl: String = "", val jackettKey: String = "",
     val audioLanguage: String = "", val subtitleLanguage: String = "",
     val updateRepository: String = "", val uiLanguage: String = "en", val aniListEnabled: Boolean = false,
     val torrServerUrl: String = ServerAddress.DEFAULT, val useLocalServer: Boolean = true,
-    val startOnBoot: Boolean = false, val engineSettingsInitialized: Boolean = false) {
+    val startOnBoot: Boolean = false, val engineSettingsInitialized: Boolean = false,
+    val lanAccess: Boolean = true) {
     val jackettConfigured get() = jackettUrl.isNotBlank() && jackettKey.isNotBlank()
+    val needsLocalService get() = useLocalServer && (lanAccess || startOnBoot)
+    val serverBindAddress get() = if (lanAccess) "0.0.0.0" else "127.0.0.1"
 }
 class SettingsConflict : IllegalStateException("Настройки изменились. Обновите данные и повторите сохранение.")
 class SettingsStore(context: Context) {
@@ -67,7 +70,8 @@ class SettingsStore(context: Context) {
             aniListEnabled = prefs.getBoolean("aniListEnabled", prefs.getString("provider", "") == "AniList"),
             torrServerUrl = prefs.getString("torrServerUrl", null) ?: ServerAddress.local(prefs.getInt("port", 8090)),
             useLocalServer = prefs.getBoolean("useLocalServer", true), startOnBoot = prefs.getBoolean("startOnBoot", false),
-            engineSettingsInitialized = prefs.getBoolean("engineSettingsInitialized", false))
+            engineSettingsInitialized = prefs.getBoolean("engineSettingsInitialized", false),
+            lanAccess = prefs.getBoolean("lanAccess", true))
         mutableRevision.value = prefs.getLong("revision", 0)
         // Persist migration before removing legacy keys; Jackett's encrypted key is retained.
         val migration = prefs.edit().putBoolean("aniListEnabled", mutable.value.aniListEnabled)
@@ -92,6 +96,7 @@ class SettingsStore(context: Context) {
             .putBoolean("aniListEnabled", s.aniListEnabled)
             .putString("torrServerUrl", address).putBoolean("useLocalServer", s.useLocalServer)
             .putBoolean("startOnBoot", s.startOnBoot).putBoolean("engineSettingsInitialized", s.engineSettingsInitialized)
+            .putBoolean("lanAccess", s.lanAccess)
             .putString("language", s.language).putInt("port", s.port).putInt("cacheMb", s.cacheMb)
             .putBoolean("resume", s.resume).putString("audio", s.audioLanguage).putString("subtitles", s.subtitleLanguage)
             .putString("updates", s.updateRepository.trim()).putString("uiLanguage", s.uiLanguage).commit()

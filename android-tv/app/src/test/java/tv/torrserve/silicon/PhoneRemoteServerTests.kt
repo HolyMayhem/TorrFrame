@@ -75,7 +75,10 @@ class PhoneRemoteServerTests {
         }
     }
     @Test fun occupiedPortIsAnIsolatedLaunchFailure() = runBlocking {
-        ServerSocket(0).use { occupied ->
+        ServerSocket().use { occupied ->
+            // macOS permits a specific-address bind alongside a wildcard listener.
+            // Occupy the same address the remote actually uses on every platform.
+            occupied.bind(java.net.InetSocketAddress("127.0.0.1", 0))
             val server = PhoneRemoteServer(RequestGuard("127.0.0.1", occupied.localPort), SessionManager(MemorySessions()), PairingManager(), TestBackend(), object : WebAssets { override suspend fun read(path: String): ByteArray? = null })
             try { withTimeout(10_000) { server.start() }; fail("Occupied port should fail") } catch (_: Exception) {} finally { server.stop() }
         }

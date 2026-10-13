@@ -30,7 +30,7 @@ class PhoneRemoteIntegrationTest {
         override suspend fun read() = data
         override suspend fun write(sessions: List<RemoteSession>) { data = sessions }
     }
-    @Test fun applicationAndTorrServerWorkWithPhoneRemoteDisabled() = runBlocking {
+    @Test fun applicationAndTorrServerWorkWithPhoneRemoteDisabled(): Unit = runBlocking {
         ActivityScenario.launch(MainActivity::class.java).use {
             val graph = app.graph; graph.ready.await(); graph.phoneRemote.initialize()
             assumeFalse(graph.phonePreferences.state.value.enabled)

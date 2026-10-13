@@ -64,6 +64,13 @@ import tv.torrserve.silicon.ui.theme.*
             TvAction(stringResource(R.string.server_restart), action = vm::restart)
         }
         EditField(stringResource(R.string.server_local_port), s.port.toString(), keyboardType = KeyboardType.Number, russian = true, onValue = vm::port)
+        TvToggle(stringResource(R.string.server_lan), s.lanAccess, Modifier.testTag("server:lan"), vm::lan)
+        TvText(stringResource(R.string.server_lan_hint), color = Muted)
+        if (s.lanAccess) {
+            TvText(stringResource(R.string.server_web_title), color = Muted)
+            TvText(state.webUrl.ifBlank { stringResource(R.string.server_web_no_network) }, modifier = Modifier.testTag("server:web-url"))
+            TvText(stringResource(R.string.server_web_hint), color = Muted)
+        }
         TvToggle(stringResource(R.string.server_boot), s.startOnBoot, Modifier.testTag("server:boot"), vm::boot)
         Message(state.backgroundError)
         TvText(stringResource(R.string.server_boot_hint), color = Muted)

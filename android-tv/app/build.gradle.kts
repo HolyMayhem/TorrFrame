@@ -27,8 +27,8 @@ android {
         applicationId = "tv.torrserve.silicon"
         minSdk = 26
         targetSdk = 37
-        versionCode = 7
-        versionName = "0.1.6"
+        versionCode = 8
+        versionName = "0.1.7"
         buildConfigField("String", "TMDB_API_KEY", embeddedKey("TMDB", "TORRSERVE_TMDB_API_KEY"))
         buildConfigField("String", "OMDB_API_KEY", embeddedKey("OMDB", "TORRSERVE_OMDB_API_KEY"))
         buildConfigField("String", "KINOPOISK_API_KEY", embeddedKey("Kinopoisk", "TORRSERVE_KINOPOISK_API_KEY"))
@@ -106,7 +106,13 @@ val installPhoneRemoteWeb = tasks.register<Exec>("installPhoneRemoteWeb") {
     workingDir(phoneWeb.asFile)
     commandLine("npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund")
     inputs.files(phoneWeb.file("package.json"), phoneWeb.file("package-lock.json"))
-    outputs.dir(phoneWeb.dir("node_modules"))
+    // Hash npm's installation manifest, not thousands of files in a synced folder.
+    // Missing build tools still force a clean npm ci.
+    outputs.file(phoneWeb.file("node_modules/.package-lock.json"))
+    outputs.upToDateWhen {
+        phoneWeb.file("node_modules/.bin/vite").asFile.isFile &&
+            phoneWeb.file("node_modules/.bin/tsc").asFile.isFile
+    }
 }
 val buildPhoneRemoteWeb = tasks.register<Exec>("buildPhoneRemoteWeb") {
     dependsOn(installPhoneRemoteWeb)

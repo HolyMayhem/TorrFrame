@@ -14,12 +14,13 @@ import tv.torrserve.silicon.core.storage.Settings
 data class TorrServerSettingsUi(val settings: Settings = Settings(), val busy: Boolean = false,
     val message: String = "", val diagnostics: ConnectionDiagnostics? = null,
     val engine: JSONObject? = null, val engineAddress: String = "", val engineVersion: String = "",
-    val edits: Map<String, String> = emptyMap(), val backgroundError: String = "")
+    val edits: Map<String, String> = emptyMap(), val backgroundError: String = "", val webUrl: String = "")
 
 class TorrServerSettingsViewModel(private val graph: AppGraph) : ViewModel() {
     private val mutable = MutableStateFlow(TorrServerSettingsUi())
     val state = mutable.asStateFlow()
     init {
+        viewModelScope.launch { graph.serverWebAddress.url.collect { url -> mutable.update { it.copy(webUrl = url) } } }
         viewModelScope.launch { graph.server.backgroundError.collect { message ->
             mutable.update { it.copy(backgroundError = message) }
         } }
@@ -75,6 +76,7 @@ class TorrServerSettingsViewModel(private val graph: AppGraph) : ViewModel() {
         message(graph.serverActions.connect(address, local, port))
     }
     fun boot(enabled: Boolean) = action { graph.serverActions.boot(enabled) }
+    fun lan(enabled: Boolean) = action { message(graph.serverActions.lan(enabled)) }
     fun check() = action { graph.connection.check() }
     fun diagnose() = action {
         mutable.update { it.copy(diagnostics = null) }

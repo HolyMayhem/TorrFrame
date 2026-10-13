@@ -19,11 +19,12 @@ class TorrServerPersistenceTest {
         val store = SettingsStore(app)
         try {
             store.save(original.copy(torrServerUrl = "https://example.com/torrserver/", useLocalServer = false,
-                startOnBoot = true, engineSettingsInitialized = true))
+                startOnBoot = true, engineSettingsInitialized = true, lanAccess = false))
             val reopened = SettingsStore(app); reopened.load()
             assertEquals("https://example.com/torrserver", reopened.state.value.torrServerUrl)
             assertFalse(reopened.state.value.useLocalServer); assertTrue(reopened.state.value.startOnBoot)
             assertTrue(reopened.state.value.engineSettingsInitialized)
+            assertFalse(reopened.state.value.lanAccess)
             assertEquals(original.metadataOrder, reopened.state.value.metadataOrder)
             assertEquals(original.jackettKey, reopened.state.value.jackettKey)
             assertEquals(original.resume, reopened.state.value.resume)
@@ -35,10 +36,11 @@ class TorrServerPersistenceTest {
         val store = SettingsStore(app)
         try {
             val prefs = app.getSharedPreferences("settings", Context.MODE_PRIVATE)
-            prefs.edit().remove("torrServerUrl").remove("useLocalServer").remove("startOnBoot").putInt("port", 8097).commit()
+            prefs.edit().remove("torrServerUrl").remove("useLocalServer").remove("startOnBoot").remove("lanAccess").putInt("port", 8097).commit()
             store.load()
             assertEquals("http://localhost:8097", store.state.value.torrServerUrl)
             assertTrue(store.state.value.useLocalServer); assertFalse(store.state.value.startOnBoot)
+            assertTrue(store.state.value.lanAccess); assertTrue(store.state.value.needsLocalService)
         } finally { store.save(original) }
     }
     @Test fun concurrentUpdatesDoNotLoseOtherFields() = runBlocking {

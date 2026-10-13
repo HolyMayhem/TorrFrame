@@ -23,6 +23,7 @@ class AppGraph(val app: Application) {
     val ready = CompletableDeferred<Unit>()
     val http = Http()
     val settings = SettingsStore(app)
+    val serverWebAddress = ServerWebAddressMonitor(app, settings, scope)
     val store = LibraryStore(app)
     val api = TorrServerApi(http) { settings.state.value.torrServerUrl }
     private val localApi = TorrServerApi(http) { "http://127.0.0.1:${settings.state.value.port}" }
@@ -67,7 +68,24 @@ class AppGraph(val app: Application) {
             .build() }
         app.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
             private var visible = 0
-            override fun onActivityStarted(activity: Activity) { visible++; scope.launch { runCatching { ready.await(); if(visible > 0) { server.foreground(true); connection.foreground(true); phoneRemote.initialize() } } } }
+            override fun onActivityStarted(activity: Activity) {
+                visible++
+                scope.launch {
+                    runCatching {
+                        ready.await()
+                        if (visible > 0) {
+                            server.foreground(true)
+                            if (settings.state.value.needsLocalService) {
+                                try { LocalServerService.start(app) }
+                                catch (_: RuntimeException) { server.backgroundError(app.getString(R.string.boot_restricted)) }
+                            }
+                            connection.foreground(true)
+                            phoneRemote.initialize()
+                            runCatching { library.sync() }
+                        }
+                    }
+                }
+            }
             override fun onActivityStopped(activity: Activity) { visible--; if(visible == 0) { server.foreground(false); connection.foreground(false) } }
             override fun onActivityCreated(activity: Activity, state: Bundle?) {}
             override fun onActivityDestroyed(activity: Activity) {}

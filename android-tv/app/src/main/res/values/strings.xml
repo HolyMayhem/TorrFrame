@@ -12,7 +12,13 @@
     <string name="server_title">Подключение к TorrServer</string>
     <string name="server_url">Адрес TorrServer</string>
     <string name="server_mode">Использовать встроенный сервер</string>
-    <string name="server_local_hint">Встроенный сервер доступен только на этом устройстве. Его процессом управляет приложение.</string>
+    <string name="server_local_hint">Приложение подключается к встроенному серверу на этом устройстве. Доступ из домашней сети настраивается отдельно.</string>
+    <string name="server_lan">Доступ из локальной сети</string>
+    <string name="server_lan_hint">Позволяет открыть классический веб-интерфейс TorrServer с телефона или компьютера в одной сети. Сервер продолжает работать после сворачивания приложения. Изменение требует перезапуска сервера и недоступно во время воспроизведения.</string>
+    <string name="server_lan_saved">Режим доступа сохранён. Сервер перезапущен.</string>
+    <string name="server_web_title">Веб-интерфейс TorrServer</string>
+    <string name="server_web_no_network">Подключите приставку к Wi-Fi или Ethernet, чтобы увидеть адрес.</string>
+    <string name="server_web_hint">Введите этот адрес в браузере другого устройства в той же домашней сети.</string>
     <string name="server_remote_hint">Подключение к внешнему серверу. Его запуском и остановкой управляет владелец сервера.</string>
     <string name="server_local_port">Порт встроенного сервера</string>
     <string name="server_default_url">Восстановить адрес по умолчанию</string>

@@ -31,6 +31,9 @@ class PhoneRemoteServer(val guard: RequestGuard, private val sessions: SessionMa
     private val rateLimit = PairingRateLimit()
     suspend fun start() = withContext(Dispatchers.IO) {
         check(server == null)
+        // CIO resolves configured connectors before its asynchronous bind can fail.
+        // Reject an occupied address synchronously instead of reporting a running remote.
+        java.net.ServerSocket().use { it.bind(java.net.InetSocketAddress(guard.address, guard.port)) }
         val created = embeddedServer(CIO, configure = { connectionIdleTimeoutSeconds = 15; connectionGroupSize = 1; workerGroupSize = 2; callGroupSize = 2; connector { host = guard.address; port = guard.port } }) { routes() }
         server = created
         try { created.start(wait = false); withTimeout(8_000) { created.engine.resolvedConnectors() }; Unit }

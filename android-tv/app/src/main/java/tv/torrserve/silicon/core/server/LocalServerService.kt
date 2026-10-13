@@ -34,7 +34,7 @@ class LocalServerService : Service() {
         scope.launch {
             try {
                 graph.ready.await()
-                graph.settings.state.map { it.startOnBoot && it.useLocalServer }.distinctUntilChanged().collectLatest { enabled ->
+                graph.settings.state.map { it.needsLocalService }.distinctUntilChanged().collectLatest { enabled ->
                     if (!enabled) { stopSelf(); return@collectLatest }
                     graph.server.backgroundOwned = true
                     graph.server.start()

@@ -23,13 +23,19 @@ ARMv7 `816a44e35f6e8802eb52bfa65263da44611b4b36e62b0b517decaf20f2ac5689`.
 Source: https://github.com/YouROK/TorrServer/releases/tag/MatriX.146.1. This is an executable, not a JNI library:
 do not call System.loadLibrary. Legacy JNI packaging makes Package Manager extract
 it into the read-only nativeLibraryDir. ProcessBuilder runs that installed copy;
-only data/config live in filesDir. Bind HTTP explicitly to 127.0.0.1.
+only data/config live in filesDir. Bind HTTP to 0.0.0.0 when LAN access is enabled
+(default), or 127.0.0.1 when disabled. The app/player retain their loopback URL.
+ServerWebAddressMonitor tracks Wi-Fi/Ethernet IPv4 changes and the configured port
+for the standard web UI URL; it works independently of optional Phone Remote.
 The official release SHA-256 is pinned and checked during packaging.
 No root, writable-directory exec, runtime binary replacement, or signal immunity.
 
 Foreground app owns the idle server. A Media3 MediaSessionService owns playback
-and keeps server lifetime across Activity backgrounding. Stop idle server after
-backgrounding; do not misuse dataSync FGS for indefinite playback. A single
+and keeps server lifetime across Activity backgrounding. LocalServerService owns
+the server while LAN access or boot autostart is enabled, using the declared
+specialUse foreground-service type. Without either setting or playback, the
+idle server stops after backgrounding. Boot autostart remains a separate opt-in.
+A single
 serialized controller prevents duplicate child processes. Process death recovery
 must verify recorded PID identity before terminating any orphan owned by this app.
 

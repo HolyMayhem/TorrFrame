@@ -47,17 +47,35 @@ class TorrServerActions(private val context: Context, private val store: Setting
             LocalServerService.stop(context); server.backgroundOwned = false
             try { server.changeConnection { store.update(expectedRevision) { it.copy(torrServerUrl = normalized, useLocalServer = local, port = port) } } }
             catch (e: Exception) {
-                if (previous.useLocalServer) { server.start(); if (previous.startOnBoot && server.state.value is ServerState.Running) service() }
+                if (previous.useLocalServer) { server.start(); if (previous.needsLocalService && server.state.value is ServerState.Running) service() }
                 throw e
             }
         }
-        if (local) { server.start(); if (store.state.value.startOnBoot && server.state.value is ServerState.Running) service() }
+        if (local) { server.start(); if (store.state.value.needsLocalService && server.state.value is ServerState.Running) service() }
         if (connection.check(normalized).status == ConnectionStatus.Connected) R.string.server_address_saved else R.string.server_saved_unavailable
     }
-    suspend fun start() = applicationMutation { local(); server.requireRunning(); if (store.state.value.startOnBoot) service(); connection.check(); Unit }
+    suspend fun start() = applicationMutation { local(); server.requireRunning(); if (store.state.value.needsLocalService) service(); connection.check(); Unit }
     suspend fun stop() = applicationMutation { local(); idle(); LocalServerService.stop(context); server.backgroundOwned = false; server.stop(); connection.check(); Unit }
-    suspend fun restart() = applicationMutation { local(); idle(); server.restart(); if (store.state.value.startOnBoot && server.state.value is ServerState.Running) service(); connection.check(); Unit }
-    suspend fun boot(enabled: Boolean, expectedRevision: Long? = null) = applicationMutation { local(); store.update(expectedRevision) { it.copy(startOnBoot = enabled) }; if (enabled) service() else LocalServerService.stop(context); Unit }
+    suspend fun restart() = applicationMutation { local(); idle(); server.restart(); if (store.state.value.needsLocalService && server.state.value is ServerState.Running) service(); connection.check(); Unit }
+    suspend fun boot(enabled: Boolean, expectedRevision: Long? = null) = applicationMutation { local(); store.update(expectedRevision) { it.copy(startOnBoot = enabled) }; if (store.state.value.needsLocalService) service() else LocalServerService.stop(context); Unit }
+    suspend fun lan(enabled: Boolean, expectedRevision: Long? = null): Int = applicationMutation {
+        local(); idle()
+        val previous = store.state.value
+        if (expectedRevision != null && store.revision.value != expectedRevision) throw tv.torrserve.silicon.core.storage.SettingsConflict()
+        if (previous.lanAccess != enabled) {
+            LocalServerService.stop(context); server.backgroundOwned = false
+            try { server.changeConnection { store.update(expectedRevision) { it.copy(lanAccess = enabled) } } }
+            catch (e: Exception) {
+                server.start()
+                if (previous.needsLocalService && server.state.value is ServerState.Running) service()
+                throw e
+            }
+        }
+        server.start()
+        if (store.state.value.needsLocalService && server.state.value is ServerState.Running) service()
+        connection.check()
+        if (server.state.value is ServerState.Running) R.string.server_lan_saved else R.string.server_saved_unavailable
+    }
     private suspend fun target(): TorrServerApi { server.requireRunning(); return api.at(store.state.value.torrServerUrl) }
     suspend fun loadEngine(): Pair<String, JSONObject> {
         val api = target()

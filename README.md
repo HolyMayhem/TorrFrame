@@ -4,13 +4,20 @@ Native Android TV client with a bundled ARM64/ARMv7 TorrServer, a local media li
 Jackett search, metadata providers and a Media3 player. Kotlin, Compose for TV,
 Coroutines and SQLite. The macOS project is maintained separately.
 
-Current local preview: **0.1.6**. Android 8.0+ / API 26+, ARM64 and ARMv7 (32-bit Android).
+Current local preview: **0.1.7**. Android 8.0+ / API 26+, ARM64 and ARMv7 (32-bit Android).
 
 ## Build and run
 
 Open `android-tv/` in Android Studio. Install the SDK versions declared by the
 project and choose an **ARM Android TV** device or ARM64 emulator. Run the `app` module.
 The bundled server starts automatically; Jackett is an external service.
+The standard TorrServer web interface is available on the TV's LAN IP and port
+8090 by default. Settings shows the current URL under TorrServer. Open that URL
+from a browser on the same network; no ADB forwarding is required. LAN access
+keeps the server running after leaving the app, independently of boot autostart.
+Disable LAN access in Settings to listen only on loopback. The app and player
+continue using their local address in either mode. Phone Remote is a separate
+optional service and does not need to be enabled for the standard web interface.
 Metadata keys are embedded at build time. Copy
 `android-tv/metadata-keys.properties.example` to the ignored
 `android-tv/metadata-keys.properties`, or supply the three `TORRSERVE_*_API_KEY`
@@ -84,7 +91,7 @@ still needs playback, codec and performance checks.
 - [Architecture](docs/architecture.md)
 - [Icon and banner source specifications](docs/icon-assets.md)
 - [Verification evidence](docs/verification.md)
-- [0.1.6 preview notes](docs/release-notes-0.1.6.md)
+- [0.1.7 preview notes](docs/release-notes-0.1.7.md)
 
 Jackett credentials stay in encrypted application storage. Metadata keys are built into the APK. Local SDKs, JDKs, Gradle
 outputs, signing keys and APK artifacts are excluded from Git. Preview APKs use a

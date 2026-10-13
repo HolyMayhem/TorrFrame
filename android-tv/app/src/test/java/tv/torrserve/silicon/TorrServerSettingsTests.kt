@@ -15,6 +15,16 @@ import tv.torrserve.silicon.core.storage.Settings
 import java.util.concurrent.TimeUnit
 
 class TorrServerSettingsTests {
+    @Test fun lanDefaultsKeepLocalApiAndOwnBackgroundServiceIndependentlyOfBoot() {
+        val s = Settings()
+        assertTrue(s.lanAccess); assertFalse(s.startOnBoot)
+        assertEquals("0.0.0.0", s.serverBindAddress); assertTrue(s.needsLocalService)
+        assertTrue(ServerAddress.isLocal(s.torrServerUrl, s.port))
+        val localOnly = s.copy(lanAccess = false)
+        assertEquals("127.0.0.1", localOnly.serverBindAddress); assertFalse(localOnly.needsLocalService)
+        assertTrue(localOnly.copy(startOnBoot = true).needsLocalService)
+        assertFalse(s.copy(useLocalServer = false, startOnBoot = true).needsLocalService)
+    }
     @Test fun validatesAndNormalizesAddresses() {
         assertEquals("http://localhost:8090", ServerAddress.normalize(" http://localhost:8090/ "))
         assertEquals("https://example.com/proxy/settings", ServerAddress.endpoint("https://example.com/proxy/", "settings").toString())

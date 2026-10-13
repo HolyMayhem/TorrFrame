@@ -52,12 +52,13 @@ class ServerController(private val context: Context, private val api: TorrServer
         try {
             check(executable.isFile && executable.canExecute()) { context.getString(tv.torrserve.silicon.R.string.server_apk_missing) }
             recoverOrphan()
-            java.net.ServerSocket().use { it.bind(java.net.InetSocketAddress("127.0.0.1",port())) }
+            val bindAddress = settings.state.value.serverBindAddress
+            java.net.ServerSocket().use { it.bind(java.net.InetSocketAddress(bindAddress,port())) }
             // Android's java.lang.Process has no pid(). The shell records its own PID
             // then exec replaces it with the packaged ELF. Arguments stay positional.
             val child = ProcessBuilder("/system/bin/sh", "-c",
-                "echo \$\$ > \"\$1\"; exec \"\$2\" --path \"\$3\" --port \"\$4\" --ip 127.0.0.1",
-                "torrserve", marker.absolutePath, executable.absolutePath, directory.absolutePath, port().toString())
+                "echo \$\$ > \"\$1\"; exec \"\$2\" --path \"\$3\" --port \"\$4\" --ip \"\$5\"",
+                "torrserve", marker.absolutePath, executable.absolutePath, directory.absolutePath, port().toString(), bindAddress)
                 .directory(directory).redirectErrorStream(true).redirectOutput(File("/dev/null"))
                 .apply { environment()["GOMEMLIMIT"] = "${cacheMb()+128}MiB"; environment()["GOGC"] = "50" }.start()
             process = child

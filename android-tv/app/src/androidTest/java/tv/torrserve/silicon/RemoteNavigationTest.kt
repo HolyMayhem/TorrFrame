@@ -109,6 +109,33 @@ class RemoteNavigationTest {
         compose.onNodeWithTag("nav:Settings").assertIsSelected()
         focused("server:engine")
     }
+    @Test fun settingsShowsActualWebAddressAndLanSwitchAcceptsRemote() {
+        val graph = (compose.activity.application as TorrServeApplication).graph
+        for (i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("server:web-url"))
+        compose.waitUntil(10_000) { graph.serverWebAddress.url.value.isNotEmpty() }
+        compose.onNodeWithTag("server:web-url").assertTextEquals(graph.serverWebAddress.url.value)
+        compose.onNodeWithTag("server:lan").performSemanticsAction(SemanticsActions.RequestFocus)
+        focused("server:lan")
+        try {
+            remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            compose.waitUntil(10_000) { !graph.settings.state.value.lanAccess }
+            compose.onNodeWithTag("server:web-url").assertDoesNotExist()
+            // Saving the flag precedes the server restart and connection check.
+            compose.waitUntil(30_000) {
+                compose.onAllNodesWithText(compose.activity.getString(R.string.server_busy), substring = true)
+                    .fetchSemanticsNodes().isEmpty()
+            }
+            focused("server:lan")
+            remote(KeyEvent.KEYCODE_ENTER)
+            compose.waitUntil(10_000) { graph.settings.state.value.lanAccess && graph.serverWebAddress.url.value.isNotEmpty() }
+            compose.onNodeWithTag("server:web-url").assertTextEquals(graph.serverWebAddress.url.value)
+            focused("server:lan")
+        } finally {
+            kotlinx.coroutines.runBlocking { graph.serverActions.lan(true) }
+        }
+    }
     @Test fun torrServerAddressDialogRestoresFocusAndRejectsInvalidAddress() {
         for (i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
         remote(KeyEvent.KEYCODE_DPAD_CENTER)

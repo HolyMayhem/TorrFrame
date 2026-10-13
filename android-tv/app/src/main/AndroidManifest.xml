@@ -23,7 +23,7 @@
         </receiver>
         <service android:name=".core.server.LocalServerService" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="User-enabled persistent local BitTorrent streaming server on Android TV, started at boot" />
+                android:value="Persistent user-controlled BitTorrent server and LAN web interface on Android TV" />
         </service>
         <service android:name=".features.player.PlaybackService" android:exported="false" android:foregroundServiceType="mediaPlayback">
             <intent-filter><action android:name="androidx.media3.session.MediaSessionService" /></intent-filter>
