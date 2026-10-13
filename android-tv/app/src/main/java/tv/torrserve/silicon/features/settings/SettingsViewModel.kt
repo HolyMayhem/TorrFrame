@@ -6,15 +6,28 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import tv.torrserve.silicon.AppGraph
 import tv.torrserve.silicon.core.storage.Settings
-import tv.torrserve.silicon.features.library.friendly
 
-data class SettingsUi(val draft: Settings = Settings(), val message: String = "", val busy: Boolean = false, val connection: String = "Disconnected")
+data class SettingsUi(val draft: Settings = Settings(), val message: String = "", val busy: Boolean = false, val connection: Int = tv.torrserve.silicon.R.string.settings_disconnected)
 class SettingsViewModel(private val graph: AppGraph): ViewModel() {
     private val mutable = MutableStateFlow(SettingsUi())
     val state = mutable.asStateFlow()
-    init { viewModelScope.launch { graph.settings.state.collect { s -> mutable.update { it.copy(draft = s) } } } }
+    private var baseline = Settings()
+    init { viewModelScope.launch {
+        try {
+        graph.ready.await()
+        baseline = graph.settings.state.value
+        mutable.update { it.copy(draft = baseline) }
+        graph.settings.state.collect { s ->
+            mutable.update { it.copy(draft = tv.torrserve.silicon.core.storage.SettingsMerge.rebase(it.draft, baseline, s)) }
+            baseline = s
+        }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            mutable.update { it.copy(message = graph.app.getString(tv.torrserve.silicon.R.string.settings_load_failed)) }
+        }
+    } }
     fun edit(block: (Settings) -> Settings) { mutable.update {
-        val s = block(it.draft); it.copy(draft = s, connection = if(s.jackettUrl != it.draft.jackettUrl || s.jackettKey != it.draft.jackettKey) "Disconnected" else it.connection)
+        val s = block(it.draft); it.copy(draft = s, connection = if(s.jackettUrl != it.draft.jackettUrl || s.jackettKey != it.draft.jackettKey) tv.torrserve.silicon.R.string.settings_disconnected else it.connection)
     } }
     fun moveProvider(provider: String, direction: Int) {
         edit { it.copy(metadataOrder = tv.torrserve.silicon.core.storage.MetadataPriority.move(it.metadataOrder, provider, direction)) }
@@ -26,8 +39,8 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
             try { graph.ready.await(); val message = block(); mutable.update { it.copy(message = message) } }
             catch (e: Exception) { if (e is CancellationException) throw e; mutable.update {
                 val failure = e as? tv.torrserve.silicon.core.network.ServiceFailure
-                val status = if(failure?.service == "Jackett") when(failure.status) { 401,403 -> "Invalid API Key"; 408 -> "Timeout"; else -> "Connection Error" } else it.connection
-                it.copy(message = friendly(e), connection = status)
+                val status = if(failure?.service == "Jackett") when(failure.status) { 401,403 -> tv.torrserve.silicon.R.string.settings_invalid_key; 408 -> tv.torrserve.silicon.R.string.server_timeout; else -> tv.torrserve.silicon.R.string.server_connection_error } else it.connection
+                it.copy(message = graph.app.getString(tv.torrserve.silicon.R.string.settings_operation_failed), connection = status)
             } }
             finally { mutable.update { it.copy(busy = false) } }
         }
@@ -35,16 +48,10 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
     fun save() = action {
         val s = state.value.draft
         if (s.jackettUrl.isNotBlank()) graph.jackett.endpoint(s, "caps")
-        val previous = graph.settings.state.value
-        if (graph.server.playbackOwned && (previous.port != s.port || previous.cacheMb != s.cacheMb)) error("Stop playback before changing server settings.")
-        if (previous.port != s.port) graph.server.stop()
-        graph.settings.save(s)
-        graph.server.start(); graph.api.configureCache(s.cacheMb)
-        "Settings saved."
+        val base = baseline
+        graph.settings.update { current -> tv.torrserve.silicon.core.storage.SettingsMerge.rebase(s, base, current) }
+        graph.app.getString(tv.torrserve.silicon.R.string.settings_saved)
     }
-    fun test() = action { graph.jackett.test(state.value.draft); mutable.update { it.copy(connection = "Connected") }; "Connected to Jackett." }
-    fun start() = action { graph.server.requireRunning(); "TorrServer is running." }
-    fun stop() = action { graph.server.stop(); "TorrServer stopped." }
-    fun restart() = action { graph.server.restart(); "TorrServer restarted." }
-    fun clearCache() = action { graph.store.clearCache(); "Metadata cache cleared. Saved library metadata is retained." }
+    fun test() = action { graph.jackett.test(state.value.draft); mutable.update { it.copy(connection = tv.torrserve.silicon.R.string.server_connected) }; graph.app.getString(tv.torrserve.silicon.R.string.settings_jackett_connected) }
+    fun clearCache() = action { graph.store.clearCache(); graph.app.getString(tv.torrserve.silicon.R.string.settings_metadata_cleared) }
 }

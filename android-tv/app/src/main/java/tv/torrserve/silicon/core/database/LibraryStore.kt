@@ -7,8 +7,11 @@ import android.content.ContentValues
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import org.json.JSONArray
 import tv.torrserve.silicon.core.models.*
@@ -20,8 +23,12 @@ interface MetadataCache {
 }
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class LibraryStore(context: Context) : SQLiteOpenHelper(context, "library.sqlite", null, 1), MetadataCache {
+class LibraryStore(context: Context, databaseName: String = "library.sqlite") : SQLiteOpenHelper(context, databaseName, null, 1), MetadataCache {
+    private val metadataLock = Mutex()
+    private val manualMetadata = mutableSetOf<String>()
+    private val metadataEpochs = mutableMapOf<String, Long>()
     private val revision = MutableStateFlow(0L)
+    val changes = revision.asStateFlow()
     val library = revision.mapLatest { list() }
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true); db.enableWriteAheadLogging() }
     override fun onCreate(db: SQLiteDatabase) {
@@ -61,12 +68,38 @@ class LibraryStore(context: Context) : SQLiteOpenHelper(context, "library.sqlite
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }; changed()
     }
-    suspend fun metadata(hash: String, value: Metadata) = withContext(Dispatchers.IO) {
-        writableDatabase.update("library", ContentValues().apply { put("metadata", value.json().toString()) }, "hash=?", arrayOf(hash)); changed()
+    suspend fun metadataTicket(hash: String, automatic: Boolean = false): Long? = metadataLock.withLock {
+        if (automatic && hash in manualMetadata) return@withLock null
+        if (!automatic) manualMetadata.add(hash)
+        val next = (metadataEpochs[hash] ?: 0) + 1; metadataEpochs[hash] = next; next
     }
-    suspend fun remove(hash: String) = withContext(Dispatchers.IO) {
+    suspend fun metadata(hash: String, value: Metadata, ticket: Long? = null): Boolean = withContext(Dispatchers.IO) { metadataLock.withLock {
+        if (ticket != null && metadataEpochs[hash] != ticket) return@withLock false
+        if (ticket == null) { manualMetadata.add(hash); metadataEpochs[hash] = (metadataEpochs[hash] ?: 0) + 1 }
+        val count = writableDatabase.update("library", ContentValues().apply { put("metadata", value.json().toString()) }, "hash=?", arrayOf(hash))
+        changed(); count > 0
+    } }
+    suspend fun clearMetadata(hash: String) = withContext(Dispatchers.IO) { metadataLock.withLock {
+        manualMetadata.add(hash); metadataEpochs[hash] = (metadataEpochs[hash] ?: 0) + 1
+        writableDatabase.update("library", ContentValues().apply { putNull("metadata") }, "hash=?", arrayOf(hash)); changed()
+    } }
+    suspend fun rename(hash: String, title: String) = withContext(Dispatchers.IO) { metadataLock.withLock {
+        require(title.isNotBlank() && title.length <= 250)
+        manualMetadata.add(hash); metadataEpochs[hash] = (metadataEpochs[hash] ?: 0) + 1
+        val db = writableDatabase; db.beginTransaction()
+        try {
+            val metadata = db.rawQuery("SELECT metadata FROM library WHERE hash=?", arrayOf(hash)).use { c ->
+                check(c.moveToFirst()); c.getString(0)?.let { Metadata.from(JSONObject(it)).copy(title = title.trim()) }
+            }
+            db.update("library", ContentValues().apply { put("source_title", title.trim()); metadata?.let { put("metadata", it.json().toString()) } }, "hash=?", arrayOf(hash))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        changed()
+    } }
+    suspend fun remove(hash: String) = withContext(Dispatchers.IO) { metadataLock.withLock {
+        metadataEpochs[hash] = (metadataEpochs[hash] ?: 0) + 1; manualMetadata.remove(hash)
         writableDatabase.delete("library", "hash=?", arrayOf(hash)); changed()
-    }
+    } }
     suspend fun checkpoint(hash: String, file: Int, position: Long, duration: Long) = withContext(Dispatchers.IO) {
         writableDatabase.insertWithOnConflict("playback", null, ContentValues().apply {
             put("hash", hash); put("file_id", file); put("position", position.coerceAtLeast(0)); put("duration", duration.coerceAtLeast(0))

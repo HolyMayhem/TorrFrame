@@ -33,6 +33,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import tv.torrserve.silicon.R
 import androidx.tv.material3.*
 import coil3.compose.AsyncImage
@@ -79,17 +84,17 @@ import tv.torrserve.silicon.core.models.LibraryItem
     }
 }
 @Composable fun EditField(label: String, value: String, secret: Boolean = false, modifier: Modifier = Modifier,
-    keyboardType: KeyboardType = KeyboardType.Text, onValue: (String) -> Unit) {
+    keyboardType: KeyboardType = KeyboardType.Text, russian: Boolean = false, onValue: (String) -> Unit) {
     var editing by remember { mutableStateOf(false) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         TvText(label, color = Muted, fontSize = 14.sp)
-        TvAction(if (value.isBlank()) "Enter $label" else if(secret) "••••••••" else value,
+        TvAction(if (value.isBlank()) { if (russian) stringResource(R.string.field_enter, label) else "Enter $label" } else if(secret) "••••••••" else value,
             modifier = Modifier.fillMaxWidth().testTag("field:$label")) { editing = true }
     }
-    if (editing) TextEditor(label, value, secret, keyboardType, { editing = false }) { onValue(it); editing = false }
+    if (editing) TextEditor(label, value, secret, keyboardType, { editing = false }, russian) { onValue(it); editing = false }
 }
 @Composable fun TextEditor(title: String, initial: String, secret: Boolean = false,
-    keyboardType: KeyboardType = KeyboardType.Text, dismiss: () -> Unit, save: (String) -> Unit) {
+    keyboardType: KeyboardType = KeyboardType.Text, dismiss: () -> Unit, russian: Boolean = false, save: (String) -> Unit) {
     val field = rememberTextFieldState(initialText = initial.take(4096))
     val focus = remember { FocusRequester() }; val doneFocus = remember { FocusRequester() }
     val hardwareKeyboard = LocalConfiguration.current.keyboard != Configuration.KEYBOARD_NOKEYS
@@ -118,11 +123,29 @@ import tv.torrserve.silicon.core.models.LibraryItem
                 keyboardOptions = options, onKeyboardAction = finishEditing,
                 textStyle = TextStyle(color = TextPrimary, fontSize = 16.sp), cursorBrush = SolidColor(Accent))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TvAction("Done", modifier = Modifier.focusRequester(doneFocus).testTag("dialog:done"), primary = true) { keyboard?.hide(); save(field.text.toString()) }
-                TvAction("Cancel", modifier = Modifier.testTag("dialog:cancel")) { keyboard?.hide(); dismiss() }
+                TvAction(if (russian) stringResource(R.string.dialog_done) else "Done", modifier = Modifier.focusRequester(doneFocus).testTag("dialog:done"), primary = true) { keyboard?.hide(); save(field.text.toString()) }
+                TvAction(if (russian) stringResource(R.string.dialog_cancel) else "Cancel", modifier = Modifier.testTag("dialog:cancel")) { keyboard?.hide(); dismiss() }
             }
         }
         LaunchedEffect(Unit) { focus.requestFocus(); if(!hardwareKeyboard) keyboard?.show() }
+    }
+}
+@Composable fun TvToggle(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
+    Button(onClick = { onChange(!checked) }, modifier = modifier.fillMaxWidth().heightIn(min = TvDimensions.actionHeight)
+        .semantics { role = Role.Switch; toggleableState = if (checked) ToggleableState.On else ToggleableState.Off },
+        shape = ButtonDefaults.shape(RoundedCornerShape(TvDimensions.buttonRadius)),
+        colors = ButtonDefaults.colors(containerColor = SurfaceSecondary, contentColor = TextPrimary,
+            focusedContainerColor = TextPrimary, focusedContentColor = Background),
+        border = ButtonDefaults.border(focusedBorder = Border(BorderStroke(2.dp, TextPrimary), inset = (-3).dp)),
+        scale = ButtonDefaults.scale(focusedScale = 1.02f)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            TvText(label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            TvText(stringResource(if (checked) R.string.toggle_on else R.string.toggle_off))
+            Box(Modifier.width(42.dp).height(24.dp).background(if (checked) Accent else Muted, RoundedCornerShape(12.dp)).padding(3.dp),
+                contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart) {
+                Box(Modifier.size(18.dp).background(Color.White, RoundedCornerShape(9.dp)))
+            }
+        }
     }
 }
 @Composable fun ChoiceRow(values: List<String>, selected: String, onSelect: (String) -> Unit) {
@@ -156,15 +179,15 @@ import tv.torrserve.silicon.core.models.LibraryItem
     }
 }
 @Composable fun Message(value: String) { if(value.isNotBlank()) TvText(value, color = Muted, modifier = Modifier.padding(vertical = 8.dp)) }
-@Composable fun Confirm(title: String, text: String, dismiss: () -> Unit, confirm: () -> Unit) {
+@Composable fun Confirm(title: String, text: String, dismiss: () -> Unit, confirmLabel: String = "Remove", russian: Boolean = false, confirm: () -> Unit) {
     val focus = remember { FocusRequester() }
     Dialog(onDismissRequest = dismiss) {
         Column(Modifier.width(480.dp).background(Surface, RoundedCornerShape(24.dp)).padding(28.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)) {
             TvText(title, style = MaterialTheme.typography.headlineSmall); TvText(text, color = Muted)
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                TvAction("Cancel", modifier = Modifier.focusRequester(focus), action = dismiss)
-                TvAction("Remove", action = confirm)
+                TvAction(if (russian) stringResource(R.string.dialog_cancel) else "Cancel", modifier = Modifier.focusRequester(focus), action = dismiss)
+                TvAction(confirmLabel, action = confirm)
             }
         }; LaunchedEffect(Unit) { focus.requestFocus() }
     }

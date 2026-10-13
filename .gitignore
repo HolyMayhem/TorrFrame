@@ -14,3 +14,8 @@ android-tv/metadata-keys.properties
 **/.kotlin/
 *.hprof
 **/captures/
+
+# Phone Remote build dependencies and generated static bundle
+android-tv/phone-remote-web/node_modules/
+android-tv/app/src/main/assets/phone-remote/
+android-tv/phone-remote-web/public/app-icon.png

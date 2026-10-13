@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import tv.torrserve.silicon.R
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -27,7 +29,7 @@ import tv.torrserve.silicon.ui.theme.Surface
     Dialog(onDismissRequest = dismiss) {
         Column(Modifier.width(640.dp).height(430.dp).background(Surface).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             ChoiceRow(listOf("TorrServer-GPL-3.0.txt", "Apache-2.0.txt"),source) { source = it }
-            TvText("TorrServer by YouROK. Kotlin, AndroidX, OkHttp and Coil use Apache-2.0.", fontSize = 14.sp, translate = false)
+            TvText(stringResource(R.string.settings_license_info), fontSize = 14.sp, translate = false)
             LazyColumn(state = scroll, modifier = Modifier.weight(1f).focusable().onPreviewKeyEvent { event ->
                 if(event.type == KeyEventType.KeyDown && (event.key == Key.DirectionDown || event.key == Key.DirectionUp)) {
                     val down = event.key == Key.DirectionDown
@@ -36,7 +38,7 @@ import tv.torrserve.silicon.ui.theme.Surface
                     } else false
                 } else false
             }) { items(paragraphs) { TvText(it, fontSize = 14.sp, translate = false, modifier = Modifier.padding(bottom = 12.dp)) } }
-            TvAction("Back", action = dismiss)
+            TvAction(stringResource(R.string.engine_back), action = dismiss)
         }
     }
 }

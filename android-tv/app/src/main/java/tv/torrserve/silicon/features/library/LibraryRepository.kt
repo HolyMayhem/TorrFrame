@@ -40,8 +40,9 @@ class LibraryRepository(val store: LibraryStore, private val api: TorrServerApi,
         if(!force && item.metadata != null) return true
         val sources = listOfNotNull(item.sourceTitle.takeIf { it.isNotBlank() && it != "Torrent" }) + item.files.filter { it.isVideo }.take(3).map { it.path.substringAfterLast('/') }
         if(sources.isEmpty()) return false
+        val ticket = store.metadataTicket(hash, automatic = !force) ?: return false
         val value = metadata.resolve(sources, settings.state.value, force) ?: return false
-        store.metadata(hash, value); return true
+        return store.metadata(hash, value, ticket)
     }
     suspend fun files(hash: String): List<TorrentFile> {
         server.requireRunning()

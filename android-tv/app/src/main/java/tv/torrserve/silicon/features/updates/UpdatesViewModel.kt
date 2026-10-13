@@ -1,109 +1,14 @@
 package tv.torrserve.silicon.features.updates
 
 import android.app.Application
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.Request
-import org.json.JSONObject
-import java.io.File
-import java.security.MessageDigest
 import tv.torrserve.silicon.AppGraph
-import tv.torrserve.silicon.BuildConfig
-import tv.torrserve.silicon.features.library.friendly
 
-data class UpdateAsset(val url: String, val digest: String, val version: String)
-data class UpdatesUi(val busy: Boolean = false, val message: String = "", val serverVersion: String = "",
-    val asset: UpdateAsset? = null, val downloaded: File? = null)
-class UpdatesViewModel(private val app: Application, private val graph: AppGraph) : ViewModel() {
-    private val mutable = MutableStateFlow(UpdatesUi()); val state = mutable.asStateFlow()
-    private fun action(block: suspend () -> Unit) {
-        if(state.value.busy) return
-        mutable.update { it.copy(busy = true, message = "") }
-        viewModelScope.launch {
-            try { graph.ready.await(); block() }
-            catch(e: Exception) { if(e is CancellationException) throw e; mutable.update { it.copy(message = friendly(e)) } }
-            finally { mutable.update { it.copy(busy = false) } }
-        }
-    }
-    private suspend fun release(repository: String) = withContext(Dispatchers.Default) { JSONObject(graph.http.bytes(Request.Builder()
-        .url("https://api.github.com/repos/$repository/releases/latest".toHttpUrl())
-        .header("Accept", "application/vnd.github+json").header("User-Agent", "TorrServe-Silicon-TV").build(), "GitHub").toString(Charsets.UTF_8)) }
-    fun server() = action {
-        val version = release("YouROK/TorrServer").getString("tag_name")
-        mutable.update { it.copy(serverVersion = version, message = "Latest TorrServer: $version. The bundled server is updated with the APK.") }
-    }
-    fun check() = action {
-        val repository = graph.settings.state.value.updateRepository
-        require(repository.matches(Regex("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"))) { "Set the Android TV GitHub repository in owner/repository format and save Settings." }
-        val release = release(repository); val version = release.getString("tag_name")
-        if(version.removePrefix("v") == BuildConfig.VERSION_NAME) {
-            mutable.update { it.copy(asset = null, downloaded = null, message = "The app is up to date.") }; return@action
-        }
-        val assets = release.getJSONArray("assets")
-        val candidates = (0 until assets.length()).map { assets.getJSONObject(it) }.filter {
-            val name = it.getString("name"); name.endsWith(".apk", true) && !name.contains("x86", true) && !name.contains("armeabi", true)
-        }
-        val asset = candidates.singleOrNull() ?: candidates.singleOrNull { it.getString("name").contains("arm64", true) }
-        require(asset != null) { "The latest release has no unambiguous ARM64 APK." }
-        val digest = asset.optString("digest").removePrefix("sha256:")
-        require(digest.matches(Regex("[a-fA-F0-9]{64}"))) { "The APK release has no SHA-256 digest." }
-        mutable.update { it.copy(asset = UpdateAsset(asset.getString("browser_download_url"), digest.lowercase(), version), downloaded = null,
-            message = "Latest app release: $version · Installed: ${BuildConfig.VERSION_NAME}. Download to verify compatibility and signature.") }
-    }
-    fun download() = action {
-        val asset = state.value.asset ?: return@action
-        val file = withContext(Dispatchers.IO) {
-            val dir = File(app.cacheDir, "updates").apply { mkdirs() }; val temporary = File(dir, "pending.apk")
-            val call = graph.http.client.newCall(Request.Builder().url(asset.url).build())
-            try {
-                call.execute().use { response ->
-                    check(response.isSuccessful) { "Could not download the APK." }
-                    val digest = MessageDigest.getInstance("SHA-256")
-                    response.body.byteStream().use { input -> temporary.outputStream().use { output ->
-                        val buffer = ByteArray(32 * 1024); var size = 0L
-                        while(true) {
-                            currentCoroutineContext().ensureActive()
-                            val n = input.read(buffer); if(n < 0) break
-                            size += n; check(size <= 160L * 1024 * 1024) { "The update APK exceeds the size limit." }
-                            digest.update(buffer,0,n); output.write(buffer,0,n)
-                        }
-                    } }
-                    check(digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == asset.digest) { "The APK integrity check failed." }
-                    verifySignature(temporary)
-                    val final = File(dir, "verified.apk"); final.delete(); check(temporary.renameTo(final)) { "Could not save the APK." }; final
-                }
-            } catch(e: Exception) { call.cancel(); temporary.delete(); throw e }
-        }
-        mutable.update { it.copy(downloaded = file, message = "APK integrity, application ID and signing certificate verified. Continue to Android's installer to approve the update.") }
-    }
-    @Suppress("DEPRECATION") private fun verifySignature(file: File) {
-        val flags = if(Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
-        val pm = app.packageManager; val installed = pm.getPackageInfo(app.packageName, flags)
-        val archive = pm.getPackageArchiveInfo(file.absolutePath, flags) ?: error("The download is not a valid APK.")
-        check(archive.packageName == app.packageName) { "The APK belongs to another application." }
-        fun hashes(info: android.content.pm.PackageInfo): Set<String> {
-            val signatures = if(Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else info.signatures
-            return signatures.orEmpty().map { MessageDigest.getInstance("SHA-256").digest(it.toByteArray()).joinToString("") { b -> "%02x".format(b.toInt() and 255) } }.toSet()
-        }
-        check(hashes(installed).isNotEmpty() && hashes(installed) == hashes(archive)) { "The APK was signed with a different certificate." }
-        val current = if(Build.VERSION.SDK_INT >= 28) installed.longVersionCode else installed.versionCode.toLong()
-        val newer = if(Build.VERSION.SDK_INT >= 28) archive.longVersionCode else archive.versionCode.toLong()
-        check(newer > current) { "This APK is already installed or older than the installed version." }
-    }
-    fun installer(): Intent? = state.value.downloaded?.let { file ->
-        if(Build.VERSION.SDK_INT >= 26 && !app.packageManager.canRequestPackageInstalls()) {
-            mutable.update { it.copy(message = "Allow installation from TorrServe Silicon in Android settings, then return and select Install Update again.") }
-            return@let Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,android.net.Uri.parse("package:${app.packageName}"))
-        }
-        Intent(Intent.ACTION_VIEW).setDataAndType(FileProvider.getUriForFile(app, "${app.packageName}.updates", file), "application/vnd.android.package-archive")
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    fun installerFailed() { mutable.update { it.copy(message = "Android's package installer is unavailable on this device.") } }
+class UpdatesViewModel(app: Application, private val graph: AppGraph) : ViewModel() {
+    val state = graph.updates.state
+    fun server() = graph.updates.server()
+    fun check() = graph.updates.check()
+    fun download() = graph.updates.download()
+    fun installer() = graph.updates.installer()
+    fun installerFailed() = graph.updates.installerFailed()
 }

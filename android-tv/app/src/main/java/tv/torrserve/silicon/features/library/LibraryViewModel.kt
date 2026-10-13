@@ -12,6 +12,7 @@ data class LibraryUi(val items: List<LibraryItem> = emptyList(), val busy: Boole
 class LibraryViewModel(private val graph: AppGraph) : ViewModel() {
     private val mutable = MutableStateFlow(LibraryUi())
     val state = mutable.asStateFlow()
+    val metadataEditor get() = graph.metadataEditor
     init {
         viewModelScope.launch { graph.store.library.collect { items -> mutable.update { it.copy(items = items) } } }
         refresh()

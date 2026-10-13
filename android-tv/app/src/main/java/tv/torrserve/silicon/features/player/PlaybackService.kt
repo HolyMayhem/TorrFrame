@@ -31,12 +31,13 @@ class PlaybackService : MediaSessionService() {
                 override fun onIsPlayingChanged(isPlaying: Boolean) { if (!isPlaying) checkpoint() }
             })
         }
+        graph.playback.attach(player, ::checkpoint)
         session = MediaSession.Builder(this, player).setCallback(object : MediaSession.Callback {
             override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult =
                 if (controller.packageName == packageName || controller.isTrusted)
                     super.onConnect(session, controller) else MediaSession.ConnectionResult.reject()
         }).build()
-        scope.launch { graph.ready.await(); graph.server.requireRunning() }
+        scope.launch { try { graph.ready.await(); graph.server.requireRunning() } catch (e: Exception) { if (e is CancellationException) throw e; stopSelf() } }
         scope.launch { while (isActive) { delay(30_000); checkpoint() } }
     }
     private fun checkpoint() {
@@ -48,7 +49,7 @@ class PlaybackService : MediaSessionService() {
     }
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = session
     override fun onDestroy() {
-        checkpoint(); session?.player?.release(); session?.release(); session = null
+        checkpoint(); graph.playback.detach(); session?.player?.release(); session?.release(); session = null
         scope.cancel(); graph.server.playbackOwned = false; graph.server.scheduleIdleStop()
         super.onDestroy()
     }

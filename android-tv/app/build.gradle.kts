@@ -65,6 +65,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("io.ktor:ktor-server-cio:3.6.0")
+    implementation("io.ktor:ktor-server-websockets:3.6.0")
+    implementation("com.google.zxing:core:3.5.4")
     implementation("io.coil-kt.coil3:coil-compose:3.6.3")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3")
     implementation("androidx.media3:media3-exoplayer:1.11.1")
@@ -96,3 +99,23 @@ val verifyTorrServer by tasks.registering {
     }
 }
 tasks.named("preBuild") { dependsOn(verifyTorrServer) }
+
+// Node is used on the build machine only; the APK serves this static bundle.
+val phoneWeb = rootProject.layout.projectDirectory.dir("phone-remote-web")
+val installPhoneRemoteWeb = tasks.register<Exec>("installPhoneRemoteWeb") {
+    workingDir(phoneWeb.asFile)
+    commandLine("npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund")
+    inputs.files(phoneWeb.file("package.json"), phoneWeb.file("package-lock.json"))
+    outputs.dir(phoneWeb.dir("node_modules"))
+}
+val buildPhoneRemoteWeb = tasks.register<Exec>("buildPhoneRemoteWeb") {
+    dependsOn(installPhoneRemoteWeb)
+    workingDir(phoneWeb.asFile)
+    commandLine("npm", "run", "build")
+    inputs.dir(phoneWeb.dir("src"))
+    inputs.files(phoneWeb.file("index.html"), phoneWeb.file("branding.mjs"), phoneWeb.file("vite.config.js"),
+        phoneWeb.file("tsconfig.json"), phoneWeb.file("package.json"), phoneWeb.file("package-lock.json"),
+        layout.projectDirectory.file("src/main/res/mipmap-xxhdpi/app_icon.png"))
+    outputs.dir(layout.projectDirectory.dir("src/main/assets/phone-remote"))
+}
+tasks.named("preBuild") { dependsOn(buildPhoneRemoteWeb) }

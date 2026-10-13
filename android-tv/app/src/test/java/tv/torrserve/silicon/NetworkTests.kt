@@ -21,7 +21,7 @@ class NetworkTests {
         assertThrows(IllegalArgumentException::class.java) { JackettClient(Http()).endpoint(Settings(jackettUrl="https://user:secret@example.com",jackettKey="k"),"caps") }
     }
     @Test fun streamPreservesFileIndexAndEncoding() {
-        val url = TorrServerApi(Http()) { 8090 }.stream("0".repeat(40),TorrentFile(7,"folder/фильм & title.mkv",10))
+        val url = TorrServerApi(Http()) { "http://localhost:8090" }.stream("0".repeat(40),TorrentFile(7,"folder/фильм & title.mkv",10))
         val parsed = okhttp3.HttpUrl.Companion.run { url.toHttpUrl() }
         assertEquals("7",parsed.queryParameter("index")); assertEquals("фильм & title.mkv",parsed.pathSegments.last()); assertTrue(parsed.queryParameterNames.contains("play"))
     }

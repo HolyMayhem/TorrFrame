@@ -73,7 +73,7 @@ class RemoteNavigationTest {
         compose.onNodeWithText("Open Settings").assertIsFocused()
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.onNodeWithTag("nav:Settings").assertIsSelected()
-        compose.onNodeWithText("Save").assertIsFocused()
+        compose.onNodeWithText("Сохранить").assertIsFocused()
         remote(KeyEvent.KEYCODE_BACK)
         compose.onNodeWithTag("nav:Home").assertIsFocused()
     }
@@ -82,8 +82,9 @@ class RemoteNavigationTest {
         for(i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.onNodeWithTag("nav:Settings").assertIsSelected()
-        compose.onNodeWithTag("field:Port").performSemanticsAction(SemanticsActions.RequestFocus)
-        focused("field:Port")
+        compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("field:Порт встроенного сервера"))
+        compose.onNodeWithTag("field:Порт встроенного сервера").performSemanticsAction(SemanticsActions.RequestFocus)
+        focused("field:Порт встроенного сервера")
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         focused("dialog:editor")
         compose.waitUntil(3000) { !compose.activity.hasWindowFocus() }
@@ -94,7 +95,32 @@ class RemoteNavigationTest {
         compose.onNodeWithTag("dialog:cancel").assertIsFocused()
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.onNodeWithTag("dialog:cancel").assertDoesNotExist()
-        focused("field:Port")
+        focused("field:Порт встроенного сервера")
+    }
+    @Test fun engineScreenBackRestoresSettingsFocusWithRemote() {
+        for (i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("server:engine"))
+        compose.onNodeWithTag("server:engine").performSemanticsAction(SemanticsActions.RequestFocus)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused("engine:back")
+        remote(KeyEvent.KEYCODE_BACK)
+        compose.onNodeWithTag("engine:back").assertDoesNotExist()
+        compose.onNodeWithTag("nav:Settings").assertIsSelected()
+        focused("server:engine")
+    }
+    @Test fun torrServerAddressDialogRestoresFocusAndRejectsInvalidAddress() {
+        for (i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        val tag = "field:Адрес TorrServer"
+        compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag(tag))
+        compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.RequestFocus)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNodeWithTag("dialog:editor").performTextReplacement("ftp://invalid")
+        remote(KeyEvent.KEYCODE_DPAD_DOWN)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(tag)
+        compose.onNodeWithText(compose.activity.getString(R.string.server_invalid_url)).assertExists()
     }
     @Test fun manualMagnetActionsAreAbsentFromHomeAndLibrary() {
         compose.onNodeWithTag("nav:Home").assertIsFocused()

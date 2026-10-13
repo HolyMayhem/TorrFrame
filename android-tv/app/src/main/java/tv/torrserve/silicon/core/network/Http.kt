@@ -52,7 +52,11 @@ class Http(val client: OkHttpClient = OkHttpClient.Builder()
                             }
                         }
                     }
-                    if (continuation.isActive) continuation.resumeWith(result)
+                    val mapped = result.fold({ Result.success(it) }, { error ->
+                        Result.failure<HttpReply>(if (error is ServiceFailure) error else if (error is IOException)
+                            ServiceFailure(service, if (error is java.io.InterruptedIOException) 408 else 0) else error)
+                    })
+                    if (continuation.isActive) continuation.resumeWith(mapped)
                 }
             })
         }

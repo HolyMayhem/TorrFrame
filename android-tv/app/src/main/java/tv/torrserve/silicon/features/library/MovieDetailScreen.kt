@@ -26,13 +26,12 @@ import tv.torrserve.silicon.features.metadata.MediaNameParser
 
 @Composable fun MovieDetailScreen(item: LibraryItem, state: LibraryUi, vm: LibraryViewModel,
     back: () -> Unit, find: (String) -> Unit, play: (String, TorrentFile) -> Unit) {
+    var editingMetadata by remember { mutableStateOf(false) }
     var removing by remember { mutableStateOf(false) }
     val watchFocus = remember { FocusRequester() }; val backFocus = remember { FocusRequester() }
     LaunchedEffect(item.hash) { withFrameNanos { }; runCatching { watchFocus.requestFocus() }.onFailure { backFocus.requestFocus() } }
     fun watch() { vm.files(item.hash) { files ->
-        val resume = files.find { it.id == item.lastFileId }
-        if (resume != null && item.inProgress) { vm.closeFiles(); play(item.hash, resume) }
-        else if (files.size == 1) { vm.closeFiles(); play(item.hash, files.single()) }
+        tv.torrserve.silicon.features.player.preferredVideo(item, files)?.let { preferred -> vm.closeFiles(); play(item.hash, preferred) }
     } }
     Box(Modifier.fillMaxSize()) {
         if (item.metadata?.backdrop?.isNotBlank() == true) AsyncImage(item.metadata.backdrop, null,
@@ -52,12 +51,14 @@ import tv.torrserve.silicon.features.metadata.MediaNameParser
                 }
             }
             item { Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                TvAction(androidx.compose.ui.res.stringResource(tv.torrserve.silicon.R.string.metadata_edit)) { editingMetadata = true }
                 TvAction("Refresh Metadata", !state.busy) { vm.metadata(item.hash) }
                 TvAction("Remove", !state.busy) { removing = true }
             } }
             item { if(state.busy) Text("Loading…"); Message(state.message) }
         }
     }
+    if (editingMetadata) tv.torrserve.silicon.features.metadata.MetadataEditorDialog(item, vm.metadataEditor) { editingMetadata = false }
     if(removing) Confirm("Remove from library?", "The torrent and its saved playback history will be removed.",
         { removing = false }) { removing = false; vm.remove(item.hash, back) }
     if(state.fileHash == item.hash && state.files.isNotEmpty()) {

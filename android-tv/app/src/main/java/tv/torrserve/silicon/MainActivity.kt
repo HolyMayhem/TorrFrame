@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -68,6 +69,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
         LibraryViewModel::class.java -> LibraryViewModel(graph)
         SearchViewModel::class.java -> SearchViewModel(graph)
         SettingsViewModel::class.java -> SettingsViewModel(graph)
+        TorrServerSettingsViewModel::class.java -> TorrServerSettingsViewModel(graph)
         UpdatesViewModel::class.java -> UpdatesViewModel(app, graph)
         else -> error("Unknown ViewModel")
     } as T
@@ -78,6 +80,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     val library: LibraryViewModel = viewModel(factory = factory)
     val search: SearchViewModel = viewModel(factory = factory)
     val settings: SettingsViewModel = viewModel(factory = factory)
+    val torrSettings: TorrServerSettingsViewModel = viewModel(factory = factory)
     val updates: UpdatesViewModel = viewModel(factory = factory)
     val lib by library.state.collectAsStateWithLifecycle()
     val query by search.state.collectAsStateWithLifecycle()
@@ -85,6 +88,10 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     val update by updates.state.collectAsStateWithLifecycle()
     val saved by graph.settings.state.collectAsStateWithLifecycle()
     val server by graph.server.state.collectAsStateWithLifecycle()
+    val connection by graph.connection.state.collectAsStateWithLifecycle()
+    val torrSet by torrSettings.state.collectAsStateWithLifecycle()
+    val phonePreference by graph.phonePreferences.state.collectAsStateWithLifecycle()
+    var phoneQr by remember { mutableStateOf(false) }
     var section by rememberSaveable { mutableStateOf("Home") }
     var detail by rememberSaveable { mutableStateOf<String?>(null) }
     val screens = rememberSaveableStateHolder()
@@ -117,7 +124,12 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                         .then(if(detail == null) Modifier.focusProperties { down = contentFocus } else Modifier)) { detail = null; section = tab; library.closeFiles() }
             }
             Spacer(Modifier.weight(1f))
-            TvAction(when(server) { is ServerState.Running -> "Server Online"; ServerState.Starting -> "Starting…"; else -> "Server Offline" }) {
+            TvAction(stringResource(when(connection.status) {
+                tv.torrserve.silicon.core.server.ConnectionStatus.Connected -> R.string.server_connected
+                tv.torrserve.silicon.core.server.ConnectionStatus.Connecting -> R.string.server_connecting
+                tv.torrserve.silicon.core.server.ConnectionStatus.Unavailable -> R.string.server_unavailable
+                tv.torrserve.silicon.core.server.ConnectionStatus.Error -> R.string.server_connection_error
+            })) {
                 detail = null; section = "Settings"
             }
         }
@@ -133,7 +145,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                     "Search" -> SearchScreen(query, saved.jackettConfigured, search, { navigateFromContent("Settings") }, contentFocus) { hash ->
                         detail = hash; library.files(hash) { files -> if(files.size == 1) { library.closeFiles(); play(hash, files.single()) } }
                     }
-                    "Settings" -> SettingsScreen(set, server, settings, contentFocus) {
+                    "Settings" -> SettingsScreen(set, server, settings, torrSet, connection, torrSettings, contentFocus, phoneRemote = { tv.torrserve.silicon.phoneRemote.ui.PhoneRemoteSettings(graph) }) {
                         UpdatesPanel(update, set.draft, { value -> settings.edit { it.copy(updateRepository = value) } }, updates) {
                             updates.installer()?.let { intent -> runCatching { context.startActivity(intent) }.onFailure { updates.installerFailed() } }
                         }
@@ -143,9 +155,16 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("↑ ↓ ← →  Navigate     OK  Select     BACK  Return", color = Muted, fontSize = 12.sp)
-            Text("Android TV", color = Muted.copy(alpha = .7f), fontSize = 12.sp, translate = false)
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (phonePreference.enabled) tv.torrserve.silicon.phoneRemote.ui.PhoneRemoteShortcut {
+                    if (graph.phoneRemote.state.value.status == tv.torrserve.silicon.phoneRemote.server.PhoneRemoteStatus.Running) phoneQr = true
+                    else navigateFromContent("Settings")
+                }
+                Text("Android TV", color = Muted.copy(alpha = .7f), fontSize = 12.sp, translate = false)
+            }
         }
     }
+    if (phoneQr) tv.torrserve.silicon.phoneRemote.ui.PhoneRemoteQrDialog(graph.phoneRemote) { phoneQr = false }
     LaunchedEffect(Unit) { initialFocus.requestFocus() }
     LaunchedEffect(pendingContentFocus) {
         if(pendingContentFocus != null) {

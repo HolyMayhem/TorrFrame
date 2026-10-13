@@ -18,21 +18,47 @@ import okio.Path.Companion.toOkioPath
 import android.app.Activity
 import android.os.Bundle
 
-class AppGraph(app: Application) {
+class AppGraph(val app: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val ready = CompletableDeferred<Unit>()
     val http = Http()
     val settings = SettingsStore(app)
     val store = LibraryStore(app)
-    val api = TorrServerApi(http) { settings.state.value.port }
-    val server = ServerController(app, api, scope, { settings.state.value.port }, { settings.state.value.cacheMb })
+    val api = TorrServerApi(http) { settings.state.value.torrServerUrl }
+    private val localApi = TorrServerApi(http) { "http://127.0.0.1:${settings.state.value.port}" }
+    val connection = ServerConnection(api, settings.state, scope)
+    val server = ServerController(app, localApi, scope, settings)
     val jackett = JackettClient(http)
-    val metadata = MetadataResolver(MetadataProviders(http), store)
+    val metadataProviders = MetadataProviders(http)
+    val metadata = MetadataResolver(metadataProviders, store)
+    val phonePreferences = tv.torrserve.silicon.phoneRemote.settings.PhoneRemotePreferences(app)
+    val serverActions = TorrServerActions(app, settings, server, api, connection, scope) { phonePreferences.state.value.takeIf { it.enabled }?.port }
+    val updates = tv.torrserve.silicon.features.updates.UpdateManager(app, this)
+    val metadataEditor = MetadataEditor(store, metadataProviders, settings)
+    val playback = tv.torrserve.silicon.features.player.PlaybackCoordinator(app) { server.foreground }
     val library = LibraryRepository(store, api, server, jackett, metadata, settings, scope)
+    val phoneRemote by lazy { tv.torrserve.silicon.phoneRemote.server.PhoneRemoteManager(this) }
     init {
         scope.launch {
-            try { settings.load(); ready.complete(Unit) }
-            catch (e: Exception) { ready.completeExceptionally(IllegalStateException("Could not load encrypted settings.")) }
+            try {
+                settings.load(); ready.complete(Unit)
+                if (settings.state.value.startOnBoot && settings.state.value.useLocalServer) {
+                    try { LocalServerService.start(app) }
+                    catch (_: RuntimeException) { server.backgroundError(app.getString(tv.torrserve.silicon.R.string.boot_restricted)) }
+                }
+            }
+            catch (e: Exception) {
+                if (e is CancellationException) throw e
+                server.backgroundError(app.getString(tv.torrserve.silicon.R.string.settings_load_failed))
+                ready.completeExceptionally(IllegalStateException("Could not load encrypted settings."))
+            }
+        }
+        scope.launch {
+            try { ready.await() }
+            catch (e: Exception) { if (e is CancellationException) throw e; return@launch }
+            server.state.collect { state ->
+                if (state is ServerState.Running) connection.check()
+            }
         }
         SingletonImageLoader.setSafe { context -> ImageLoader.Builder(context)
             .components { add(OkHttpNetworkFetcherFactory(callFactory = { http.client })) }
@@ -41,8 +67,8 @@ class AppGraph(app: Application) {
             .build() }
         app.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
             private var visible = 0
-            override fun onActivityStarted(activity: Activity) { visible++; scope.launch { runCatching { ready.await(); if(visible > 0) server.foreground(true) } } }
-            override fun onActivityStopped(activity: Activity) { visible--; if(visible == 0) server.foreground(false) }
+            override fun onActivityStarted(activity: Activity) { visible++; scope.launch { runCatching { ready.await(); if(visible > 0) { server.foreground(true); connection.foreground(true); phoneRemote.initialize() } } } }
+            override fun onActivityStopped(activity: Activity) { visible--; if(visible == 0) { server.foreground(false); connection.foreground(false) } }
             override fun onActivityCreated(activity: Activity, state: Bundle?) {}
             override fun onActivityDestroyed(activity: Activity) {}
             override fun onActivityPaused(activity: Activity) {}

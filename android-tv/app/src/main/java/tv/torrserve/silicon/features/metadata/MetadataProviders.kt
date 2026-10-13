@@ -63,6 +63,11 @@ class MetadataProviders(private val http: Http, private val key: (String) -> Str
                 omdb(j)
             }
             "Kinopoisk" -> kinopoisk(get("https://kinopoiskapiunofficial.tech/api/v2.2/films/${m.id}", emptyMap(), provider), s)
+            "AniList" -> {
+                val fields = "id title { romaji english native } synonyms format description(asHtml:false) startDate { year } duration coverImage { large } bannerImage genres averageScore popularity"
+                val response = graphql("query(\$id:Int!){Media(id:\$id,type:ANIME){$fields}}", JSONObject().put("id", m.id.toInt()))
+                anilist(response.getJSONObject("data").getJSONObject("Media"), m.title, s).value
+            }
             else -> m
         }
     }

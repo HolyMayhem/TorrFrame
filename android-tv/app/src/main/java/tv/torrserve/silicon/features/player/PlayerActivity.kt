@@ -30,6 +30,7 @@ class PlayerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val began = Diagnostics.mark()
+        lifecycleScope.launch { (application as TorrServeApplication).graph.playback.closePlayer.collect { finish() } }
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val root = object : FrameLayout(this@PlayerActivity) {
             override fun dispatchKeyEvent(event: KeyEvent): Boolean = handleHiddenKey(event) || super.dispatchKeyEvent(event)
