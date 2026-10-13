@@ -86,9 +86,13 @@ repository. Actual values are not committed to Git or included in source archive
 
 ## UI and player
 
-Selectable light/dark palettes with shared dp tokens and #008800 focus accent.
+Selectable light/dark palettes with shared dp tokens and configurable focus accent
+(green #008800 by default). Foreground text and white-on-light focus borders adapt
+to the selected accent.
 Top-level Search/Library/Settings; startup opens Library. Appearance preferences
-at the bottom of Settings save immediately, including the optional footer.
+near the bottom of Settings save immediately, including the optional footer.
+About is last. General settings write individual fields automatically in the
+application scope; hiding hints also removes the root bottom inset.
 Film details pair a 2:3 poster with metadata. Input buttons use scale 1 and
 internal borders so focus does not expand them outside settings panels.
 Stable lazy keys, saved scroll state and focused item; BACK returns from player
