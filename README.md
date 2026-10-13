@@ -4,7 +4,7 @@ Native Android TV client with a bundled ARM64/ARMv7 TorrServer, a local media li
 Jackett search, metadata providers and a Media3 player. Kotlin, Compose for TV,
 Coroutines and SQLite. The macOS project is maintained separately.
 
-Current local preview: **0.1.8**. Android 8.0+ / API 26+, ARM64 and ARMv7 (32-bit Android).
+Current local preview: **0.1.9**. Android 8.0+ / API 26+, ARM64 and ARMv7 (32-bit Android).
 
 ## Build and run
 
@@ -15,6 +15,10 @@ The interface defaults to 85% scale. Settings → Appearance provides remote-fri
 minus/plus controls for 70–110% in 5% steps and a reset to 85%. Changes apply
 immediately and persist automatically; smaller scales reflow the content into
 the available space. Header branding and the navigation hint footer are compact.
+Appearance is the final Settings group and also controls language, light/dark
+theme and the entire navigation footer. These preferences save immediately.
+TV navigation contains Search, Library and Settings, opening Library by default.
+Focused controls use #008800. The header indicates server state with a colored dot.
 The standard TorrServer web interface is available on the TV's LAN IP and port
 8090 by default. Settings shows the current URL under TorrServer. Open that URL
 from a browser on the same network; no ADB forwarding is required. LAN access
@@ -95,7 +99,7 @@ still needs playback, codec and performance checks.
 - [Architecture](docs/architecture.md)
 - [Icon and banner source specifications](docs/icon-assets.md)
 - [Verification evidence](docs/verification.md)
-- [0.1.8 preview notes](docs/release-notes-0.1.8.md)
+- [0.1.9 preview notes](docs/release-notes-0.1.9.md)
 
 Jackett credentials stay in encrypted application storage. Metadata keys are built into the APK. Local SDKs, JDKs, Gradle
 outputs, signing keys and APK artifacts are excluded from Git. Preview APKs use a

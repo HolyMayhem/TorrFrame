@@ -70,7 +70,7 @@ Support bilingual slash aliases and parenthetical aliases without mistaking
 director/release annotations for titles. Cache by parser version, provider,
 language and candidates: 30 days found, 24 hours not found. Network failures are
 not cached as misses. Metadata absence cannot prevent adding or playing torrents.
-The default fallback order is OMDb (IMDb) → TMDB → Kinopoisk; the user can reorder
+The default fallback order is OMDB → TMDB → Kinopoisk; the user can reorder
 all three with the remote. Stop at the first confident result; misses, service
 errors and failed details continue to the next provider. Cache records remain
 provider-specific, so changing priority cannot reuse a lower-priority result
@@ -86,8 +86,11 @@ repository. Actual values are not committed to Git or included in source archive
 
 ## UI and player
 
-Dark palette #101114/#1B1C20/#25262B; shared dp tokens. Top-level Home/Search/
-Library/Settings. Posters 2:3, continue-watching row only when history exists.
+Selectable light/dark palettes with shared dp tokens and #008800 focus accent.
+Top-level Search/Library/Settings; startup opens Library. Appearance preferences
+at the bottom of Settings save immediately, including the optional footer.
+Film details pair a 2:3 poster with metadata. Input buttons use scale 1 and
+internal borders so focus does not expand them outside settings panels.
 Stable lazy keys, saved scroll state and focused item; BACK returns from player
 to details, from details to original section. System IME for D-pad text input.
 Media3 uses device decoders and explicit loading/buffering/error states. Save

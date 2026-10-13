@@ -34,7 +34,7 @@ object RemoteJson {
         return JSONObject().put("local", local).put("connection", graph.connection.state.value.status.name)
             .put("version", graph.connection.state.value.version)
             .put("process", if (!local) "External" else when (process) {
-                ServerState.Stopped -> "Stopped"; ServerState.Starting -> "Starting"; is ServerState.Running -> "Running"; is ServerState.Error -> "Error"
+                ServerState.Stopping -> "Stopping"; ServerState.Stopped -> "Stopped"; ServerState.Starting -> "Starting"; is ServerState.Running -> "Running"; is ServerState.Error -> "Error"
             }).put("error", if (local && process is ServerState.Error) process.message else "")
     }
     fun engine(graph: AppGraph, version: String, json: JSONObject) = JSONObject().put("address", graph.settings.state.value.torrServerUrl)

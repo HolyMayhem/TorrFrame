@@ -17,6 +17,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Typography
 import androidx.tv.material3.darkColorScheme
+import androidx.tv.material3.lightColorScheme
 
 object TvDimensions {
     val screenInset = 24.dp
@@ -38,16 +39,24 @@ fun tvLayoutFor(widthDp: Int, heightDp: Int): TvLayout {
     return TvLayout(widthDp < 840, heightDp < 500, columns)
 }
 val LocalTvLayout = staticCompositionLocalOf { tvLayoutFor(960, 540) }
-val Background = Color(0xFF101114)
-val Surface = Color(0xFF1B1C20)
-val Muted = Color(0xFFA4A5AD)
-val TextPrimary = Color(0xFFF5F5F7)
-val SurfaceSecondary = Color(0xFF25262B)
-val Outline = Color(0xFF3A3B43)
-val Accent = Color(0xFFE2E3EB)
+data class TvPalette(val background: Color, val surface: Color, val muted: Color,
+    val text: Color, val secondary: Color, val outline: Color)
+val DarkPalette = TvPalette(Color(0xFF101114), Color(0xFF1B1C20), Color(0xFFA4A5AD),
+    Color(0xFFF5F5F7), Color(0xFF25262B), Color(0xFF3A3B43))
+val LightPalette = TvPalette(Color(0xFFF5F7F5), Color.White, Color(0xFF586358),
+    Color(0xFF172117), Color(0xFFEAF0EA), Color(0xFFCCD5CC))
+val LocalTvPalette = staticCompositionLocalOf { DarkPalette }
+val Background: Color @Composable get() = LocalTvPalette.current.background
+val Surface: Color @Composable get() = LocalTvPalette.current.surface
+val Muted: Color @Composable get() = LocalTvPalette.current.muted
+val TextPrimary: Color @Composable get() = LocalTvPalette.current.text
+val SurfaceSecondary: Color @Composable get() = LocalTvPalette.current.secondary
+val Outline: Color @Composable get() = LocalTvPalette.current.outline
+val Accent = Color(0xFF008800)
+val OnAccent = Color.White
 val Positive = Color(0xFF90B78E)
 
-@Composable fun TorrServeTheme(uiScalePercent: Int = UiScale.DEFAULT, content: @Composable () -> Unit) {
+@Composable fun TorrServeTheme(uiScalePercent: Int = UiScale.DEFAULT, light: Boolean = false, content: @Composable () -> Unit) {
     val window = LocalWindowInfo.current.containerSize
     val platformDensity = LocalDensity.current
     val density = Density(platformDensity.density * UiScale.factor(uiScalePercent), platformDensity.fontScale)
@@ -56,9 +65,11 @@ val Positive = Color(0xFF90B78E)
     val layout = tvLayoutFor(widthDp, heightDp)
     val headingScale = if(layout.short) .92f else 1f
     // Changing density causes an actual reflow: smaller controls expose more content.
-    CompositionLocalProvider(LocalDensity provides density, LocalTvLayout provides layout) {
-    MaterialTheme(colorScheme = darkColorScheme(
-        primary = Accent, onPrimary = Background,
+    CompositionLocalProvider(LocalDensity provides density, LocalTvLayout provides layout,
+        LocalTvPalette provides if (light) LightPalette else DarkPalette) {
+    val colors = if (light) lightColorScheme() else darkColorScheme()
+    MaterialTheme(colorScheme = colors.copy(
+        primary = Accent, onPrimary = OnAccent,
         background = Background, surface = Surface,
         onBackground = TextPrimary, onSurface = TextPrimary,
         surfaceVariant = SurfaceSecondary, onSurfaceVariant = Muted

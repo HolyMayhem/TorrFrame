@@ -25,9 +25,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import tv.torrserve.silicon.ui.theme.TextPrimary
 import tv.torrserve.silicon.ui.theme.TorrServeTheme
-import tv.torrserve.silicon.features.home.HomeScreen
 import tv.torrserve.silicon.features.settings.MetadataPriorityControls
 import tv.torrserve.silicon.core.storage.MetadataPriority
 import androidx.compose.runtime.mutableStateOf
@@ -53,16 +51,19 @@ class RemoteNavigationTest {
         }
         compose.onNodeWithTag(tag).assertIsFocused()
     }
-    @Test fun dpadNavigatesTabsAndBackReturnsHome() {
-        compose.onNodeWithTag("nav:Home").assertIsFocused().assertIsSelected()
-        for(tab in listOf("Search", "Library", "Settings")) {
-            remote(KeyEvent.KEYCODE_DPAD_RIGHT)
-            compose.onNodeWithTag("nav:$tab").assertIsFocused()
-            remote(KeyEvent.KEYCODE_DPAD_CENTER)
-            compose.onNodeWithTag("nav:$tab").assertIsSelected().assertIsFocused()
+    @Test fun dpadNavigatesThreeTabsAndBackReturnsLibrary() {
+        compose.onNodeWithTag("nav:Home").assertDoesNotExist()
+        compose.onNodeWithTag("nav:Library").assertIsFocused().assertIsSelected()
+        remote(KeyEvent.KEYCODE_DPAD_LEFT)
+        compose.onNodeWithTag("nav:Search").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNodeWithTag("nav:Search").assertIsSelected()
+        for (tab in listOf("Library", "Settings")) {
+            remote(KeyEvent.KEYCODE_DPAD_RIGHT); remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            compose.onNodeWithTag("nav:$tab").assertIsFocused().assertIsSelected()
         }
         remote(KeyEvent.KEYCODE_BACK)
-        compose.onNodeWithTag("nav:Home").assertIsFocused().assertIsSelected()
+        compose.onNodeWithTag("nav:Library").assertIsFocused().assertIsSelected()
     }
     @Test fun scaleReflowsContentPersistsAndKeepsRemoteFocusAtBothLimits() {
         val graph = (compose.activity.application as TorrServeApplication).graph
@@ -72,11 +73,12 @@ class RemoteNavigationTest {
             compose.onNodeWithTag("scale:value").assertTextEquals("$value%")
         }
         try {
-            for (i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+            remote(KeyEvent.KEYCODE_DPAD_RIGHT)
             remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("scale:reset"))
             compose.onNodeWithTag("scale:reset").performClick()
             waitScale(85)
-            val originalWidth = compose.onNodeWithTag("nav:Home").fetchSemanticsNode().boundsInRoot.width
+            val originalWidth = compose.onNodeWithTag("nav:Library").fetchSemanticsNode().boundsInRoot.width
             val originalContent = compose.onNodeWithTag("app:content").fetchSemanticsNode().boundsInRoot.height
             val footer = compose.onNodeWithTag("app:footer").fetchSemanticsNode().boundsInRoot.height
             val header = compose.onNodeWithTag("app:header").fetchSemanticsNode().boundsInRoot.height
@@ -87,7 +89,7 @@ class RemoteNavigationTest {
             }
             compose.onNodeWithTag("scale:minus").assertIsNotEnabled()
             focused("scale:plus")
-            val smallWidth = compose.onNodeWithTag("nav:Home").fetchSemanticsNode().boundsInRoot.width
+            val smallWidth = compose.onNodeWithTag("nav:Library").fetchSemanticsNode().boundsInRoot.width
             assertEquals(70f / 85f, smallWidth / originalWidth, .04f)
             assertTrue("Smaller chrome frees actual content space",
                 compose.onNodeWithTag("app:content").fetchSemanticsNode().boundsInRoot.height > originalContent)
@@ -100,6 +102,7 @@ class RemoteNavigationTest {
             kotlinx.coroutines.runBlocking { reloaded.load() }
             assertEquals(110, reloaded.state.value.uiScalePercent)
             compose.activityRule.scenario.recreate()
+            compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("scale:value"))
             compose.onNodeWithTag("scale:value").assertTextEquals("110%")
             compose.onNodeWithTag("scale:reset").performSemanticsAction(SemanticsActions.RequestFocus)
             remote(KeyEvent.KEYCODE_DPAD_CENTER); waitScale(85)
@@ -108,22 +111,9 @@ class RemoteNavigationTest {
             kotlinx.coroutines.runBlocking { graph.settings.update { it.copy(uiScalePercent = original) } }
         }
     }
-    @Test fun homeActionTransfersFocusToSearchAndSettings() {
-        compose.onNodeWithTag("nav:Home").assertIsFocused()
-        remote(KeyEvent.KEYCODE_DPAD_DOWN)
-        focused("home:search")
-        remote(KeyEvent.KEYCODE_ENTER)
-        compose.onNodeWithTag("nav:Search").assertIsSelected()
-        compose.onNodeWithText("Open Settings").assertIsFocused()
-        remote(KeyEvent.KEYCODE_DPAD_CENTER)
-        compose.onNodeWithTag("nav:Settings").assertIsSelected()
-        compose.onNodeWithText("Сохранить").assertIsFocused()
-        remote(KeyEvent.KEYCODE_BACK)
-        compose.onNodeWithTag("nav:Home").assertIsFocused()
-    }
     @Test fun settingsDialogCanBeCancelledWithRemoteAndRestoresFocus() {
-        compose.onNodeWithTag("nav:Home").assertIsFocused()
-        for(i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        compose.onNodeWithTag("nav:Library").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.onNodeWithTag("nav:Settings").assertIsSelected()
         compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("field:Порт встроенного сервера"))
@@ -142,7 +132,7 @@ class RemoteNavigationTest {
         focused("field:Порт встроенного сервера")
     }
     @Test fun engineScreenBackRestoresSettingsFocusWithRemote() {
-        for (i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("server:engine"))
         compose.onNodeWithTag("server:engine").performSemanticsAction(SemanticsActions.RequestFocus)
@@ -155,7 +145,7 @@ class RemoteNavigationTest {
     }
     @Test fun settingsShowsActualWebAddressAndLanSwitchAcceptsRemote() {
         val graph = (compose.activity.application as TorrServeApplication).graph
-        for (i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("server:web-url"))
         compose.waitUntil(10_000) { graph.serverWebAddress.url.value.isNotEmpty() }
@@ -181,7 +171,7 @@ class RemoteNavigationTest {
         }
     }
     @Test fun torrServerAddressDialogRestoresFocusAndRejectsInvalidAddress() {
-        for (i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         val tag = "field:Адрес TorrServer"
         compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag(tag))
@@ -193,38 +183,84 @@ class RemoteNavigationTest {
         focused(tag)
         compose.onNodeWithText(compose.activity.getString(R.string.server_invalid_url)).assertExists()
     }
-    @Test fun manualMagnetActionsAreAbsentFromHomeAndLibrary() {
-        compose.onNodeWithTag("nav:Home").assertIsFocused()
-        compose.onNodeWithText("Add Magnet Link").assertDoesNotExist()
-        compose.onNodeWithTag("home:settings").assertExists()
-        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
-        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
-        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+    @Test fun manualMagnetActionsAreAbsentFromLibrary() {
+        compose.onNodeWithTag("nav:Library").assertIsFocused()
+        compose.onNodeWithTag("nav:Home").assertDoesNotExist()
         compose.onNodeWithText("Add Magnet").assertDoesNotExist()
         compose.onNodeWithText("Add Magnet Link").assertDoesNotExist()
         compose.onNodeWithText("Find Torrents").assertExists()
     }
-    @Test fun compactHomeFitsShortTvWindow() {
-        val fallback = FocusRequester()
-        val config = Configuration(compose.activity.resources.configuration).apply {
-            screenWidthDp = 720; screenHeightDp = 400
+    @Test fun appearanceAppliesImmediatelyAndHiddenFooterFreesContent() {
+        val graph = (compose.activity.application as TorrServeApplication).graph
+        val original = graph.settings.state.value
+        try {
+            remote(KeyEvent.KEYCODE_DPAD_RIGHT); remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("appearance:light"))
+            compose.onNodeWithTag("appearance:light").performSemanticsAction(SemanticsActions.RequestFocus)
+            remote(KeyEvent.KEYCODE_ENTER)
+            compose.waitUntil(5000) { graph.settings.state.value.uiTheme == "light" }
+            focused("appearance:light")
+            val height = compose.onNodeWithTag("app:content").fetchSemanticsNode().boundsInRoot.height
+            compose.onNodeWithTag("appearance:hints").performSemanticsAction(SemanticsActions.RequestFocus)
+            remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            compose.waitUntil(5000) { !graph.settings.state.value.showNavigationHints }
+            compose.onNodeWithTag("app:footer").assertDoesNotExist()
+            assertTrue(compose.onNodeWithTag("app:content").fetchSemanticsNode().boundsInRoot.height > height)
+            val reloaded = tv.torrserve.silicon.core.storage.SettingsStore(compose.activity)
+            kotlinx.coroutines.runBlocking { reloaded.load() }
+            assertEquals("light", reloaded.state.value.uiTheme)
+            org.junit.Assert.assertFalse(reloaded.state.value.showNavigationHints)
+            compose.activityRule.scenario.recreate()
+            compose.onNodeWithTag("app:footer").assertDoesNotExist()
+            compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("appearance:dark"))
+            compose.onNodeWithTag("appearance:dark").performSemanticsAction(SemanticsActions.RequestFocus)
+            remote(KeyEvent.KEYCODE_ENTER)
+            compose.waitUntil(5000) { graph.settings.state.value.uiTheme == "dark" }
+        } finally {
+            kotlinx.coroutines.runBlocking { graph.settings.update { it.copy(uiTheme = original.uiTheme, showNavigationHints = original.showNavigationHints) } }
         }
-        compose.runOnUiThread {
-            compose.activity.setContent {
-                CompositionLocalProvider(LocalConfiguration provides config) {
-                    TorrServeTheme {
-                        Box(Modifier.width(720.dp).height(400.dp)) {
-                            HomeScreen(emptyList(), {}, {}, {}, fallback) {}
-                        }
-                    }
-                }
-            }
+    }
+    @Test fun focusedInputFieldsStayWithinTheirGroups() {
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT); remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        for (label in listOf(compose.activity.getString(R.string.phone_port), compose.activity.getString(R.string.server_url))) {
+            val tag = "field:$label"
+            compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag(tag))
+            val before = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+            compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.RequestFocus)
+            focused(tag)
+            val after = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+            val group = compose.onNodeWithTag("field-group:$label").fetchSemanticsNode().boundsInRoot
+            assertEquals(before.width, after.width, .5f)
+            assertTrue(after.left >= group.left && after.right <= group.right && after.bottom <= group.bottom)
         }
-        compose.onNodeWithTag("home:search").assertIsDisplayed()
-        compose.onNodeWithTag("home:settings").assertIsDisplayed()
-        compose.onNodeWithText("Make it yours").assertDoesNotExist()
-        val bounds = compose.onNodeWithTag("home:settings").getUnclippedBoundsInRoot()
-        assertTrue(bounds.right <= 720.dp && bounds.bottom <= 400.dp)
+    }
+    @Test fun movieHasLoadedPosterBesideMetadataAndNoRemovedActions() {
+        val graph = (compose.activity.application as TorrServeApplication).graph
+        val file = java.io.File(compose.activity.cacheDir, "poster-test.png")
+        val bitmap = android.graphics.Bitmap.createBitmap(32, 48, android.graphics.Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(android.graphics.Color.GREEN)
+        file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
+        val item = tv.torrserve.silicon.core.models.LibraryItem("a".repeat(40), "Original", 0,
+            tv.torrserve.silicon.core.models.Metadata("OMDb", "test", "Movie title", "Original", 2024,
+                tv.torrserve.silicon.core.models.MediaKind.Movie, overview = "Film description", poster = file.toURI().toString(), rating = 8.4, genres = "Drama", runtime = 110))
+        val store = androidx.lifecycle.ViewModelStore()
+        val vm = tv.torrserve.silicon.features.library.LibraryViewModel(graph)
+        store.put("movie", vm)
+        try {
+            compose.runOnUiThread { compose.activity.setContent {
+                TorrServeTheme { tv.torrserve.silicon.features.library.MovieDetailScreen(item,
+                    tv.torrserve.silicon.features.library.LibraryUi(), vm, {}, { _, _ -> }) }
+            } }
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag("movie:poster:loaded").fetchSemanticsNodes().isNotEmpty() }
+            val cover = compose.onNodeWithTag("movie:poster").fetchSemanticsNode().boundsInRoot
+            val title = compose.onNodeWithTag("movie:title").fetchSemanticsNode().boundsInRoot
+            assertTrue(cover.right < title.left)
+            compose.onNodeWithTag("movie:overview").assertTextEquals("Film description")
+            compose.onNodeWithTag("movie:genres").assertTextEquals("Drama")
+            compose.onNodeWithTag("movie:facts").assertTextContains("2024", substring = true)
+            compose.onNodeWithText(compose.activity.getString(R.string.metadata_edit)).assertDoesNotExist()
+            compose.onNodeWithText("Find Torrents").assertDoesNotExist()
+        } finally { store.clear(); file.delete() }
     }
     @Test fun metadataPriorityMovesWithRemoteAndKeepsFocus() {
         val order = mutableStateOf(MetadataPriority.defaultOrder)
@@ -242,7 +278,7 @@ class RemoteNavigationTest {
         compose.onNodeWithTag("priority:TMDB:label").assertTextEquals("1. TMDB")
         focused("priority:TMDB:down")
         remote(KeyEvent.KEYCODE_ENTER)
-        compose.onNodeWithTag("priority:OMDb:label").assertTextEquals("1. IMDb (OMDb)")
+        compose.onNodeWithTag("priority:OMDb:label").assertTextEquals("1. OMDB")
         compose.onNodeWithTag("priority:TMDB:label").assertTextEquals("2. TMDB")
         focused("priority:TMDB:down")
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -250,27 +286,38 @@ class RemoteNavigationTest {
         focused("priority:TMDB:up")
     }
     @Test fun settingsHasPriorityAndNoManualMetadataKeyFields() {
-        for(i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("priority:OMDb:label"))
-        compose.onNodeWithTag("priority:OMDb:label").assertTextEquals("1. IMDb (OMDb)")
+        compose.onNodeWithTag("priority:OMDb:label").assertTextEquals("1. OMDB")
         for(label in listOf("TMDB API Key", "OMDb API Key", "Kinopoisk API Key")) {
             compose.onNodeWithTag("field:$label").assertDoesNotExist()
         }
-        compose.onNodeWithText("AniList for anime: Off").assertExists()
+        compose.onNodeWithTag("metadata:anilist").assertIsOff()
     }
-    @Test fun themeProvidesLightTextOutsideButtonsAndSurfaces() {
+    @Test fun bothThemesProvideCorrectTextAndGreenAccent() {
         var inherited = Color.Unspecified
+        var primary = Color.Unspecified
+        val light = mutableStateOf(false)
         compose.runOnUiThread {
             compose.activity.setContent {
-                TorrServeTheme {
+                TorrServeTheme(light = light.value) {
                     val color = LocalContentColor.current
-                    SideEffect { inherited = color }
+                    val accent = androidx.tv.material3.MaterialTheme.colorScheme.primary
+                    SideEffect { inherited = color; primary = accent }
                     androidx.tv.material3.Text("Theme regression check")
                 }
             }
         }
         compose.onNodeWithText("Theme regression check").assertExists()
-        compose.runOnIdle { assertEquals(TextPrimary, inherited) }
+        compose.runOnIdle {
+            assertEquals(tv.torrserve.silicon.ui.theme.DarkPalette.text, inherited)
+            assertEquals(Color(0xFF008800), primary)
+            light.value = true
+        }
+        compose.runOnIdle {
+            assertEquals(tv.torrserve.silicon.ui.theme.LightPalette.text, inherited)
+            assertEquals(Color(0xFF008800), primary)
+        }
     }
 }

@@ -13,5 +13,7 @@ object SettingsMerge {
         subtitleLanguage = if (draft.subtitleLanguage != base.subtitleLanguage) draft.subtitleLanguage else current.subtitleLanguage,
         updateRepository = if (draft.updateRepository != base.updateRepository) draft.updateRepository else current.updateRepository,
         uiLanguage = if (draft.uiLanguage != base.uiLanguage) draft.uiLanguage else current.uiLanguage,
-        uiScalePercent = if (draft.uiScalePercent != base.uiScalePercent) draft.uiScalePercent else current.uiScalePercent)
+        uiScalePercent = if (draft.uiScalePercent != base.uiScalePercent) draft.uiScalePercent else current.uiScalePercent,
+        uiTheme = if (draft.uiTheme != base.uiTheme) draft.uiTheme else current.uiTheme,
+        showNavigationHints = if (draft.showNavigationHints != base.showNavigationHints) draft.showNavigationHints else current.showNavigationHints)
 }

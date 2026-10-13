@@ -55,6 +55,7 @@ import tv.torrserve.silicon.ui.theme.*
         TvText(when (server) {
             is ServerState.Running -> stringResource(R.string.server_process_running, server.version)
             ServerState.Starting -> stringResource(R.string.server_process_starting)
+            ServerState.Stopping -> stringResource(R.string.server_process_stopping)
             ServerState.Stopped -> stringResource(R.string.server_process_stopped)
             is ServerState.Error -> server.message
         }, color = Muted)

@@ -19,13 +19,15 @@ class TorrServerPersistenceTest {
         val store = SettingsStore(app)
         try {
             store.save(original.copy(torrServerUrl = "https://example.com/torrserver/", useLocalServer = false,
-                startOnBoot = true, engineSettingsInitialized = true, lanAccess = false, uiScalePercent = 95))
+                startOnBoot = true, engineSettingsInitialized = true, lanAccess = false, uiScalePercent = 95,
+                uiTheme = "light", showNavigationHints = false))
             val reopened = SettingsStore(app); reopened.load()
             assertEquals("https://example.com/torrserver", reopened.state.value.torrServerUrl)
             assertFalse(reopened.state.value.useLocalServer); assertTrue(reopened.state.value.startOnBoot)
             assertTrue(reopened.state.value.engineSettingsInitialized)
             assertFalse(reopened.state.value.lanAccess)
             assertEquals(95, reopened.state.value.uiScalePercent)
+            assertEquals("light", reopened.state.value.uiTheme); assertFalse(reopened.state.value.showNavigationHints)
             assertEquals(original.metadataOrder, reopened.state.value.metadataOrder)
             assertEquals(original.jackettKey, reopened.state.value.jackettKey)
             assertEquals(original.resume, reopened.state.value.resume)

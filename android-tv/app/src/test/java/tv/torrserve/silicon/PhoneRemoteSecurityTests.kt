@@ -72,11 +72,12 @@ class PhoneRemoteSecurityTests {
     @Test fun tvDraftRebasesUneditedFieldsAndKeepsExplicitUnsavedEdits() {
         val original = Settings(jackettUrl = "http://old", resume = true)
         val tvDraft = original.copy(audioLanguage = "ru")
-        val remote = original.copy(jackettUrl = "http://new", resume = false, uiScalePercent = 70)
+        val remote = original.copy(jackettUrl = "http://new", resume = false, uiScalePercent = 70, uiTheme = "light", showNavigationHints = false)
         val merged = SettingsMerge.rebase(tvDraft, original, remote)
         assertEquals("http://new", merged.jackettUrl); assertFalse(merged.resume); assertEquals("ru", merged.audioLanguage)
         assertEquals(remote.torrServerUrl, merged.torrServerUrl)
         assertEquals(70, merged.uiScalePercent)
+        assertEquals("light", merged.uiTheme); assertFalse(merged.showNavigationHints)
         assertEquals(110, SettingsMerge.rebase(tvDraft.copy(uiScalePercent = 110), original, remote).uiScalePercent)
     }
 }

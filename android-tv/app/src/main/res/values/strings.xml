@@ -131,6 +131,12 @@
     <string name="settings_subtitles">Язык субтитров (en / ru)</string>
     <string name="settings_appearance">Оформление</string>
     <string name="ui_scale_title">Масштаб интерфейса</string>
+    <string name="ui_language_title">Язык приложения</string>
+    <string name="ui_theme_title">Тема приложения</string>
+    <string name="ui_theme_dark">Тёмная</string>
+    <string name="ui_theme_light">Светлая</string>
+    <string name="ui_navigation_hints">Нижняя панель подсказок</string>
+    <string name="server_process_stopping">Останавливается…</string>
     <string name="ui_scale_decrease">Уменьшить масштаб</string>
     <string name="ui_scale_increase">Увеличить масштаб</string>
     <string name="ui_scale_default" formatted="false">По умолчанию · 85%</string>

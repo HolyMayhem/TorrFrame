@@ -31,7 +31,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.*
 import tv.torrserve.silicon.core.models.TorrentFile
 import tv.torrserve.silicon.core.server.ServerState
-import tv.torrserve.silicon.features.home.HomeScreen
 import tv.torrserve.silicon.features.library.*
 import tv.torrserve.silicon.features.search.*
 import tv.torrserve.silicon.features.settings.*
@@ -49,7 +48,7 @@ class MainActivity : ComponentActivity() {
         val graph = (application as TorrServeApplication).graph
         setContent {
             val settings by graph.settings.state.collectAsStateWithLifecycle()
-            TorrServeTheme(settings.uiScalePercent) {
+            TorrServeTheme(settings.uiScalePercent, light = settings.uiTheme == "light") {
                 CompositionLocalProvider(LocalUiLanguage provides settings.uiLanguage) { AppScreen(graph) }
                 LaunchedEffect(Unit) { withFrameNanos { }; reportFullyDrawn()
                     if(BuildConfig.DEBUG) Log.i("TorrServeTiming", "activity_ui_ms=${SystemClock.elapsedRealtime() - began}") }
@@ -93,15 +92,15 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     val torrSet by torrSettings.state.collectAsStateWithLifecycle()
     val phonePreference by graph.phonePreferences.state.collectAsStateWithLifecycle()
     var phoneQr by remember { mutableStateOf(false) }
-    var section by rememberSaveable { mutableStateOf("Home") }
+    var section by rememberSaveable { mutableStateOf("Library") }
     var detail by rememberSaveable { mutableStateOf<String?>(null) }
     val screens = rememberSaveableStateHolder()
     val initialFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
     var pendingContentFocus by remember { mutableStateOf<String?>(null) }
     fun navigateFromContent(target: String) { pendingContentFocus = target; section = target }
-    BackHandler(detail != null || section != "Home") {
-        if(detail != null) { detail = null; library.closeFiles() } else { section = "Home"; initialFocus.requestFocus() }
+    BackHandler(detail != null || section != "Library") {
+        if(detail != null) { detail = null; library.closeFiles() } else { section = "Library"; initialFocus.requestFocus() }
     }
     fun play(hash: String, file: TorrentFile) {
         context.startActivity(Intent(context, PlayerActivity::class.java)
@@ -119,9 +118,9 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                     Text("Silicon", color = Muted, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 10.sp, lineHeight = 13.sp), translate = false)
                 }
             }
-            listOf("Home", "Search", "Library", "Settings").forEach { tab ->
+            listOf("Search", "Library", "Settings").forEach { tab ->
                 TvNavItem(tab, section == tab && detail == null,
-                    modifier = (if(tab == "Home") Modifier.focusRequester(initialFocus) else Modifier)
+                    modifier = (if(tab == "Library") Modifier.focusRequester(initialFocus) else Modifier)
                         .then(if(detail == null) Modifier.focusProperties { down = contentFocus } else Modifier)) { detail = null; section = tab; library.closeFiles() }
             }
             Spacer(Modifier.weight(1f))
@@ -129,23 +128,15 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                 if (graph.phoneRemote.state.value.status == tv.torrserve.silicon.phoneRemote.server.PhoneRemoteStatus.Running) phoneQr = true
                 else navigateFromContent("Settings")
             }
-            TvAction(stringResource(when(connection.status) {
-                tv.torrserve.silicon.core.server.ConnectionStatus.Connected -> R.string.server_connected
-                tv.torrserve.silicon.core.server.ConnectionStatus.Connecting -> R.string.server_connecting
-                tv.torrserve.silicon.core.server.ConnectionStatus.Unavailable -> R.string.server_unavailable
-                tv.torrserve.silicon.core.server.ConnectionStatus.Error -> R.string.server_connection_error
-            })) {
+            ServerStatusIndicator(saved.useLocalServer, server, connection) {
                 detail = null; section = "Settings"
             }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(Outline.copy(alpha = .55f)))
         Box(Modifier.weight(1f).testTag("app:content").focusGroup()) {
-            if(selected != null) MovieDetailScreen(selected, lib, library, { detail = null }, { value ->
-                detail = null; navigateFromContent("Search"); search.query(value); if(saved.jackettConfigured) search.search(value)
-            }, ::play)
+            if(selected != null) MovieDetailScreen(selected, lib, library, { detail = null }, ::play)
             else screens.SaveableStateProvider(section) {
                 when(section) {
-                    "Home" -> Column { Message(lib.message); HomeScreen(lib.items, { navigateFromContent("Search") }, { navigateFromContent("Library") }, { navigateFromContent("Settings") }, initialFocus, contentFocus) { detail = it } }
                     "Library" -> LibraryScreen(lib, library::refresh, { navigateFromContent("Search") }, contentFocus) { detail = it }
                     "Search" -> SearchScreen(query, saved.jackettConfigured, search, { navigateFromContent("Settings") }, contentFocus) { hash ->
                         detail = hash; library.files(hash) { files -> if(files.size == 1) { library.closeFiles(); play(hash, files.single()) } }
@@ -158,7 +149,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().testTag("app:footer"), horizontalArrangement = Arrangement.SpaceBetween) {
+        if (saved.showNavigationHints) Row(Modifier.fillMaxWidth().testTag("app:footer"), horizontalArrangement = Arrangement.SpaceBetween) {
             val hintStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 9.sp, lineHeight = 12.sp)
             Text("↑ ↓ ← →  Navigate     OK  Select     BACK  Return", color = Muted, style = hintStyle)
             Text("Android TV", color = Muted.copy(alpha = .7f), style = hintStyle, translate = false)
@@ -166,6 +157,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     }
     if (phoneQr) tv.torrserve.silicon.phoneRemote.ui.PhoneRemoteQrDialog(graph.phoneRemote) { phoneQr = false }
     LaunchedEffect(Unit) { initialFocus.requestFocus() }
+    LaunchedEffect(section) { if (section !in listOf("Search", "Library", "Settings")) section = "Library" }
     LaunchedEffect(pendingContentFocus) {
         if(pendingContentFocus != null) {
             withFrameNanos { }

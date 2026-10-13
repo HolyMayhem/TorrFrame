@@ -33,13 +33,16 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
     fun moveProvider(provider: String, direction: Int) {
         edit { it.copy(metadataOrder = tv.torrserve.silicon.core.storage.MetadataPriority.move(it.metadataOrder, provider, direction)) }
     }
-    fun scale(direction: Int) = updateScale { UiScale.adjust(it, direction) }
-    fun resetScale() = updateScale { UiScale.DEFAULT }
-    private fun updateScale(change: (Int) -> Int) {
+    fun scale(direction: Int) = appearance { it.copy(uiScalePercent = UiScale.adjust(it.uiScalePercent, direction)) }
+    fun resetScale() = appearance { it.copy(uiScalePercent = UiScale.DEFAULT) }
+    fun theme(value: String) = appearance { it.copy(uiTheme = value) }
+    fun hints(value: Boolean) = appearance { it.copy(showNavigationHints = value) }
+    fun language(value: String) = appearance { it.copy(uiLanguage = value) }
+    private fun appearance(change: (Settings) -> Settings) {
         viewModelScope.launch {
             try {
                 graph.ready.await()
-                graph.settings.update { it.copy(uiScalePercent = change(it.uiScalePercent)) }
+                graph.settings.update(block = change)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 mutable.update { it.copy(message = graph.app.getString(tv.torrserve.silicon.R.string.settings_operation_failed)) }

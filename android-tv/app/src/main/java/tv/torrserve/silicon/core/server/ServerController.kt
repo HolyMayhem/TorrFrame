@@ -13,6 +13,7 @@ import java.io.File
 sealed interface ServerState {
     data object Stopped : ServerState
     data object Starting : ServerState
+    data object Stopping : ServerState
     data class Running(val version: String, val pid: Long) : ServerState
     data class Error(val message: String) : ServerState
 }
@@ -115,6 +116,7 @@ class ServerController(private val context: Context, private val api: TorrServer
     }
     private fun stopManagedProcess() {
         check(!playbackOwned) { context.getString(tv.torrserve.silicon.R.string.server_stop_playback) }
+        mutable.value = ServerState.Stopping
         val child = process; process = null
         if (child == null) recoverOrphan()
         child?.destroy()

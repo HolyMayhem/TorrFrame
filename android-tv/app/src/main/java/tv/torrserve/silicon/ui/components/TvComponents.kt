@@ -52,14 +52,14 @@ import tv.torrserve.silicon.core.models.LibraryItem
         shape = ButtonDefaults.shape(shape),
         colors = ButtonDefaults.colors(
             containerColor = if(primary) Accent else if(selected) SurfaceSecondary else Surface,
-            contentColor = if(primary) Background else TextPrimary,
-            focusedContainerColor = TextPrimary, focusedContentColor = Background,
+            contentColor = if(primary) OnAccent else TextPrimary,
+            focusedContainerColor = Accent, focusedContentColor = OnAccent,
             disabledContainerColor = Surface, disabledContentColor = Muted.copy(alpha = .55f)),
         border = ButtonDefaults.border(
             border = Border(BorderStroke(1.dp, if(primary || selected) Accent.copy(alpha = .6f) else Outline), shape = shape),
-            focusedBorder = Border(BorderStroke(2.dp, TextPrimary), inset = (-3).dp, shape = shape)),
+            focusedBorder = Border(BorderStroke(2.dp, Accent), shape = shape)),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        scale = ButtonDefaults.scale(focusedScale = 1.04f)) {
+        scale = ButtonDefaults.scale(focusedScale = 1f)) {
         TvText(label, style = MaterialTheme.typography.labelLarge)
     }
 }
@@ -86,7 +86,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
 @Composable fun EditField(label: String, value: String, secret: Boolean = false, modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text, russian: Boolean = false, onValue: (String) -> Unit) {
     var editing by remember { mutableStateOf(false) }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier.testTag("field-group:$label"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         TvText(label, color = Muted, fontSize = 14.sp)
         TvAction(if (value.isBlank()) { if (russian) stringResource(R.string.field_enter, label) else "Enter $label" } else if(secret) "••••••••" else value,
             modifier = Modifier.fillMaxWidth().testTag("field:$label")) { editing = true }
@@ -135,9 +135,9 @@ import tv.torrserve.silicon.core.models.LibraryItem
         .semantics { role = Role.Switch; toggleableState = if (checked) ToggleableState.On else ToggleableState.Off },
         shape = ButtonDefaults.shape(RoundedCornerShape(TvDimensions.buttonRadius)),
         colors = ButtonDefaults.colors(containerColor = SurfaceSecondary, contentColor = TextPrimary,
-            focusedContainerColor = TextPrimary, focusedContentColor = Background),
-        border = ButtonDefaults.border(focusedBorder = Border(BorderStroke(2.dp, TextPrimary), inset = (-3).dp)),
-        scale = ButtonDefaults.scale(focusedScale = 1.02f)) {
+            focusedContainerColor = Accent, focusedContentColor = OnAccent),
+        border = ButtonDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Accent))),
+        scale = ButtonDefaults.scale(focusedScale = 1f)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             TvText(label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             TvText(stringResource(if (checked) R.string.toggle_on else R.string.toggle_off))
@@ -163,7 +163,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
         border = CardDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Accent), inset = (-3).dp, shape = shape)),
         scale = CardDefaults.scale(focusedScale = 1.05f)) {
         Column {
-            Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(Color(0xFF25262B)), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(SurfaceSecondary), contentAlignment = Alignment.Center) {
                 if (item.metadata?.poster?.isNotBlank() == true && !imageFailed) AsyncImage(item.metadata.poster,
                     contentDescription = item.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, onError = { imageFailed = true })
                 else Text(item.title.take(1).uppercase(), fontSize = 56.sp, color = Muted)

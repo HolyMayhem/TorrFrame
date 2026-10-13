@@ -48,11 +48,6 @@ import tv.torrserve.silicon.core.storage.MetadataPriority
         Message(state.message)
         ServerOperationStatus(torrState)
         LazyColumn(Modifier.weight(1f), state = listState, verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(8.dp)) {
-            item("appearance") { SettingsGroup(stringResource(R.string.settings_appearance)) {
-                UiScaleControls(s.uiScalePercent, vm::scale, vm::resetScale)
-                ChoiceRow(listOf("en", "ru"), s.uiLanguage) { value -> vm.edit { it.copy(uiLanguage = value) } }
-                Text(stringResource(R.string.settings_dark_theme), color = Muted)
-            } }
             item("phone-remote") { SettingsGroup(stringResource(R.string.phone_title)) {
                 phoneRemote()
             } }
@@ -68,7 +63,7 @@ import tv.torrserve.silicon.core.storage.MetadataPriority
             item { SettingsGroup(stringResource(R.string.settings_metadata)) {
                 Text(stringResource(R.string.settings_metadata_priority), color = Muted)
                 MetadataPriorityControls(s.metadataOrder, vm::moveProvider)
-                TvToggle(stringResource(R.string.settings_anilist), s.aniListEnabled) { value -> vm.edit { it.copy(aniListEnabled = value) } }
+                TvToggle(stringResource(R.string.settings_anilist), s.aniListEnabled, Modifier.testTag("metadata:anilist")) { value -> vm.edit { it.copy(aniListEnabled = value) } }
                 Text(stringResource(R.string.settings_anilist_hint), color = Muted)
                 Text(stringResource(R.string.settings_metadata_language), color = Muted)
                 ChoiceRow(listOf("en-US", "ru-RU"), s.language) { value -> vm.edit { it.copy(language = value) } }
@@ -85,6 +80,17 @@ import tv.torrserve.silicon.core.storage.MetadataPriority
             item { SettingsGroup(stringResource(R.string.settings_about)) {
                 Text(stringResource(R.string.settings_about_text, BuildConfig.VERSION_NAME), color = Muted)
                 TvAction(stringResource(R.string.settings_licenses)) { licenses = true }
+            } }
+            item("appearance") { SettingsGroup(stringResource(R.string.settings_appearance)) {
+                UiScaleControls(s.uiScalePercent, vm::scale, vm::resetScale)
+                Text(stringResource(R.string.ui_language_title), color = Muted)
+                ChoiceRow(listOf("en", "ru"), s.uiLanguage, vm::language)
+                Text(stringResource(R.string.ui_theme_title), color = Muted)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TvAction(stringResource(R.string.ui_theme_dark), selected = s.uiTheme == "dark", modifier = Modifier.testTag("appearance:dark")) { vm.theme("dark") }
+                    TvAction(stringResource(R.string.ui_theme_light), selected = s.uiTheme == "light", modifier = Modifier.testTag("appearance:light")) { vm.theme("light") }
+                }
+                TvToggle(stringResource(R.string.ui_navigation_hints), s.showNavigationHints, Modifier.testTag("appearance:hints"), vm::hints)
             } }
         }
     }

@@ -196,7 +196,7 @@ export function FilmDetails({
                   onChange={(e) => setProvider(e.target.value)}
                 >
                   {["OMDb", "TMDB", "Kinopoisk", "AniList"].map((p) => (
-                    <option key={p}>{p}</option>
+                    <option key={p} value={p}>{p === "OMDb" ? "OMDB" : p}</option>
                   ))}
                 </select>
               </label>
@@ -245,7 +245,7 @@ export function FilmDetails({
                 <span>
                   <strong>{choice.metadata.title}</strong>
                   <small>
-                    {choice.metadata.year} · {choice.metadata.provider}
+                    {choice.metadata.year} · {choice.metadata.provider === "OMDb" ? "OMDB" : choice.metadata.provider}
                   </small>
                 </span>
                 <Icon name="check" size={18} />

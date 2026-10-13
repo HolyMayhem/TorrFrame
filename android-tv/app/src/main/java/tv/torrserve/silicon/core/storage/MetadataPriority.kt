@@ -17,7 +17,7 @@ object MetadataPriority {
         return order
     }
     fun label(provider: String) = when(provider) {
-        "OMDb" -> "IMDb (OMDb)"
+        "OMDb" -> "OMDB"
         "Kinopoisk" -> "Kinopoisk"
         else -> provider
     }

@@ -27,8 +27,8 @@ android {
         applicationId = "tv.torrserve.silicon"
         minSdk = 26
         targetSdk = 37
-        versionCode = 9
-        versionName = "0.1.8"
+        versionCode = 10
+        versionName = "0.1.9"
         buildConfigField("String", "TMDB_API_KEY", embeddedKey("TMDB", "TORRSERVE_TMDB_API_KEY"))
         buildConfigField("String", "OMDB_API_KEY", embeddedKey("OMDB", "TORRSERVE_OMDB_API_KEY"))
         buildConfigField("String", "KINOPOISK_API_KEY", embeddedKey("Kinopoisk", "TORRSERVE_KINOPOISK_API_KEY"))
@@ -121,7 +121,7 @@ val buildPhoneRemoteWeb = tasks.register<Exec>("buildPhoneRemoteWeb") {
     inputs.dir(phoneWeb.dir("src"))
     inputs.files(phoneWeb.file("index.html"), phoneWeb.file("branding.mjs"), phoneWeb.file("vite.config.js"),
         phoneWeb.file("tsconfig.json"), phoneWeb.file("package.json"), phoneWeb.file("package-lock.json"),
-        layout.projectDirectory.file("src/main/res/mipmap-xxhdpi/app_icon.png"))
+        rootProject.layout.projectDirectory.file("../icons/round icon.png"))
     outputs.dir(layout.projectDirectory.dir("src/main/assets/phone-remote"))
 }
 tasks.named("preBuild") { dependsOn(buildPhoneRemoteWeb) }

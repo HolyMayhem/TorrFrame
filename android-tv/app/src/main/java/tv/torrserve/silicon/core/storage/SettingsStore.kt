@@ -24,7 +24,8 @@ data class Settings(val jackettUrl: String = "", val jackettKey: String = "",
     val updateRepository: String = "", val uiLanguage: String = "en", val aniListEnabled: Boolean = false,
     val torrServerUrl: String = ServerAddress.DEFAULT, val useLocalServer: Boolean = true,
     val startOnBoot: Boolean = false, val engineSettingsInitialized: Boolean = false,
-    val lanAccess: Boolean = true, val uiScalePercent: Int = UiScale.DEFAULT) {
+    val lanAccess: Boolean = true, val uiScalePercent: Int = UiScale.DEFAULT,
+    val uiTheme: String = "dark", val showNavigationHints: Boolean = true) {
     val jackettConfigured get() = jackettUrl.isNotBlank() && jackettKey.isNotBlank()
     val needsLocalService get() = useLocalServer && (lanAccess || startOnBoot)
     val serverBindAddress get() = if (lanAccess) "0.0.0.0" else "127.0.0.1"
@@ -72,7 +73,9 @@ class SettingsStore(context: Context) {
             useLocalServer = prefs.getBoolean("useLocalServer", true), startOnBoot = prefs.getBoolean("startOnBoot", false),
             engineSettingsInitialized = prefs.getBoolean("engineSettingsInitialized", false),
             lanAccess = prefs.getBoolean("lanAccess", true),
-            uiScalePercent = UiScale.normalized(prefs.getInt("uiScalePercent", UiScale.DEFAULT)))
+            uiScalePercent = UiScale.normalized(prefs.getInt("uiScalePercent", UiScale.DEFAULT)),
+            uiTheme = prefs.getString("uiTheme", "dark").takeIf { it == "light" } ?: "dark",
+            showNavigationHints = prefs.getBoolean("showNavigationHints", true))
         mutableRevision.value = prefs.getLong("revision", 0)
         // Persist migration before removing legacy keys; Jackett's encrypted key is retained.
         val migration = prefs.edit().putBoolean("aniListEnabled", mutable.value.aniListEnabled)
@@ -90,6 +93,7 @@ class SettingsStore(context: Context) {
     private fun persist(s: Settings) {
         require(s.port in 1024..65535 && s.cacheMb in 16..4096) { "Некорректный порт или размер кеша." }
         require(s.uiScalePercent == UiScale.normalized(s.uiScalePercent)) { "Некорректный масштаб интерфейса." }
+        require(s.uiTheme in setOf("dark", "light"))
         val address = ServerAddress.normalize(s.torrServerUrl)
         require(!s.useLocalServer || ServerAddress.isLocal(address, s.port)) { "Адрес встроенного сервера должен соответствовать локальному порту." }
         val revision = mutableRevision.value + 1
@@ -100,6 +104,7 @@ class SettingsStore(context: Context) {
             .putBoolean("startOnBoot", s.startOnBoot).putBoolean("engineSettingsInitialized", s.engineSettingsInitialized)
             .putBoolean("lanAccess", s.lanAccess)
             .putInt("uiScalePercent", s.uiScalePercent)
+            .putString("uiTheme", s.uiTheme).putBoolean("showNavigationHints", s.showNavigationHints)
             .putString("language", s.language).putInt("port", s.port).putInt("cacheMb", s.cacheMb)
             .putBoolean("resume", s.resume).putString("audio", s.audioLanguage).putString("subtitles", s.subtitleLanguage)
             .putString("updates", s.updateRepository.trim()).putString("uiLanguage", s.uiLanguage).commit()

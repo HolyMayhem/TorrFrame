@@ -143,7 +143,7 @@ function AppSettings({
               <span className="priority-number">{index + 1}</span>
               <strong>
                 {provider === "OMDb"
-                  ? "IMDb через OMDb"
+                  ? "OMDB"
                   : provider === "Kinopoisk"
                     ? "Кинопоиск"
                     : provider}
@@ -484,6 +484,8 @@ function ServerSettings({
               ? "Сервер запущен"
               : state.server.process === "Starting"
                 ? "Сервер запускается…"
+                : state.server.process === "Stopping"
+                  ? "Сервер останавливается…"
                 : state.server.process === "Error"
                   ? "Ошибка запуска"
                   : "Сервер остановлен"}
