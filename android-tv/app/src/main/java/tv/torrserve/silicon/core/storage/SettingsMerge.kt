@@ -12,5 +12,6 @@ object SettingsMerge {
         audioLanguage = if (draft.audioLanguage != base.audioLanguage) draft.audioLanguage else current.audioLanguage,
         subtitleLanguage = if (draft.subtitleLanguage != base.subtitleLanguage) draft.subtitleLanguage else current.subtitleLanguage,
         updateRepository = if (draft.updateRepository != base.updateRepository) draft.updateRepository else current.updateRepository,
-        uiLanguage = if (draft.uiLanguage != base.uiLanguage) draft.uiLanguage else current.uiLanguage)
+        uiLanguage = if (draft.uiLanguage != base.uiLanguage) draft.uiLanguage else current.uiLanguage,
+        uiScalePercent = if (draft.uiScalePercent != base.uiScalePercent) draft.uiScalePercent else current.uiScalePercent)
 }

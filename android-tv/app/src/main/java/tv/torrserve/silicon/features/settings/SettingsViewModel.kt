@@ -6,6 +6,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import tv.torrserve.silicon.AppGraph
 import tv.torrserve.silicon.core.storage.Settings
+import tv.torrserve.silicon.core.storage.UiScale
 
 data class SettingsUi(val draft: Settings = Settings(), val message: String = "", val busy: Boolean = false, val connection: Int = tv.torrserve.silicon.R.string.settings_disconnected)
 class SettingsViewModel(private val graph: AppGraph): ViewModel() {
@@ -31,6 +32,19 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
     } }
     fun moveProvider(provider: String, direction: Int) {
         edit { it.copy(metadataOrder = tv.torrserve.silicon.core.storage.MetadataPriority.move(it.metadataOrder, provider, direction)) }
+    }
+    fun scale(direction: Int) = updateScale { UiScale.adjust(it, direction) }
+    fun resetScale() = updateScale { UiScale.DEFAULT }
+    private fun updateScale(change: (Int) -> Int) {
+        viewModelScope.launch {
+            try {
+                graph.ready.await()
+                graph.settings.update { it.copy(uiScalePercent = change(it.uiScalePercent)) }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                mutable.update { it.copy(message = graph.app.getString(tv.torrserve.silicon.R.string.settings_operation_failed)) }
+            }
+        }
     }
     private fun action(block: suspend () -> String) {
         if (state.value.busy) return

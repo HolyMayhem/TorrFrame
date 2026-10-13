@@ -48,6 +48,11 @@ import tv.torrserve.silicon.core.storage.MetadataPriority
         Message(state.message)
         ServerOperationStatus(torrState)
         LazyColumn(Modifier.weight(1f), state = listState, verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(8.dp)) {
+            item("appearance") { SettingsGroup(stringResource(R.string.settings_appearance)) {
+                UiScaleControls(s.uiScalePercent, vm::scale, vm::resetScale)
+                ChoiceRow(listOf("en", "ru"), s.uiLanguage) { value -> vm.edit { it.copy(uiLanguage = value) } }
+                Text(stringResource(R.string.settings_dark_theme), color = Muted)
+            } }
             item("phone-remote") { SettingsGroup(stringResource(R.string.phone_title)) {
                 phoneRemote()
             } }
@@ -75,10 +80,6 @@ import tv.torrserve.silicon.core.storage.MetadataPriority
                     EditField(stringResource(R.string.settings_audio), s.audioLanguage, modifier = Modifier.weight(1f), russian = true) { value -> vm.edit { it.copy(audioLanguage = value.trim()) } }
                     EditField(stringResource(R.string.settings_subtitles), s.subtitleLanguage, modifier = Modifier.weight(1f), russian = true) { value -> vm.edit { it.copy(subtitleLanguage = value.trim()) } }
                 }
-            } }
-            item { SettingsGroup(stringResource(R.string.settings_appearance)) {
-                ChoiceRow(listOf("en", "ru"), s.uiLanguage) { value -> vm.edit { it.copy(uiLanguage = value) } }
-                Text(stringResource(R.string.settings_dark_theme), color = Muted)
             } }
             item { SettingsGroup(stringResource(R.string.settings_updates), updates) }
             item { SettingsGroup(stringResource(R.string.settings_about)) {

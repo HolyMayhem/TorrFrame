@@ -130,6 +130,11 @@
     <string name="settings_audio">Язык аудио (en / ru)</string>
     <string name="settings_subtitles">Язык субтитров (en / ru)</string>
     <string name="settings_appearance">Оформление</string>
+    <string name="ui_scale_title">Масштаб интерфейса</string>
+    <string name="ui_scale_decrease">Уменьшить масштаб</string>
+    <string name="ui_scale_increase">Увеличить масштаб</string>
+    <string name="ui_scale_default" formatted="false">По умолчанию · 85%</string>
+    <string name="ui_scale_hint" formatted="false">70–110%, шаг 5%. Изменения применяются сразу и сохраняются автоматически.</string>
     <string name="settings_dark_theme">Тема: тёмная</string>
     <string name="settings_updates">Обновления</string>
     <string name="settings_about_text">TorrServe Silicon %1$s\nНативное приложение Android TV · Тёмная тема\nTorrServer от YouROK · Compose for TV · Media3\nTorrServer: GPL-3.0 · Kotlin, OkHttp, Media3, Coil: Apache-2.0</string>

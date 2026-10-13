@@ -2,6 +2,7 @@ package tv.torrserve.silicon.features.player
 
 import android.content.ComponentName
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.KeyEvent
 import android.widget.FrameLayout
@@ -20,6 +21,8 @@ import tv.torrserve.silicon.TorrServeApplication
 import kotlinx.coroutines.*
 import androidx.lifecycle.lifecycleScope
 import tv.torrserve.silicon.core.performance.Diagnostics
+import tv.torrserve.silicon.core.storage.UiScale
+import kotlin.math.roundToInt
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class PlayerActivity : ComponentActivity() {
@@ -35,9 +38,18 @@ class PlayerActivity : ComponentActivity() {
         val root = object : FrameLayout(this@PlayerActivity) {
             override fun dispatchKeyEvent(event: KeyEvent): Boolean = handleHiddenKey(event) || super.dispatchKeyEvent(event)
         }
-        playerView = PlayerView(this).apply { setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING); setShowSubtitleButton(true) }
+        // Scale the controller's resource dimensions; the video surface stays full-screen.
+        val scale = UiScale.factor((application as TorrServeApplication).graph.settings.state.value.uiScalePercent)
+        val controlsContext = createConfigurationContext(Configuration(resources.configuration).apply {
+            densityDpi = (resources.displayMetrics.densityDpi * scale).roundToInt()
+        })
+        playerView = PlayerView(controlsContext).apply { setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING); setShowSubtitleButton(true) }
         root.addView(playerView, FrameLayout.LayoutParams(-1,-1))
-        status = TextView(this).apply { text = "Loading…"; setTextColor(Color.WHITE); setBackgroundColor(0xCC101114.toInt()); textSize = 22f; setPadding(24,24,24,24) }
+        status = TextView(controlsContext).apply {
+            text = "Loading…"; setTextColor(Color.WHITE); setBackgroundColor(0xCC101114.toInt()); textSize = 18f
+            val inset = (12 * controlsContext.resources.displayMetrics.density).roundToInt()
+            setPadding(inset, inset, inset, inset)
+        }
         root.addView(status); setContentView(root)
         future = MediaController.Builder(this, SessionToken(this, ComponentName(this, PlaybackService::class.java))).buildAsync().also { f ->
             f.addListener({

@@ -8,6 +8,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Density
+import tv.torrserve.silicon.core.storage.UiScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.tv.material3.LocalContentColor
@@ -45,14 +47,16 @@ val Outline = Color(0xFF3A3B43)
 val Accent = Color(0xFFE2E3EB)
 val Positive = Color(0xFF90B78E)
 
-@Composable fun TorrServeTheme(content: @Composable () -> Unit) {
+@Composable fun TorrServeTheme(uiScalePercent: Int = UiScale.DEFAULT, content: @Composable () -> Unit) {
     val window = LocalWindowInfo.current.containerSize
-    val density = LocalDensity.current
+    val platformDensity = LocalDensity.current
+    val density = Density(platformDensity.density * UiScale.factor(uiScalePercent), platformDensity.fontScale)
     val widthDp = if(window.width > 0) with(density) { window.width.toDp().value.toInt() } else 960
     val heightDp = if(window.height > 0) with(density) { window.height.toDp().value.toInt() } else 540
     val layout = tvLayoutFor(widthDp, heightDp)
     val headingScale = if(layout.short) .92f else 1f
-    CompositionLocalProvider(LocalTvLayout provides layout) {
+    // Changing density causes an actual reflow: smaller controls expose more content.
+    CompositionLocalProvider(LocalDensity provides density, LocalTvLayout provides layout) {
     MaterialTheme(colorScheme = darkColorScheme(
         primary = Accent, onPrimary = Background,
         background = Background, surface = Surface,

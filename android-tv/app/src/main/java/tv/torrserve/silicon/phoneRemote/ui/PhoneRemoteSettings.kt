@@ -135,7 +135,7 @@ import tv.torrserve.silicon.ui.theme.*
 }
 
 @Composable fun PhoneRemoteShortcut(open: () -> Unit) {
-    androidx.tv.material3.Button(onClick = open, modifier = Modifier.size(38.dp).testTag("phone:shortcut"), contentPadding = PaddingValues(8.dp),
+    androidx.tv.material3.Button(onClick = open, modifier = Modifier.size(30.dp).testTag("phone:shortcut"), contentPadding = PaddingValues(6.dp),
         colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = Surface, contentColor = TextPrimary, focusedContainerColor = TextPrimary, focusedContentColor = Background)) {
         Image(painterResource(R.drawable.ic_phone), contentDescription = stringResource(R.string.phone_qr), colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(androidx.tv.material3.LocalContentColor.current))
     }

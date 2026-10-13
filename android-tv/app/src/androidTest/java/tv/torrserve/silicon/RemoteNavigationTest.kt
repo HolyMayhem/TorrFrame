@@ -64,6 +64,50 @@ class RemoteNavigationTest {
         remote(KeyEvent.KEYCODE_BACK)
         compose.onNodeWithTag("nav:Home").assertIsFocused().assertIsSelected()
     }
+    @Test fun scaleReflowsContentPersistsAndKeepsRemoteFocusAtBothLimits() {
+        val graph = (compose.activity.application as TorrServeApplication).graph
+        val original = graph.settings.state.value.uiScalePercent
+        fun waitScale(value: Int) {
+            compose.waitUntil(5000) { graph.settings.state.value.uiScalePercent == value }
+            compose.onNodeWithTag("scale:value").assertTextEquals("$value%")
+        }
+        try {
+            for (i in 0 until 3) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+            remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            compose.onNodeWithTag("scale:reset").performClick()
+            waitScale(85)
+            val originalWidth = compose.onNodeWithTag("nav:Home").fetchSemanticsNode().boundsInRoot.width
+            val originalContent = compose.onNodeWithTag("app:content").fetchSemanticsNode().boundsInRoot.height
+            val footer = compose.onNodeWithTag("app:footer").fetchSemanticsNode().boundsInRoot.height
+            val header = compose.onNodeWithTag("app:header").fetchSemanticsNode().boundsInRoot.height
+            assertTrue("Footer stays compact", footer < header / 2)
+            compose.onNodeWithTag("scale:minus").performSemanticsAction(SemanticsActions.RequestFocus)
+            for (value in listOf(80, 75, 70)) {
+                remote(KeyEvent.KEYCODE_DPAD_CENTER); waitScale(value)
+            }
+            compose.onNodeWithTag("scale:minus").assertIsNotEnabled()
+            focused("scale:plus")
+            val smallWidth = compose.onNodeWithTag("nav:Home").fetchSemanticsNode().boundsInRoot.width
+            assertEquals(70f / 85f, smallWidth / originalWidth, .04f)
+            assertTrue("Smaller chrome frees actual content space",
+                compose.onNodeWithTag("app:content").fetchSemanticsNode().boundsInRoot.height > originalContent)
+            for (value in 75..110 step 5) {
+                remote(KeyEvent.KEYCODE_ENTER); waitScale(value)
+            }
+            compose.onNodeWithTag("scale:plus").assertIsNotEnabled()
+            focused("scale:minus")
+            val reloaded = tv.torrserve.silicon.core.storage.SettingsStore(compose.activity)
+            kotlinx.coroutines.runBlocking { reloaded.load() }
+            assertEquals(110, reloaded.state.value.uiScalePercent)
+            compose.activityRule.scenario.recreate()
+            compose.onNodeWithTag("scale:value").assertTextEquals("110%")
+            compose.onNodeWithTag("scale:reset").performSemanticsAction(SemanticsActions.RequestFocus)
+            remote(KeyEvent.KEYCODE_DPAD_CENTER); waitScale(85)
+            focused("scale:reset")
+        } finally {
+            kotlinx.coroutines.runBlocking { graph.settings.update { it.copy(uiScalePercent = original) } }
+        }
+    }
     @Test fun homeActionTransfersFocusToSearchAndSettings() {
         compose.onNodeWithTag("nav:Home").assertIsFocused()
         remote(KeyEvent.KEYCODE_DPAD_DOWN)

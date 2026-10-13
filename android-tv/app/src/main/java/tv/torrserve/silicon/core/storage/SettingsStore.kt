@@ -24,7 +24,7 @@ data class Settings(val jackettUrl: String = "", val jackettKey: String = "",
     val updateRepository: String = "", val uiLanguage: String = "en", val aniListEnabled: Boolean = false,
     val torrServerUrl: String = ServerAddress.DEFAULT, val useLocalServer: Boolean = true,
     val startOnBoot: Boolean = false, val engineSettingsInitialized: Boolean = false,
-    val lanAccess: Boolean = true) {
+    val lanAccess: Boolean = true, val uiScalePercent: Int = UiScale.DEFAULT) {
     val jackettConfigured get() = jackettUrl.isNotBlank() && jackettKey.isNotBlank()
     val needsLocalService get() = useLocalServer && (lanAccess || startOnBoot)
     val serverBindAddress get() = if (lanAccess) "0.0.0.0" else "127.0.0.1"
@@ -71,7 +71,8 @@ class SettingsStore(context: Context) {
             torrServerUrl = prefs.getString("torrServerUrl", null) ?: ServerAddress.local(prefs.getInt("port", 8090)),
             useLocalServer = prefs.getBoolean("useLocalServer", true), startOnBoot = prefs.getBoolean("startOnBoot", false),
             engineSettingsInitialized = prefs.getBoolean("engineSettingsInitialized", false),
-            lanAccess = prefs.getBoolean("lanAccess", true))
+            lanAccess = prefs.getBoolean("lanAccess", true),
+            uiScalePercent = UiScale.normalized(prefs.getInt("uiScalePercent", UiScale.DEFAULT)))
         mutableRevision.value = prefs.getLong("revision", 0)
         // Persist migration before removing legacy keys; Jackett's encrypted key is retained.
         val migration = prefs.edit().putBoolean("aniListEnabled", mutable.value.aniListEnabled)
@@ -88,6 +89,7 @@ class SettingsStore(context: Context) {
     suspend fun snapshot(): Pair<Long, Settings> = lock.withLock { mutableRevision.value to mutable.value }
     private fun persist(s: Settings) {
         require(s.port in 1024..65535 && s.cacheMb in 16..4096) { "Некорректный порт или размер кеша." }
+        require(s.uiScalePercent == UiScale.normalized(s.uiScalePercent)) { "Некорректный масштаб интерфейса." }
         val address = ServerAddress.normalize(s.torrServerUrl)
         require(!s.useLocalServer || ServerAddress.isLocal(address, s.port)) { "Адрес встроенного сервера должен соответствовать локальному порту." }
         val revision = mutableRevision.value + 1
@@ -97,6 +99,7 @@ class SettingsStore(context: Context) {
             .putString("torrServerUrl", address).putBoolean("useLocalServer", s.useLocalServer)
             .putBoolean("startOnBoot", s.startOnBoot).putBoolean("engineSettingsInitialized", s.engineSettingsInitialized)
             .putBoolean("lanAccess", s.lanAccess)
+            .putInt("uiScalePercent", s.uiScalePercent)
             .putString("language", s.language).putInt("port", s.port).putInt("cacheMb", s.cacheMb)
             .putBoolean("resume", s.resume).putString("audio", s.audioLanguage).putString("subtitles", s.subtitleLanguage)
             .putString("updates", s.updateRepository.trim()).putString("uiLanguage", s.uiLanguage).commit()
