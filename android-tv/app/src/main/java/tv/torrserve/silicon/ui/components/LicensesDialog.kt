@@ -38,7 +38,7 @@ import tv.torrserve.silicon.ui.theme.Surface
                     } else false
                 } else false
             }) { items(paragraphs) { TvText(it, fontSize = 14.sp, translate = false, modifier = Modifier.padding(bottom = 12.dp)) } }
-            TvAction(stringResource(R.string.engine_back), action = dismiss)
+            TvBackAction(action = dismiss)
         }
     }
 }

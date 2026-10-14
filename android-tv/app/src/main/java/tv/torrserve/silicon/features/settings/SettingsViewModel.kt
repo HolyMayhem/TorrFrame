@@ -55,6 +55,7 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
     fun scale(direction: Int) = appearance { it.copy(uiScalePercent = UiScale.adjust(it.uiScalePercent, direction)) }
     fun resetScale() = appearance { it.copy(uiScalePercent = UiScale.DEFAULT) }
     fun theme(value: String) = appearance { it.copy(uiTheme = value) }
+    fun animations(value: Boolean) = appearance { it.copy(animationsEnabled = value) }
     fun hints(value: Boolean) = appearance { it.copy(showNavigationHints = value) }
     fun language(value: String) = appearance { it.copy(uiLanguage = value) }
     fun accent(value: String) = appearance { it.copy(uiAccent = value) }

@@ -16,5 +16,6 @@ object SettingsMerge {
         uiScalePercent = if (draft.uiScalePercent != base.uiScalePercent) draft.uiScalePercent else current.uiScalePercent,
         uiTheme = if (draft.uiTheme != base.uiTheme) draft.uiTheme else current.uiTheme,
         showNavigationHints = if (draft.showNavigationHints != base.showNavigationHints) draft.showNavigationHints else current.showNavigationHints,
+        animationsEnabled = if (draft.animationsEnabled != base.animationsEnabled) draft.animationsEnabled else current.animationsEnabled,
         uiAccent = if (draft.uiAccent != base.uiAccent) draft.uiAccent else current.uiAccent)
 }

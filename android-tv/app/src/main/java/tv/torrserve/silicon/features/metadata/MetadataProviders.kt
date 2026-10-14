@@ -16,10 +16,12 @@ interface MetadataSource {
     suspend fun search(p: ParsedName, s: Settings, provider: String): List<MetadataMatch>
     suspend fun details(match: MetadataMatch, s: Settings): Metadata
 }
-class MetadataProviders(private val http: Http, private val key: (String) -> String = BuiltInMetadataKeys::forProvider) : MetadataSource {
+class MetadataProviders(private val http: Http, tmdbClient: TmdbClient? = null, private val key: (String) -> String = BuiltInMetadataKeys::forProvider) : MetadataSource {
+    private val tmdbClient = tmdbClient ?: TmdbClient(http, { key("TMDB") })
     private suspend fun get(url: String, parameters: Map<String, String>, provider: String): JSONObject {
+        if (provider == "TMDB") return tmdbClient.get(url.substringAfter("/3/"), parameters)
         val builder = url.toHttpUrl().newBuilder(); parameters.forEach { (k,v) -> builder.addQueryParameter(k,v) }
-        when(provider) { "TMDB" -> builder.addQueryParameter("api_key", key(provider)); "OMDb" -> builder.addQueryParameter("apikey", key(provider)) }
+        if (provider == "OMDb") builder.addQueryParameter("apikey", key(provider))
         val request = Request.Builder().url(builder.build()).apply {
             if (provider == "Kinopoisk") header("X-API-KEY", key(provider))
         }.build()

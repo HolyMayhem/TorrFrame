@@ -9,7 +9,7 @@ import java.io.IOException
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 
-class ServiceFailure(val service: String, val status: Int = 0) : IOException(
+class ServiceFailure(val service: String, val status: Int = 0, val retryAfterMillis: Long? = null) : IOException(
     when (status) {
         401, 403 -> "$service: invalid API key or access denied."
         429 -> "$service: too many requests. Try again later."
@@ -39,7 +39,7 @@ class Http(val client: OkHttpClient = OkHttpClient.Builder()
                     val result = runCatching {
                         response.use { r ->
                             if(manualRedirects && r.code in setOf(301,302,303,307,308)) return@use HttpReply(r.code,r.header("Location"),ByteArray(0))
-                            if (!r.isSuccessful) throw ServiceFailure(service, r.code)
+                            if (!r.isSuccessful) throw ServiceFailure(service, r.code, retryAfterMillis(r.header("Retry-After")))
                             val body = r.body
                             if (body.contentLength() > limit) throw ServiceFailure(service, -1)
                             body.byteStream().use { stream ->

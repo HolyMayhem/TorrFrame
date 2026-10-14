@@ -11,6 +11,9 @@ import androidx.tv.material3.LocalTextStyle
 
 val LocalUiLanguage = compositionLocalOf { "en" }
 private val russian = mapOf(
+    "Catalog" to "Каталог",
+    "Explore catalog" to "Открыть каталог",
+    "Your added torrents and viewing progress appear here. Explore movies and series in Catalog." to "Здесь появятся добавленные вами торренты и история просмотра. Фильмы и сериалы можно посмотреть в каталоге.",
     "Find films with Jackett. Your library and viewing progress will appear here." to "Находите фильмы через Jackett. Здесь появятся ваша медиатека и история просмотра.",
     "01  Connect Jackett" to "01  Подключите Jackett",
     "Search your trackers in one place." to "Поиск по вашим трекерам в одном месте.",

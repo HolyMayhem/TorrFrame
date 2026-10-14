@@ -62,10 +62,11 @@ val AccentText: Color @Composable get() {
     val a = Accent.luminance(); val b = Surface.luminance()
     return if ((maxOf(a, b) + .05f) / (minOf(a, b) + .05f) >= 3f) Accent else TextPrimary
 }
+val LocalAnimationsEnabled = staticCompositionLocalOf { true }
 val Positive = Color(0xFF90B78E)
 
 @Composable fun TorrServeTheme(uiScalePercent: Int = UiScale.DEFAULT, light: Boolean = false,
-    accent: String = UiAccent.DEFAULT, content: @Composable () -> Unit) {
+    accent: String = UiAccent.DEFAULT, animationsEnabled: Boolean = true, content: @Composable () -> Unit) {
     val window = LocalWindowInfo.current.containerSize
     val platformDensity = LocalDensity.current
     val density = Density(platformDensity.density * UiScale.factor(uiScalePercent), platformDensity.fontScale)
@@ -75,6 +76,7 @@ val Positive = Color(0xFF90B78E)
     val headingScale = if(layout.short) .92f else 1f
     // Changing density causes an actual reflow: smaller controls expose more content.
     CompositionLocalProvider(LocalDensity provides density, LocalTvLayout provides layout,
+        LocalAnimationsEnabled provides animationsEnabled,
         LocalTvPalette provides if (light) LightPalette else DarkPalette,
         LocalAccent provides Color(UiAccent.colors.getValue(UiAccent.normalized(accent)))) {
     val colors = if (light) lightColorScheme() else darkColorScheme()

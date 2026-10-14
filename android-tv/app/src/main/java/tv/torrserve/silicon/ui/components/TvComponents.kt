@@ -1,11 +1,15 @@
 package tv.torrserve.silicon.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.BasicSecureTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -48,23 +53,46 @@ import tv.torrserve.silicon.core.models.LibraryItem
 @Composable fun TvAction(label: String, enabled: Boolean = true, modifier: Modifier = Modifier,
     primary: Boolean = false, selected: Boolean = false, action: () -> Unit) {
     val shape = RoundedCornerShape(TvDimensions.buttonRadius)
-    Button(onClick = action, enabled = enabled, modifier = modifier.heightIn(min = TvDimensions.actionHeight),
+    val motion = rememberTvButtonMotion(enabled,
+        container = if(primary) Accent else if(selected) SurfaceSecondary else Surface,
+        content = if(primary) OnAccent else TextPrimary,
+        outline = if(primary || selected) Accent.copy(alpha = .6f) else Outline, shape = shape)
+    Button(onClick = { motion.activate(); action() }, enabled = enabled, modifier = modifier.heightIn(min = TvDimensions.actionHeight).then(motion.modifier).then(motion.pointerClick(enabled, action = action)),
         shape = ButtonDefaults.shape(shape),
-        colors = ButtonDefaults.colors(
-            containerColor = if(primary) Accent else if(selected) SurfaceSecondary else Surface,
-            contentColor = if(primary) OnAccent else TextPrimary,
-            focusedContainerColor = Accent, focusedContentColor = OnAccent,
-            disabledContainerColor = Surface, disabledContentColor = Muted.copy(alpha = .55f)),
-        border = ButtonDefaults.border(
-            border = Border(BorderStroke(1.dp, if(primary || selected) Accent.copy(alpha = .6f) else Outline), shape = shape),
-            focusedBorder = Border(BorderStroke(2.dp, FocusBorderColor), shape = shape)),
+        interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        scale = ButtonDefaults.scale(focusedScale = 1f)) {
-        TvText(label, style = MaterialTheme.typography.labelLarge)
+        scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
+        TvText(label, modifier = motion.contentModifier, style = MaterialTheme.typography.labelLarge)
     }
 }
-@Composable fun TvNavItem(label: String, isSelected: Boolean, modifier: Modifier = Modifier, action: () -> Unit) {
-    TvAction(label, modifier = modifier.testTag("nav:$label").semantics { selected = isSelected }, selected = isSelected, action = action)
+@Composable fun TvNavItem(label: String, isSelected: Boolean, modifier: Modifier = Modifier, displayLabel: String = label, action: () -> Unit) {
+    TvAction(displayLabel, modifier = modifier.testTag("nav:$label").semantics { selected = isSelected }, selected = isSelected, action = action)
+}
+@Composable fun TvBackAction(modifier: Modifier = Modifier, action: () -> Unit) {
+    val shape = CircleShape
+    val motion = rememberTvButtonMotion(shape = shape)
+    Button(onClick = { motion.activate(); action() }, modifier = modifier.size(TvDimensions.actionHeight)
+        .then(motion.modifier).then(motion.pointerClick(action = action)),
+        shape = ButtonDefaults.shape(shape), contentPadding = PaddingValues(0.dp),
+        interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
+        scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Image(painterResource(R.drawable.ic_arrow_back), contentDescription = if (LocalUiLanguage.current == "ru") "Назад" else "Back",
+                colorFilter = ColorFilter.tint(LocalContentColor.current),
+                modifier = Modifier.size(20.dp).then(motion.contentModifier).testTag("back:icon"))
+        }
+    }
+}
+@Composable fun SettingsShortcut(modifier: Modifier = Modifier, isOpen: Boolean = false, open: () -> Unit) {
+    val motion = rememberTvButtonMotion(shape = CircleShape)
+    Button(onClick = { motion.activate(); open() }, modifier = modifier.then(motion.modifier).then(motion.pointerClick(action = open)).size(TvDimensions.actionHeight).testTag("nav:Settings")
+        .semantics { selected = isOpen },
+        shape = ButtonDefaults.shape(CircleShape), contentPadding = PaddingValues(8.dp),
+        interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
+        scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
+        Image(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings_title),
+            colorFilter = ColorFilter.tint(LocalContentColor.current), modifier = Modifier.fillMaxSize().then(motion.contentModifier))
+    }
 }
 @Composable fun BrandMark(modifier: Modifier = Modifier) {
     Image(painterResource(R.drawable.brand_mark), contentDescription = null, modifier = modifier.size(24.dp))
@@ -94,10 +122,13 @@ import tv.torrserve.silicon.core.models.LibraryItem
     if (editing) TextEditor(label, value, secret, keyboardType, { editing = false }, russian) { onValue(it); editing = false }
 }
 @Composable fun TextEditor(title: String, initial: String, secret: Boolean = false,
-    keyboardType: KeyboardType = KeyboardType.Text, dismiss: () -> Unit, russian: Boolean = false, save: (String) -> Unit) {
+    keyboardType: KeyboardType = KeyboardType.Text, dismiss: () -> Unit, russian: Boolean = false,
+    onEdit: ((String) -> Unit)? = null, save: (String) -> Unit) {
     val field = rememberTextFieldState(initialText = initial.take(4096))
     val focus = remember { FocusRequester() }; val doneFocus = remember { FocusRequester() }
     val hardwareKeyboard = LocalConfiguration.current.keyboard != Configuration.KEYBOARD_NOKEYS
+    val currentOnEdit by rememberUpdatedState(onEdit)
+    LaunchedEffect(field) { snapshotFlow { field.text.toString() }.collect { currentOnEdit?.invoke(it) } }
     Dialog(onDismissRequest = dismiss) {
         val keyboard = LocalSoftwareKeyboardController.current
         Column(Modifier.widthIn(max = 520.dp).fillMaxWidth(.8f).background(Surface, RoundedCornerShape(20.dp)).border(1.dp, Outline, RoundedCornerShape(20.dp)).padding(20.dp),
@@ -131,19 +162,20 @@ import tv.torrserve.silicon.core.models.LibraryItem
     }
 }
 @Composable fun TvToggle(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
-    Button(onClick = { onChange(!checked) }, modifier = modifier.fillMaxWidth().heightIn(min = TvDimensions.actionHeight)
+    val motion = rememberTvButtonMotion(container = SurfaceSecondary, outline = Color.Transparent)
+    val thumbOffset by animateDpAsState(if (checked) 18.dp else 0.dp, tween(if (LocalAnimationsEnabled.current) 180 else 0), label = "switchThumb")
+    val trackColor by animateColorAsState(if (checked) Accent else Muted, tween(if (LocalAnimationsEnabled.current) 180 else 0), label = "switchTrack")
+    Button(onClick = { motion.activate(); onChange(!checked) }, modifier = modifier.then(motion.modifier).then(motion.pointerClick { onChange(!checked) }).fillMaxWidth().heightIn(min = TvDimensions.actionHeight)
         .semantics { role = Role.Switch; toggleableState = if (checked) ToggleableState.On else ToggleableState.Off },
         shape = ButtonDefaults.shape(RoundedCornerShape(TvDimensions.buttonRadius)),
-        colors = ButtonDefaults.colors(containerColor = SurfaceSecondary, contentColor = TextPrimary,
-            focusedContainerColor = Accent, focusedContentColor = OnAccent),
-        border = ButtonDefaults.border(focusedBorder = Border(BorderStroke(2.dp, FocusBorderColor))),
-        scale = ButtonDefaults.scale(focusedScale = 1f)) {
+        interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
+        scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            TvText(label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            TvText(label, Modifier.weight(1f).wrapContentWidth(Alignment.Start).then(motion.contentModifier), style = MaterialTheme.typography.titleMedium)
             TvText(stringResource(if (checked) R.string.toggle_on else R.string.toggle_off))
-            Box(Modifier.width(42.dp).height(24.dp).background(if (checked) Accent else Muted, RoundedCornerShape(12.dp)).padding(3.dp),
-                contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart) {
-                Box(Modifier.size(18.dp).background(Color.White, RoundedCornerShape(9.dp)))
+            Box(Modifier.width(42.dp).height(24.dp).background(trackColor, RoundedCornerShape(12.dp)).padding(3.dp),
+                contentAlignment = Alignment.CenterStart) {
+                Box(Modifier.offset(x = thumbOffset).size(18.dp).background(Color.White, RoundedCornerShape(9.dp)))
             }
         }
     }
@@ -161,7 +193,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
         colors = CardDefaults.colors(containerColor = Surface, contentColor = TextPrimary,
             focusedContainerColor = SurfaceSecondary, focusedContentColor = TextPrimary),
         border = CardDefaults.border(focusedBorder = Border(BorderStroke(2.dp, FocusBorderColor), inset = (-3).dp, shape = shape)),
-        scale = CardDefaults.scale(focusedScale = 1.05f)) {
+        scale = CardDefaults.scale(focusedScale = if (LocalAnimationsEnabled.current) 1.03f else 1f, pressedScale = 1f)) {
         Column {
             Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(SurfaceSecondary), contentAlignment = Alignment.Center) {
                 if (item.metadata?.poster?.isNotBlank() == true && !imageFailed) AsyncImage(item.metadata.poster,

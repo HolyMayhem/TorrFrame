@@ -36,8 +36,8 @@ import tv.torrserve.silicon.ui.theme.Muted
                 if (percent + UiScale.STEP >= UiScale.MAX) pendingFocus = less
                 change(1)
             }
-            TvAction(stringResource(R.string.ui_scale_default), modifier = Modifier.testTag("scale:reset"), action = reset)
         }
+        TvAction(stringResource(R.string.ui_scale_default), modifier = Modifier.testTag("scale:reset"), action = reset)
         TvText(stringResource(R.string.ui_scale_hint), color = Muted)
     }
     LaunchedEffect(percent) {

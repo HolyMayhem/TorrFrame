@@ -1,7 +1,6 @@
 package tv.torrserve.silicon.phoneRemote.ui
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,7 +55,7 @@ import tv.torrserve.silicon.ui.theme.*
         else scope.launch { try { manager.port(port); failure = "" } catch (e: Exception) { if (e is CancellationException) throw e; failure = failureText } }
     }
     if (state.url.isNotBlank()) TvText(stringResource(R.string.phone_address, state.url), color = Muted)
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TvAction(stringResource(R.string.phone_qr), enabled = state.status == PhoneRemoteStatus.Running, modifier = Modifier.testTag("phone:qr")) { qr = true }
         TvAction(stringResource(R.string.phone_devices)) { devices = true }
     }
@@ -114,7 +113,7 @@ import tv.torrserve.silicon.ui.theme.*
                     TvText(stringResource(R.string.phone_qr_security_hint), color = Muted, fontSize = 12.sp)
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TvAction(stringResource(R.string.phone_close), modifier = Modifier.focusRequester(focus).testTag("phone:qr:close"), action = dismiss)
                 TvAction(stringResource(R.string.phone_qr_refresh), enabled = state.status == PhoneRemoteStatus.Running) { refresh() }
             }
@@ -146,9 +145,10 @@ import tv.torrserve.silicon.ui.theme.*
 }
 
 @Composable fun PhoneRemoteShortcut(open: () -> Unit) {
-    androidx.tv.material3.Button(onClick = open, modifier = Modifier.size(30.dp).testTag("phone:shortcut"), contentPadding = PaddingValues(6.dp),
-        border = androidx.tv.material3.ButtonDefaults.border(focusedBorder = androidx.tv.material3.Border(BorderStroke(2.dp, FocusBorderColor))),
-        colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = Surface, contentColor = TextPrimary, focusedContainerColor = Accent, focusedContentColor = OnAccent)) {
-        Image(painterResource(R.drawable.ic_phone), contentDescription = stringResource(R.string.phone_qr), colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(androidx.tv.material3.LocalContentColor.current))
+    val motion = rememberTvButtonMotion(outline = androidx.compose.ui.graphics.Color.Transparent, shape = androidx.compose.foundation.shape.CircleShape)
+    androidx.tv.material3.Button(onClick = { motion.activate(); open() }, modifier = motion.modifier.then(motion.pointerClick(action = open)).size(30.dp).testTag("phone:shortcut"), contentPadding = PaddingValues(6.dp),
+        interactionSource = motion.interactions, border = motion.border, colors = motion.colors,
+        scale = androidx.tv.material3.ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
+        Image(painterResource(R.drawable.ic_phone), modifier = motion.contentModifier, contentDescription = stringResource(R.string.phone_qr), colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(androidx.tv.material3.LocalContentColor.current))
     }
 }

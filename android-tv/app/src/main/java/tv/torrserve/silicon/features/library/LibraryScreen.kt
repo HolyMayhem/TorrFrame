@@ -31,12 +31,12 @@ import tv.torrserve.silicon.ui.theme.TvDimensions
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("My Library", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
-            TvAction("Refresh", !state.busy, modifier = Modifier.focusRequester(fallback), action = refresh); TvAction("Find Torrents", primary = true, action = search)
+            TvAction("Refresh", !state.busy, modifier = Modifier.focusRequester(fallback), action = refresh); TvAction("Explore catalog", primary = true, action = search)
         }
         if(state.items.isEmpty() && !state.busy) {
             Message(state.message)
-            InfoPanel("Your library is empty.", "Find a film in Search and add it to your library. Posters and film details are loaded automatically.", Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                TvAction("Search Torrents", primary = true, action = search)
+            InfoPanel("Your library is empty.", "Your added torrents and viewing progress appear here. Explore movies and series in Catalog.", Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                TvAction("Explore catalog", primary = true, action = search)
             }
             return@Column
         }

@@ -30,7 +30,12 @@ class AppGraph(val app: Application) {
     val connection = ServerConnection(api, settings.state, scope)
     val server = ServerController(app, localApi, scope, settings)
     val jackett = JackettClient(http)
-    val metadataProviders = MetadataProviders(http)
+    val tmdb = tv.torrserve.silicon.core.network.TmdbClient(http)
+    val catalogCache = tv.torrserve.silicon.features.catalog.data.SqliteCatalogCache(app)
+    val catalogUserLists = tv.torrserve.silicon.features.catalog.data.SqliteCatalogUserLists(app)
+    val catalog = tv.torrserve.silicon.features.catalog.data.CatalogRepositoryImpl(
+        tv.torrserve.silicon.features.catalog.data.TmdbCatalogApi(tmdb), catalogCache, scope)
+    val metadataProviders = MetadataProviders(http, tmdb)
     val metadata = MetadataResolver(metadataProviders, store)
     val phonePreferences = tv.torrserve.silicon.phoneRemote.settings.PhoneRemotePreferences(app)
     val serverActions = TorrServerActions(app, settings, server, api, connection, scope) { phonePreferences.state.value.takeIf { it.enabled }?.port }

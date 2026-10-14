@@ -59,7 +59,7 @@ import tv.torrserve.silicon.ui.theme.*
             ServerState.Stopped -> stringResource(R.string.server_process_stopped)
             is ServerState.Error -> server.message
         }, color = Muted)
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             TvAction(stringResource(R.string.server_start), modifier = Modifier.testTag("server:start"), action = vm::start)
             TvAction(stringResource(R.string.server_stop), modifier = Modifier.testTag("server:stop"), action = vm::stop)
             TvAction(stringResource(R.string.server_restart), action = vm::restart)
@@ -107,10 +107,10 @@ import tv.torrserve.silicon.ui.theme.*
     var confirm by remember { mutableStateOf<String?>(null) }
     BackHandler(onBack = back)
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            TvAction(stringResource(R.string.engine_back), modifier = Modifier.focusRequester(backFocus)
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TvBackAction(modifier = Modifier.focusRequester(backFocus)
                 .then(if (entryFocus != null) Modifier.focusRequester(entryFocus) else Modifier).testTag("engine:back"), action = back)
-            Column(Modifier.weight(1f)) { SectionHeading(stringResource(R.string.engine_title), stringResource(R.string.engine_subtitle)) }
+            SectionHeading(stringResource(R.string.engine_title), stringResource(R.string.engine_subtitle))
         }
         TvText(state.settings.torrServerUrl, color = Muted)
         ServerOperationStatus(state)
@@ -159,7 +159,7 @@ import tv.torrserve.silicon.ui.theme.*
             .border(1.dp, Outline, RoundedCornerShape(20.dp)).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             TvText(title, style = MaterialTheme.typography.headlineSmall)
             TvText(description, color = Muted)
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TvAction(stringResource(R.string.dialog_cancel), modifier = Modifier.focusRequester(focus), action = dismiss)
                 TvAction(action, action = confirm)
             }

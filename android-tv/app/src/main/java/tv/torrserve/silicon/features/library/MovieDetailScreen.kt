@@ -39,7 +39,7 @@ import tv.torrserve.silicon.features.metadata.MediaNameParser
             modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Background, Background.copy(alpha = .8f), Background.copy(alpha = .5f)))))
         LazyColumn(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            item { TvAction("Back", modifier = Modifier.focusRequester(backFocus), action = back) }
+            item { TvBackAction(modifier = Modifier.focusRequester(backFocus), action = back) }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = androidx.compose.ui.Alignment.Top) {
                     MovieCover(item, Modifier.width(if (LocalTvLayout.current.short) 150.dp else 180.dp))
@@ -78,7 +78,7 @@ import tv.torrserve.silicon.features.metadata.MediaNameParser
                         TvAction(label, modifier = Modifier.fillMaxWidth().then(if(file.id == state.files.first().id) Modifier.focusRequester(fileFocus) else Modifier)) { vm.closeFiles(); play(item.hash, file) }
                     }
                 }
-                TvAction("Back", action = vm::closeFiles)
+                TvBackAction(action = vm::closeFiles)
             }
         }
         LaunchedEffect(Unit) { withFrameNanos { }; fileFocus.requestFocus() }

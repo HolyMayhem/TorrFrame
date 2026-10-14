@@ -12,7 +12,7 @@ import tv.torrserve.silicon.ui.components.*
     vm: UpdatesViewModel, install: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         EditField(stringResource(R.string.settings_update_repo), settings.updateRepository, russian = true, onValue = edit)
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             TvAction(stringResource(R.string.settings_check_server_update), !state.busy, action = vm::server)
             TvAction(stringResource(R.string.settings_check_app_update), !state.busy, action = vm::check)
         }
