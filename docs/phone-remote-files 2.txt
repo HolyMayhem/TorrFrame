@@ -8,7 +8,7 @@ M	android-tv/app/proguard-rules.pro
 A	android-tv/app/src/androidTest/java/tv/torrserve/silicon/PhoneRemoteIntegrationTest.kt
 M	android-tv/app/src/main/AndroidManifest.xml
 M	android-tv/app/src/main/java/tv/torrserve/silicon/MainActivity.kt
-M	android-tv/app/src/main/java/tv/torrserve/silicon/TorrServeApplication.kt
+M	android-tv/app/src/main/java/tv/torrserve/silicon/TorrFrameApplication.kt
 M	android-tv/app/src/main/java/tv/torrserve/silicon/core/database/LibraryStore.kt
 M	android-tv/app/src/main/java/tv/torrserve/silicon/core/server/ServerController.kt
 A	android-tv/app/src/main/java/tv/torrserve/silicon/core/server/TorrServerActions.kt

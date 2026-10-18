@@ -1,4 +1,4 @@
-# TorrServe Silicon TV 0.1.7 — LAN web interface
+# TorrFrame TV 0.1.7 — LAN web interface
 
 The bundled TorrServer now listens on the TV's network interfaces by default.
 Its standard web interface opens directly from a browser on the same network;

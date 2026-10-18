@@ -1,4 +1,4 @@
-# TorrServe Silicon — Android TV
+# TorrFrame — Android TV
 
 Самостоятельное нативное приложение для Android TV, Kotlin и Compose for TV.
 Исходники Android находятся в `android-tv/`; macOS-приложение не изменялось.
@@ -8,13 +8,13 @@
 ## Быстрый запуск
 
 Откройте каталог **android-tv** в Android Studio. APK для проверки лежит в
-`artifacts/TorrServe-Silicon-TV-0.1.6-preview-universal.apk`.
+`artifacts/TorrFrame-TV-debug.apk`.
 Нужны Android 8.0+ (API 26+) и ARM64 либо ARMv7. x86 не включён.
 В ручных командах ниже замените IP:PORT адресом приставки. Для повседневной
 разработки используйте автоматическую отправку через VS Code, описанную ниже.
 
 ```sh
-.tools/sdk/platform-tools/adb -s IP:PORT install -r artifacts/TorrServe-Silicon-TV-0.1.6-preview-universal.apk
+.tools/sdk/platform-tools/adb -s IP:PORT install -r artifacts/TorrFrame-TV-debug.apk
 .tools/sdk/platform-tools/adb -s IP:PORT shell am start -n tv.torrserve.silicon/.MainActivity
 ```
 
@@ -149,7 +149,9 @@ https://code.visualstudio.com/docs/debugtest/tasks.
 После удаления `.tools/` используйте Android Studio либо переменные JAVA_HOME и
 ANDROID_HOME со своим SDK. `android-tv/local.properties` — локальный, не публикуемый файл.
 
-Уже создан AVD `TorrServe_TV_API36`. Ручной запуск с видимым окном:
+Скрипт выбирает AVD `TorrFrame_TV_API36`, а при его отсутствии использует уже
+созданный `TorrServe_TV_API36`, сохраняя данные устройства. Другой AVD можно
+указать через `TORRFRAME_AVD`. Запуск с видимым окном:
 
 ```sh
 scripts/emulator.sh
@@ -168,9 +170,9 @@ Qt не находил плагины при запуске из пути worksp
 первой реализации не использовался; тесты и измерения выполнялись через CLI/ADB.
 
 На macOS результаты сборки находятся в
-`~/Library/Caches/TorrServeSiliconAndroidTV/build/app/`, а не в `android-tv/app/build/`.
+`~/Library/Caches/TorrFrameAndroidTV/build/app/`, а не в `android-tv/app/build/`.
 Это предотвращает дублирование изменяемых файлов сборки в синхронизируемом Documents.
-Путь можно переопределить параметром `-PtorrserveBuildRoot=/absolute/path`.
+Путь можно переопределить параметром `-PtorrframeBuildRoot=/absolute/path`.
 
 ## Сборка
 
@@ -231,8 +233,8 @@ Settings → Metadata показывает порядок источников. 
 Ручного ввода ключей метаданных нет. Три ключа встраиваются в APK при сборке.
 Для разработки скопируйте `android-tv/metadata-keys.properties.example` в
 `android-tv/metadata-keys.properties` и заполните локальный файл, исключённый из Git.
-В CI можно задать TORRSERVE_TMDB_API_KEY, TORRSERVE_OMDB_API_KEY,
-TORRSERVE_KINOPOISK_API_KEY. Сборка без ключей завершается понятной ошибкой.
+В CI можно задать TORRFRAME_TMDB_API_KEY, TORRFRAME_OMDB_API_KEY,
+TORRFRAME_KINOPOISK_API_KEY. Сборка без ключей завершается понятной ошибкой.
 Ключи технически извлекаемы из APK, поэтому их нельзя считать секретами клиента;
 исходники GitHub и архив исходников значений ключей не содержат.
 
@@ -320,7 +322,7 @@ Go нужен **только для тестового BitTorrent-сида на 
 
 ```sh
 scripts/profile-adb.sh
-.tools/sdk/platform-tools/adb logcat -s TorrServeTiming:I AndroidRuntime:E
+.tools/sdk/platform-tools/adb logcat -s TorrFrameTiming:I AndroidRuntime:E
 .tools/sdk/platform-tools/adb shell dumpsys gfxinfo tv.torrserve.silicon framestats
 ```
 

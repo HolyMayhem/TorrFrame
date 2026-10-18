@@ -1,5 +1,6 @@
 package tv.torrserve.silicon.phoneRemote.synchronization
 
+import tv.torrserve.silicon.core.localization.withUiLanguage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
@@ -25,12 +26,13 @@ class StateSyncManager(private val graph: AppGraph, parent: CoroutineScope, sess
     private val mutable = MutableSharedFlow<String>(extraBufferCapacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     override val events = mutable.asSharedFlow()
     private val commands = RemoteCommands(graph)
-    private val operations = RemoteOperations(scope, commands::execute) { error ->
+    private val operations = RemoteOperations(scope, commands::execute) { error, language ->
+        val context = graph.app.withUiLanguage(language)
         when {
-            error is ApplicationActionFailure -> graph.app.getString(error.resource)
-            error is SettingsConflict -> graph.app.getString(R.string.phone_settings_conflict)
-            error is TimeoutCancellationException || (error as? ServiceFailure)?.status == 408 -> graph.app.getString(R.string.server_timeout)
-            else -> graph.app.getString(R.string.phone_operation_failed)
+            error is ApplicationActionFailure -> context.getString(error.resource)
+            error is SettingsConflict -> context.getString(R.string.phone_settings_conflict)
+            error is TimeoutCancellationException || (error as? ServiceFailure)?.status == 408 -> context.getString(R.string.server_timeout)
+            else -> context.getString(R.string.phone_operation_failed)
         }
     }
     @Synchronized private fun emit(type: String, data: Any) {
@@ -38,6 +40,7 @@ class StateSyncManager(private val graph: AppGraph, parent: CoroutineScope, sess
     }
     init {
         scope.launch { sessions.sessions.collect { active -> operations.revokeExcept(active.map { it.id }.toSet()) } }
+        scope.launch { graph.catalogUserLists.entries.collect { emit("catalog.updated", JSONObject()) } }
         scope.launch { graph.store.changes.collect { emit("library.updated", JSONObject().put("revision", it)) } }
         scope.launch { graph.settings.state.collect { val (revision, settings) = graph.settings.snapshot(); emit("settings.updated", RemoteJson.settings(settings, revision)) } }
         scope.launch { combine(graph.server.state, graph.connection.state) { _, _ -> RemoteJson.server(graph).toString() }
@@ -59,6 +62,7 @@ class StateSyncManager(private val graph: AppGraph, parent: CoroutineScope, sess
         val startSequence = sequence
         val (revision, settings) = graph.settings.snapshot()
         return JSONObject().put("v", 1).put("epoch", epoch).put("sequence", startSequence)
+            .put("searchProviders", org.json.JSONArray(graph.torrentSearch.providers.map { JSONObject().put("id", it.id).put("name", it.name) }))
             .put("csrf", session.csrf).put("device", RemoteJson.device()).put("settings", RemoteJson.settings(settings, revision))
             .put("library", RemoteJson.library(graph.store.list())).put("server", RemoteJson.server(graph))
             .put("playback", RemoteJson.playback(graph.playback.state.value)).put("updates", RemoteJson.updates(graph))

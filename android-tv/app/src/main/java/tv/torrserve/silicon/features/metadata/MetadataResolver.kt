@@ -12,7 +12,8 @@ import tv.torrserve.silicon.core.models.*
 import tv.torrserve.silicon.core.storage.Settings
 import tv.torrserve.silicon.core.storage.MetadataPriority
 
-class MetadataResolver(private val providers: MetadataSource, private val store: MetadataCache) {
+class MetadataResolver(private val providers: MetadataSource, private val store: MetadataCache,
+    private val bypassCache:(String)->Boolean = { false }) {
     private val permits = Semaphore(2)
     private val lock = Mutex()
     suspend fun resolve(sources: List<String>, s: Settings, forceRefresh: Boolean = false): Metadata? = withContext(Dispatchers.IO) { permits.withPermit {
@@ -29,8 +30,11 @@ class MetadataResolver(private val providers: MetadataSource, private val store:
         val key = "v4|$provider|${s.language}|" + candidates.joinToString("|") { "${MediaNameParser.normalized(it.parsed.title)}:${it.parsed.year}:${it.parsed.kind}" }
         // Serialize resolver work to deduplicate simultaneous additions and cache writes.
         return lock.withLock {
-            if(forceRefresh) store.removeCache(key)
-            val cached = store.cached(key); if (cached.present) return@withLock cached.value
+            val bypass = bypassCache(provider)
+            if(!bypass) {
+                if(forceRefresh) store.removeCache(key)
+                val cached=store.cached(key); if(cached.present)return@withLock cached.value
+            }
             try {
                 data class Ranked(val match: MetadataMatch, val title: Double, val year: Int, val confidence: Int)
                 var best: Ranked? = null
@@ -52,7 +56,8 @@ class MetadataResolver(private val providers: MetadataSource, private val store:
                     if (rank?.title == 3.0 && (p.year == null || rank.year == 1)) break
                 }
                 val metadata = best?.let { providers.details(it.match, s) }
-                store.cache(key, metadata); metadata
+                if(!bypass && !bypassCache(provider))store.cache(key, metadata)
+                metadata
             } catch (e: Exception) { if (e is CancellationException) throw e; null }
         }
     }

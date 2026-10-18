@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.TorrFrame.Starting" parent="Theme.TorrFrame.Starting.Base">
+        <item name="android:windowSplashScreenBackground">#000000</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/startup_empty_icon</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#000000</item>
+        <item name="android:windowSplashScreenAnimationDuration">0</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+    </style>
+</resources>

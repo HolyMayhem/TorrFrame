@@ -11,6 +11,7 @@ import tv.torrserve.silicon.features.catalog.domain.*
 class CatalogRepositoryImpl(
     private val api: CatalogRemote, private val cache: CatalogCache, private val scope: CoroutineScope,
     private val now: () -> Long = System::currentTimeMillis,
+    private val namespace: String = "",
 ) : CatalogRepository {
     private data class Request(val task: Deferred<String>, var users: Int)
     private val requests = mutableMapOf<String, Request>()
@@ -27,7 +28,8 @@ class CatalogRepositoryImpl(
             if (request.users == 0) { requests.remove(key); if (!request.task.isCompleted) request.task.cancel() }
         } } }
     }
-    private fun <T> load(key: String, ttl: Long, retention: Long, force: Boolean, decode: (JSONObject) -> T, fetch: suspend () -> JSONObject) = flow {
+    private fun <T> load(rawKey: String, ttl: Long, retention: Long, force: Boolean, decode: (JSONObject) -> T, fetch: suspend () -> JSONObject) = flow {
+        val key = namespace + rawKey
         var data: T? = null
         val entry = cached(key)
         if (entry != null) {
@@ -65,6 +67,10 @@ class CatalogRepositoryImpl(
     override fun details(ref: CatalogRef, language: String, force: Boolean) = load(
         "details:v2:${ref.key}:$language", 3 * DAY, 7 * DAY, force,
         { CatalogParser.details(it, ref.type) }, { api.details(ref, language) })
+    override fun related(ref: CatalogRef, source: CatalogRelatedSource, language: String, page: Int, force: Boolean) = load(
+        "related:${source.path}:${ref.key}:$language:$page", DAY, 7 * DAY, force,
+        { CatalogParser.page(it, ref.type).let { page -> page.copy(items = page.items.filterNot { it.ref == ref }) } },
+        { api.related(ref, source, language, page) })
     override fun discover(filter: CatalogFilter, type: CatalogType, language: String, page: Int, force: Boolean) = load(
         "discover:${filter.name}:${type.path}:$language:$page", 12 * HOUR, 7 * DAY, force,
         { CatalogParser.page(it, type) }, { api.discover(filter, type, language, page) })

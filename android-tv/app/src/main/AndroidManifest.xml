@@ -10,9 +10,19 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.software.leanback" android:required="true" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-    <application android:name=".TorrServeApplication" android:label="@string/app_name"
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" android:mimeType="video/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:mimeType="video/*" />
+        </intent>
+    </queries>
+    <application android:name=".TorrFrameApplication" android:label="@string/app_name"
         android:icon="@mipmap/app_icon" android:banner="@drawable/tv_banner"
-        android:theme="@style/Theme.TorrServe" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules"
+        android:theme="@style/Theme.TorrFrame" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules"
         android:extractNativeLibs="true" android:usesCleartextTraffic="true">
         <service android:name=".phoneRemote.server.PhoneRemoteService" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
@@ -32,7 +42,9 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_paths" />
         </provider>
         <activity android:name=".features.player.PlayerActivity" android:exported="false" android:screenOrientation="landscape" />
-        <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="landscape">
+        <activity android:name=".features.player.PlayerChoiceActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="landscape"
+            android:theme="@style/Theme.TorrFrame.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />

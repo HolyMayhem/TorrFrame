@@ -1,4 +1,4 @@
-# TorrServe Silicon — Android TV
+# TorrFrame — Android TV
 
 Native Android TV client with a bundled ARM64/ARMv7 TorrServer, a local media library,
 Jackett search, metadata providers and a Media3 player. Kotlin, Compose for TV,
@@ -31,7 +31,7 @@ continue using their local address in either mode. Phone Remote is a separate
 optional service and does not need to be enabled for the standard web interface.
 Metadata keys are embedded at build time. Copy
 `android-tv/metadata-keys.properties.example` to the ignored
-`android-tv/metadata-keys.properties`, or supply the three `TORRSERVE_*_API_KEY`
+`android-tv/metadata-keys.properties`, or supply the three `TORRFRAME_*_API_KEY`
 environment variables described in the setup guide. The development Mac already
 has its local key file; key values are excluded from Git and source archives.
 
@@ -41,7 +41,7 @@ On the development Mac, the local SDK and JDK are already configured:
 ./scripts/build-local.sh :app:assembleDebug
 ./scripts/emulator.sh -no-snapshot
 # In a second terminal, after Android TV has booted:
-.tools/sdk/platform-tools/adb -s emulator-5554 install -r "$HOME/Library/Caches/TorrServeSiliconAndroidTV/build/app/outputs/apk/debug/app-debug.apk"
+.tools/sdk/platform-tools/adb -s emulator-5554 install -r "$HOME/Library/Caches/TorrFrameAndroidTV/build/app/outputs/apk/debug/app-debug.apk"
 .tools/sdk/platform-tools/adb -s emulator-5554 shell am start -n tv.torrserve.silicon/.MainActivity
 ```
 
@@ -54,9 +54,9 @@ If Jackett runs on the same Mac, use `http://10.0.2.2:9117` in the emulator
 (adjust the port to match your Jackett installation). A physical TV device needs
 the host's reachable LAN address instead.
 
-On macOS, Gradle outputs are stored in `~/Library/Caches/TorrServeSiliconAndroidTV/build/`
+On macOS, Gradle outputs are stored in `~/Library/Caches/TorrFrameAndroidTV/build/`
 to avoid duplicate generated files in synchronized Documents folders. Override
-the location with `-PtorrserveBuildRoot=/absolute/path` if needed.
+the location with `-PtorrframeBuildRoot=/absolute/path` if needed.
 
 ## Wi-Fi deployment to Mi Box
 

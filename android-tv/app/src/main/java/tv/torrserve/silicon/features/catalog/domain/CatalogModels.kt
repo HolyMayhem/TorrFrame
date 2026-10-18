@@ -5,6 +5,8 @@ import org.json.JSONArray
 
 /** TMDB identities must include media type: movie and TV IDs can overlap. */
 enum class CatalogType(val path: String) { Movie("movie"), Tv("tv") }
+/** Both lists are ranked by TMDB, never by a local recommendation algorithm. */
+enum class CatalogRelatedSource(val path: String) { Similar("similar"), Recommendations("recommendations") }
 data class CatalogRef(val id: Int, val type: CatalogType) {
     val key get() = "${type.path}:$id"
 }

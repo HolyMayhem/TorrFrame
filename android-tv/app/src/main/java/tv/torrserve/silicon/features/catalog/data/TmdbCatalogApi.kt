@@ -2,16 +2,19 @@ package tv.torrserve.silicon.features.catalog.data
 
 import org.json.JSONObject
 import java.time.LocalDate
-import tv.torrserve.silicon.core.network.TmdbClient
+import tv.torrserve.silicon.core.network.CatalogJsonClient
 import tv.torrserve.silicon.features.catalog.domain.*
 
 interface CatalogRemote {
+    suspend fun related(ref: CatalogRef, source: CatalogRelatedSource, language: String, page: Int): JSONObject
     suspend fun section(section: CatalogSection, language: String, page: Int): JSONObject
     suspend fun search(query: String, language: String, page: Int): JSONObject
     suspend fun details(ref: CatalogRef, language: String): JSONObject
     suspend fun discover(filter: CatalogFilter, type: CatalogType, language: String, page: Int): JSONObject
 }
-class TmdbCatalogApi(private val client: TmdbClient, private val today: () -> LocalDate = LocalDate::now) : CatalogRemote {
+class TmdbCatalogApi(private val client: CatalogJsonClient, private val today: () -> LocalDate = LocalDate::now) : CatalogRemote {
+    override suspend fun related(ref: CatalogRef, source: CatalogRelatedSource, language: String, page: Int) =
+        client.get("${ref.type.path}/${ref.id}/${source.path}", mapOf("language" to language, "page" to page.toString()))
     override suspend fun section(section: CatalogSection, language: String, page: Int): JSONObject {
         val params = mutableMapOf("language" to language, "page" to page.toString(), "include_adult" to "false")
         if (section == CatalogSection.NewMovies) {

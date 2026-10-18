@@ -22,6 +22,7 @@ class MemoryCatalogCache(var clock: Long = 10_000) : CatalogCache {
     override suspend fun remove(key: String) { entries.remove(key) }
 }
 open class TestRemote : CatalogRemote {
+    override suspend fun related(ref: CatalogRef, source: CatalogRelatedSource, language: String, page: Int) = response(language, page)
     var calls = 0
     var fail = false
     var wait = 0L

@@ -8,8 +8,9 @@ plugins {
 val metadataKeys = Properties().apply {
     rootProject.file("metadata-keys.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
 }
-fun embeddedKey(property: String, environment: String): String {
-    val value = providers.environmentVariable(environment).orNull ?: metadataKeys.getProperty(property, "")
+fun embeddedKey(property: String, environment: String, legacyEnvironment: String): String {
+    val value = providers.environmentVariable(environment).orNull
+        ?: providers.environmentVariable(legacyEnvironment).orNull ?: metadataKeys.getProperty(property, "")
     require(value.isNotBlank()) { "Configure $environment or metadata-keys.properties before building." }
     return "\"" + value.trim().replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
@@ -17,10 +18,14 @@ val supportedServerAbis = mapOf(
     "arm64-v8a" to "27fc76161b1fcab64b6f71bb7d62ff7178061624a957f4dcbe66c566f5b54a42",
     "armeabi-v7a" to "816a44e35f6e8802eb52bfa65263da44611b4b36e62b0b517decaf20f2ac5689",
 )
-val selectedServerAbis = providers.gradleProperty("torrserveAbi").orNull?.let { listOf(it) }
+val selectedServerAbis = (providers.gradleProperty("torrframeAbi").orNull
+    ?: providers.gradleProperty("torrserveAbi").orNull)?.let { listOf(it) }
     ?: supportedServerAbis.keys.toList()
 require(selectedServerAbis.all { it in supportedServerAbis }) { "Supported TorrServer ABIs: arm64-v8a, armeabi-v7a." }
 android {
+    // Both UI languages must remain available for in-app switching, including in bundles.
+    bundle { language { enableSplit = false } }
+    // Stable Android identity: TorrFrame updates the installed app and keeps its data.
     namespace = "tv.torrserve.silicon"
     compileSdk = 37
     defaultConfig {
@@ -29,11 +34,11 @@ android {
         targetSdk = 37
         versionCode = 11
         versionName = "0.1.10"
-        buildConfigField("String", "TMDB_API_KEY", embeddedKey("TMDB", "TORRSERVE_TMDB_API_KEY"))
-        buildConfigField("String", "OMDB_API_KEY", embeddedKey("OMDB", "TORRSERVE_OMDB_API_KEY"))
-        buildConfigField("String", "KINOPOISK_API_KEY", embeddedKey("Kinopoisk", "TORRSERVE_KINOPOISK_API_KEY"))
+        buildConfigField("String", "TMDB_API_KEY", embeddedKey("TMDB", "TORRFRAME_TMDB_API_KEY", "TORRSERVE_TMDB_API_KEY"))
+        buildConfigField("String", "OMDB_API_KEY", embeddedKey("OMDB", "TORRFRAME_OMDB_API_KEY", "TORRSERVE_OMDB_API_KEY"))
+        buildConfigField("String", "KINOPOISK_API_KEY", embeddedKey("Kinopoisk", "TORRFRAME_KINOPOISK_API_KEY", "TORRSERVE_KINOPOISK_API_KEY"))
         ndk { abiFilters += selectedServerAbis }
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = providers.gradleProperty("playerSmokeRunner").orNull ?: "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         release {
@@ -45,6 +50,7 @@ android {
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -56,6 +62,9 @@ android {
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
+    implementation(project(":torrent-search"))
+    implementation(project(":player-ffmpeg"))
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
@@ -122,7 +131,7 @@ val buildPhoneRemoteWeb = tasks.register<Exec>("buildPhoneRemoteWeb") {
     inputs.dir(phoneWeb.dir("src"))
     inputs.files(phoneWeb.file("index.html"), phoneWeb.file("branding.mjs"), phoneWeb.file("vite.config.js"),
         phoneWeb.file("tsconfig.json"), phoneWeb.file("package.json"), phoneWeb.file("package-lock.json"),
-        rootProject.layout.projectDirectory.file("../icons/round icon.png"))
+        rootProject.layout.projectDirectory.file("../icons/TorrFrame FrameElement.png"))
     outputs.dir(layout.projectDirectory.dir("src/main/assets/phone-remote"))
 }
 tasks.named("preBuild") { dependsOn(buildPhoneRemoteWeb) }

@@ -1,5 +1,8 @@
 package tv.torrserve.silicon
 
+import tv.torrserve.silicon.core.localization.uiString
+import org.junit.Before
+import org.junit.After
 import android.view.KeyEvent
 import android.content.res.Configuration
 import androidx.activity.compose.setContent
@@ -15,6 +18,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -28,7 +33,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import tv.torrserve.silicon.ui.theme.TorrServeTheme
+import tv.torrserve.silicon.ui.theme.TorrFrameTheme
+import tv.torrserve.silicon.ui.components.scrollEdgeFade
 import tv.torrserve.silicon.features.settings.MetadataPriorityControls
 import tv.torrserve.silicon.core.storage.MetadataPriority
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +44,15 @@ import org.junit.Assert.assertTrue
 @RunWith(AndroidJUnit4::class)
 class RemoteNavigationTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    private var originalLanguage = "en"
+    @Before fun languageFixture() = kotlinx.coroutines.runBlocking {
+        val graph = (compose.activity.application as TorrFrameApplication).graph
+        graph.ready.await(); originalLanguage = graph.settings.state.value.uiLanguage
+        graph.settings.update { it.copy(uiLanguage = "ru") }
+    }
+    @After fun restoreLanguage() = kotlinx.coroutines.runBlocking {
+        (compose.activity.application as TorrFrameApplication).graph.settings.update { it.copy(uiLanguage = originalLanguage) }
+    }
     private fun remote(key: Int) {
         compose.waitForIdle()
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(key)
@@ -68,12 +83,12 @@ class RemoteNavigationTest {
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         focused("settings:back")
         if (category == "TorrServer") compose.waitUntil(30_000) {
-            compose.onAllNodesWithText(compose.activity.getString(R.string.server_busy), substring = true).fetchSemanticsNodes().isEmpty()
+            compose.onAllNodesWithText(compose.activity.uiString(R.string.server_busy), substring = true).fetchSemanticsNodes().isEmpty()
         }
     }
     private fun openCategory(category: String) { openSettings(); selectCategory(category) }
     @Test fun pointerCategoryEntryAlwaysHasVisibleFocus() {
-        val graph = (compose.activity.application as TorrServeApplication).graph
+        val graph = (compose.activity.application as TorrFrameApplication).graph
         openSettings()
         for (category in tv.torrserve.silicon.features.settings.SettingsCategory.entries) {
             val tag = "settings:category:${category.name}"
@@ -93,7 +108,7 @@ class RemoteNavigationTest {
         }
     }
     @Test fun animationsSwitchPersistsAndKeepsFocusOnRecreation() {
-        val graph = (compose.activity.application as TorrServeApplication).graph
+        val graph = (compose.activity.application as TorrFrameApplication).graph
         val original = graph.settings.state.value.animationsEnabled
         try {
             openCategory("Appearance")
@@ -119,7 +134,7 @@ class RemoteNavigationTest {
         val enabled = mutableStateOf(true)
         var clicks = 0
         compose.runOnUiThread { compose.activity.setContent {
-            TorrServeTheme(animationsEnabled = enabled.value) {
+            TorrFrameTheme(animationsEnabled = enabled.value) {
                 tv.torrserve.silicon.ui.components.TvAction("Click feedback", modifier = Modifier.width(240.dp).testTag("motion:button")) { clicks++ }
             }
         } }
@@ -150,7 +165,7 @@ class RemoteNavigationTest {
         var clicks=0
         for ((scale,light,language) in listOf(Triple(70,false,"en"),Triple(110,true,"ru"))) {
             compose.runOnUiThread { compose.activity.setContent {
-                TorrServeTheme(scale,light,animationsEnabled=false) {
+                TorrFrameTheme(scale,light,animationsEnabled=false) {
                     CompositionLocalProvider(tv.torrserve.silicon.ui.components.LocalUiLanguage provides language) {
                         Box(Modifier.width(240.dp).height(120.dp).background(tv.torrserve.silicon.ui.theme.Background)) {
                             tv.torrserve.silicon.ui.components.TvBackAction(Modifier.testTag("test:back")) { clicks++ }
@@ -178,7 +193,7 @@ class RemoteNavigationTest {
         assertEquals(2,clicks)
     }
     @Test fun dpadNavigatesTabsAndDrawerBackPreservesSelectedScreen() {
-        val uiLanguage=(compose.activity.application as TorrServeApplication).graph.settings.state.value.uiLanguage
+        val uiLanguage=(compose.activity.application as TorrFrameApplication).graph.settings.state.value.uiLanguage
         compose.onNodeWithTag("nav:Search").assertTextEquals(if(uiLanguage=="ru")"Каталог" else "Catalog")
         compose.onNodeWithTag("nav:Home").assertDoesNotExist()
         compose.onNodeWithTag("nav:Library").assertIsFocused().assertIsSelected()
@@ -239,7 +254,7 @@ class RemoteNavigationTest {
         }
     }
     @Test fun appearanceLeftMovesBetweenControlsAndNeverReturnsToCategories() {
-        val graph = (compose.activity.application as TorrServeApplication).graph
+        val graph = (compose.activity.application as TorrFrameApplication).graph
         val original = graph.settings.state.value
         try {
             kotlinx.coroutines.runBlocking { graph.settings.update { it.copy(uiScalePercent = 85) } }
@@ -268,7 +283,7 @@ class RemoteNavigationTest {
         } finally { kotlinx.coroutines.runBlocking { graph.settings.save(original) } }
     }
     @Test fun scaleReflowsContentPersistsAndKeepsRemoteFocusAtBothLimits() {
-        val graph = (compose.activity.application as TorrServeApplication).graph
+        val graph = (compose.activity.application as TorrFrameApplication).graph
         val original = graph.settings.state.value.uiScalePercent
         fun waitScale(value: Int) {
             compose.waitUntil(5000) { graph.settings.state.value.uiScalePercent == value }
@@ -354,7 +369,7 @@ class RemoteNavigationTest {
         focused("server:engine")
     }
     @Test fun settingsShowsActualWebAddressAndLanSwitchAcceptsRemote() {
-        val graph = (compose.activity.application as TorrServeApplication).graph
+        val graph = (compose.activity.application as TorrFrameApplication).graph
         openCategory("TorrServer")
         settingsList().performScrollToNode(hasTestTag("server:web-url"))
         compose.waitUntil(10_000) { graph.serverWebAddress.url.value.isNotEmpty() }
@@ -367,7 +382,7 @@ class RemoteNavigationTest {
             compose.onNodeWithTag("server:web-url").assertDoesNotExist()
             // Saving the flag precedes the server restart and connection check.
             compose.waitUntil(30_000) {
-                compose.onAllNodesWithText(compose.activity.getString(R.string.server_busy), substring = true)
+                compose.onAllNodesWithText(compose.activity.uiString(R.string.server_busy), substring = true)
                     .fetchSemanticsNodes().isEmpty()
             }
             focused("server:lan")
@@ -389,17 +404,17 @@ class RemoteNavigationTest {
         remote(KeyEvent.KEYCODE_DPAD_DOWN)
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         focused(tag)
-        compose.onNodeWithText(compose.activity.getString(R.string.server_invalid_url)).assertExists()
+        compose.onNodeWithText(compose.activity.uiString(R.string.server_invalid_url)).assertExists()
     }
     @Test fun manualMagnetActionsAreAbsentFromLibrary() {
         compose.onNodeWithTag("nav:Library").assertIsFocused()
         compose.onNodeWithTag("nav:Home").assertDoesNotExist()
         compose.onNodeWithText("Add Magnet").assertDoesNotExist()
         compose.onNodeWithText("Add Magnet Link").assertDoesNotExist()
-        assertTrue(compose.onAllNodesWithText("Explore catalog").fetchSemanticsNodes().isNotEmpty())
+        assertTrue(compose.onAllNodesWithText("Открыть каталог").fetchSemanticsNodes().isNotEmpty())
     }
     @Test fun appearanceAppliesImmediatelyAndHiddenFooterFreesContent() {
-        val graph = (compose.activity.application as TorrServeApplication).graph
+        val graph = (compose.activity.application as TorrFrameApplication).graph
         val original = graph.settings.state.value
         try {
             openCategory("Appearance")
@@ -432,7 +447,7 @@ class RemoteNavigationTest {
     }
     @Test fun focusedInputFieldsStayWithinTheirGroups() {
         openCategory("PhoneRemote")
-        for ((category, label) in listOf("PhoneRemote" to compose.activity.getString(R.string.phone_port), "TorrServer" to compose.activity.getString(R.string.server_url))) {
+        for ((category, label) in listOf("PhoneRemote" to compose.activity.uiString(R.string.phone_port), "TorrServer" to compose.activity.uiString(R.string.server_url))) {
             if (category == "TorrServer") { remote(KeyEvent.KEYCODE_BACK); selectCategory(category) }
             val tag = "field:$label"
             settingsList().performScrollToNode(hasTestTag(tag))
@@ -446,7 +461,7 @@ class RemoteNavigationTest {
         }
     }
     @Test fun settingsAutosaveSurvivesViewModelClearAndMetadataActionsFitDrawer() {
-        val graph = (compose.activity.application as TorrServeApplication).graph
+        val graph = (compose.activity.application as TorrFrameApplication).graph
         val original = graph.settings.state.value
         val models = androidx.lifecycle.ViewModelStore()
         val vm = tv.torrserve.silicon.features.settings.SettingsViewModel(graph)
@@ -467,10 +482,10 @@ class RemoteNavigationTest {
             assertEquals(audio, reloaded.state.value.audioLanguage)
             assertEquals(subtitles, reloaded.state.value.subtitleLanguage)
             openCategory("Metadata")
-            compose.onNodeWithText(compose.activity.getString(R.string.settings_save)).assertDoesNotExist()
-            settingsList().performScrollToNode(hasText(compose.activity.getString(R.string.settings_clear_metadata)))
+            compose.onNodeWithText(compose.activity.uiString(R.string.settings_save)).assertDoesNotExist()
+            settingsList().performScrollToNode(hasText(compose.activity.uiString(R.string.settings_clear_metadata)))
             val language = compose.onNodeWithText("en-US").fetchSemanticsNode().boundsInRoot
-            val clear = compose.onNodeWithText(compose.activity.getString(R.string.settings_clear_metadata)).fetchSemanticsNode().boundsInRoot
+            val clear = compose.onNodeWithText(compose.activity.uiString(R.string.settings_clear_metadata)).fetchSemanticsNode().boundsInRoot
             val panel = compose.onNodeWithTag("settings:drawer").fetchSemanticsNode().boundsInRoot
             assertTrue(language.left >= panel.left && language.right <= panel.right)
             assertTrue(clear.left >= panel.left && clear.right <= panel.right)
@@ -481,7 +496,7 @@ class RemoteNavigationTest {
         }
     }
     @Test fun allAccentChoicesPersistAndAboutIsLast() {
-        val graph = (compose.activity.application as TorrServeApplication).graph
+        val graph = (compose.activity.application as TorrFrameApplication).graph
         val original = graph.settings.state.value
         try {
             openCategory("Appearance")
@@ -502,11 +517,11 @@ class RemoteNavigationTest {
             compose.onNodeWithTag("appearance:accent:blue").assertExists()
             remote(KeyEvent.KEYCODE_BACK)
             selectCategory("About")
-            compose.onNodeWithText(compose.activity.getString(R.string.settings_licenses)).assertIsDisplayed()
+            compose.onNodeWithText(compose.activity.uiString(R.string.settings_licenses)).assertIsDisplayed()
         } finally { kotlinx.coroutines.runBlocking { graph.settings.update { it.copy(uiAccent = original.uiAccent) } } }
     }
     @Test fun qrPanelIsWideAndShowsSixDigitAlternative() {
-        val graph = (compose.activity.application as TorrServeApplication).graph
+        val graph = (compose.activity.application as TorrFrameApplication).graph
         val originalEnabled = graph.phonePreferences.state.value.enabled
         try {
             kotlinx.coroutines.runBlocking { graph.phoneRemote.enabled(true) }
@@ -524,7 +539,7 @@ class RemoteNavigationTest {
         } finally { kotlinx.coroutines.runBlocking { graph.phoneRemote.enabled(originalEnabled) } }
     }
     @Test fun movieHasLoadedPosterBesideMetadataAndNoRemovedActions() {
-        val graph = (compose.activity.application as TorrServeApplication).graph
+        val graph = (compose.activity.application as TorrFrameApplication).graph
         val file = java.io.File(compose.activity.cacheDir, "poster-test.png")
         val bitmap = android.graphics.Bitmap.createBitmap(32, 48, android.graphics.Bitmap.Config.ARGB_8888)
         bitmap.eraseColor(android.graphics.Color.GREEN)
@@ -537,8 +552,8 @@ class RemoteNavigationTest {
         store.put("movie", vm)
         try {
             compose.runOnUiThread { compose.activity.setContent {
-                TorrServeTheme { tv.torrserve.silicon.features.library.MovieDetailScreen(item,
-                    tv.torrserve.silicon.features.library.LibraryUi(), vm, {}, { _, _ -> }) }
+                TorrFrameTheme { tv.torrserve.silicon.features.library.MovieDetailScreen(item,
+                    tv.torrserve.silicon.features.library.LibraryUi(), vm, {}, play = { _, _ -> }) }
             } }
             compose.waitUntil(10_000) { compose.onAllNodesWithTag("movie:poster:loaded").fetchSemanticsNodes().isNotEmpty() }
             val cover = compose.onNodeWithTag("movie:poster").fetchSemanticsNode().boundsInRoot
@@ -547,7 +562,7 @@ class RemoteNavigationTest {
             compose.onNodeWithTag("movie:overview").assertTextEquals("Film description")
             compose.onNodeWithTag("movie:genres").assertTextEquals("Drama")
             compose.onNodeWithTag("movie:facts").assertTextContains("2024", substring = true)
-            compose.onNodeWithText(compose.activity.getString(R.string.metadata_edit)).assertDoesNotExist()
+            compose.onNodeWithText(compose.activity.uiString(R.string.metadata_edit)).assertDoesNotExist()
             compose.onNodeWithText("Find Torrents").assertDoesNotExist()
         } finally { store.clear(); file.delete() }
     }
@@ -555,7 +570,7 @@ class RemoteNavigationTest {
         val order = mutableStateOf(MetadataPriority.defaultOrder)
         compose.runOnUiThread {
             compose.activity.setContent {
-                TorrServeTheme { Box(Modifier.fillMaxWidth()) {
+                TorrFrameTheme { Box(Modifier.fillMaxWidth()) {
                     MetadataPriorityControls(order.value) { provider, direction ->
                         order.value = MetadataPriority.move(order.value, provider, direction)
                     }
@@ -589,7 +604,7 @@ class RemoteNavigationTest {
         val light = mutableStateOf(false)
         compose.runOnUiThread {
             compose.activity.setContent {
-                TorrServeTheme(light = light.value) {
+                TorrFrameTheme(light = light.value) {
                     val color = LocalContentColor.current
                     val accent = androidx.tv.material3.MaterialTheme.colorScheme.primary
                     SideEffect { inherited = color; primary = accent }
@@ -607,5 +622,137 @@ class RemoteNavigationTest {
             assertEquals(tv.torrserve.silicon.ui.theme.LightPalette.text, inherited)
             assertEquals(Color(0xFF008800), primary)
         }
+    }
+    @Test fun whiteAccentToggleRemainsReadableOnAndOffWithAndWithoutFocus() {
+        for (light in listOf(false, true)) {
+            val checked = mutableStateOf(true)
+            var clearFocus: () -> Unit = {}
+            compose.runOnUiThread { compose.activity.setContent {
+                TorrFrameTheme(light = light, accent = "white", animationsEnabled = false) {
+                    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+                    SideEffect { clearFocus = { focus.clearFocus(force = true) } }
+                    Box(Modifier.width(360.dp).background(tv.torrserve.silicon.ui.theme.Background)) {
+                        tv.torrserve.silicon.ui.components.TvToggle("Contrast", checked.value,
+                            Modifier.testTag("test:toggle")) { checked.value = it }
+                    }
+                }
+            } }
+            val toggle = compose.onNodeWithTag("test:toggle")
+            fun contrast(left: Color, right: Color): Float {
+                val a = left.luminance(); val b = right.luminance()
+                return (maxOf(a, b) + .05f) / (minOf(a, b) + .05f)
+            }
+            fun track() = compose.onNodeWithTag("toggle:track", useUnmergedTree = true).captureToImage().toPixelMap()
+            // The two centers cover the empty track and the thumb at opposite ends.
+            fun assertReadableOn() {
+                toggle.assertIsOn()
+                val pixels = track()
+                assertTrue("White checked thumb must contrast with the track", contrast(
+                    pixels[pixels.width * 12 / 42, pixels.height / 2],
+                    pixels[pixels.width * 30 / 42, pixels.height / 2]) >= 3f)
+            }
+            compose.runOnIdle { clearFocus() }
+            assertReadableOn()
+            toggle.performSemanticsAction(SemanticsActions.RequestFocus)
+            assertReadableOn()
+            remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            toggle.assertIsOff()
+            val off = track()
+            assertTrue("Off thumb remains on the left", off[off.width * 12 / 42, off.height / 2].luminance() >
+                off[off.width * 30 / 42, off.height / 2].luminance())
+            remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            assertReadableOn()
+        }
+    }
+    @Test fun focusedCheckedToggleOutlineIsVisibleForEveryAccent() {
+        for (light in listOf(false, true)) for (accent in listOf("green", "white", "orange", "pink", "blue")) {
+            compose.runOnUiThread { compose.activity.setContent {
+                TorrFrameTheme(light = light, accent = accent, animationsEnabled = false) {
+                    Box(Modifier.width(360.dp).background(tv.torrserve.silicon.ui.theme.Background)) {
+                        tv.torrserve.silicon.ui.components.TvToggle("Contrast", true, Modifier.testTag("test:toggle")) { }
+                    }
+                }
+            } }
+            compose.onNodeWithTag("test:toggle").performSemanticsAction(SemanticsActions.RequestFocus)
+            compose.onNodeWithTag("test:toggle").assertIsFocused().assertIsOn()
+            val track = compose.onNodeWithTag("toggle:track", useUnmergedTree = true).captureToImage().toPixelMap()
+            val outline = track[track.width / 2, 1].luminance()
+            val fill = track[track.width * 12 / 42, track.height / 2].luminance()
+            assertTrue("Focused $accent toggle outline must remain visible (light=$light)",
+                (maxOf(outline, fill) + .05f) / (minOf(outline, fill) + .05f) >= 2f)
+        }
+    }
+    @Test fun scrollEdgesFadeOnlyWhereContentContinues() {
+        for (vertical in listOf(false, true)) {
+            val count = mutableStateOf(10)
+            var scroll: (Int) -> Unit = {}
+            compose.runOnUiThread { compose.activity.setContent {
+                TorrFrameTheme(animationsEnabled = false) {
+                    val state = androidx.compose.foundation.lazy.rememberLazyListState()
+                    val scope = androidx.compose.runtime.rememberCoroutineScope()
+                    SideEffect { scroll = { index -> scope.launch { state.scrollToItem(index) }; Unit } }
+                    val modifier = Modifier.width(180.dp).height(72.dp).background(Color.Black)
+                        .scrollEdgeFade(state, vertical = vertical, background = Color.Black).testTag("test:fade")
+                    if (vertical) androidx.compose.foundation.lazy.LazyColumn(state = state, modifier = modifier) {
+                        items(count.value) { Box(Modifier.width(180.dp).height(if (count.value == 1) 72.dp else 40.dp).background(Color.White)) }
+                    } else androidx.compose.foundation.lazy.LazyRow(state = state, modifier = modifier) {
+                        items(count.value) { Box(Modifier.width(if (count.value == 1) 180.dp else 80.dp).height(72.dp).background(Color.White)) }
+                    }
+                }
+            } }
+            fun assertEdges(startFaded: Boolean, endFaded: Boolean) {
+                val pixels = compose.onNodeWithTag("test:fade").captureToImage().toPixelMap()
+                fun sample(fraction: Float): Float {
+                    val x = if (vertical) pixels.width / 2 else (fraction * (pixels.width - 1)).toInt()
+                    val y = if (vertical) (fraction * (pixels.height - 1)).toInt() else pixels.height / 2
+                    return pixels[x, y].luminance()
+                }
+                assertTrue("Center stays opaque", sample(.5f) > .95f)
+                assertTrue("Start fade=$startFaded, vertical=$vertical", if (startFaded) sample(.01f) < .1f else sample(.01f) > .95f)
+                assertTrue("End fade=$endFaded, vertical=$vertical", if (endFaded) sample(.99f) < .1f else sample(.99f) > .95f)
+                if (startFaded) assertTrue("Start is a gradient", sample(.01f) < sample(.06f) && sample(.06f) < sample(.15f))
+                if (endFaded) assertTrue("End is a gradient", sample(.85f) > sample(.94f) && sample(.94f) > sample(.99f))
+            }
+            assertEdges(false, true)
+            compose.runOnIdle { scroll(3) }
+            assertEdges(true, true)
+            compose.runOnIdle { scroll(9) }
+            assertEdges(true, false)
+            compose.runOnIdle { count.value = 1 }
+            assertEdges(false, false)
+        }
+    }
+    @Test fun headerActionsShareHeightAndAlignmentAndAcceptRemote() {
+        var clicks = 0
+        for (scale in listOf(70, 110)) {
+            compose.runOnUiThread { compose.activity.setContent {
+                TorrFrameTheme(uiScalePercent = scale, animationsEnabled = false) {
+                    androidx.compose.foundation.layout.Row(
+                        Modifier.width(440.dp).height(60.dp).background(tv.torrserve.silicon.ui.theme.Background),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
+                        tv.torrserve.silicon.phoneRemote.ui.PhoneRemoteShortcut { clicks++ }
+                        tv.torrserve.silicon.ui.components.ServerStatusIndicator(false,
+                            tv.torrserve.silicon.core.server.ServerState.Stopped,
+                            tv.torrserve.silicon.core.server.ConnectionState(tv.torrserve.silicon.core.server.ConnectionStatus.Connected)) { clicks++ }
+                        tv.torrserve.silicon.ui.components.SettingsShortcut { clicks++ }
+                    }
+                }
+            } }
+            val tags = listOf("phone:shortcut", "server:indicator", "nav:Settings")
+            val bounds = tags.map { compose.onNodeWithTag(it).fetchSemanticsNode().boundsInRoot }
+            bounds.forEach {
+                assertEquals(bounds.first().height, it.height, .5f)
+                assertEquals(bounds.first().center.y, it.center.y, .5f)
+            }
+            assertEquals(bounds.first().width, bounds.last().width, .5f)
+            compose.onNodeWithTag(tags.first()).performSemanticsAction(SemanticsActions.RequestFocus)
+            for ((index, tag) in tags.withIndex()) {
+                if (index > 0) remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+                focused(tag)
+                remote(KeyEvent.KEYCODE_DPAD_CENTER)
+            }
+        }
+        assertEquals(6, clicks)
     }
 }

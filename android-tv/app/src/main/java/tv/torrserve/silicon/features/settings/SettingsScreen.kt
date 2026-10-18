@@ -53,14 +53,16 @@ import tv.torrserve.silicon.core.storage.UiAccent
 
 enum class SettingsCategory(val title: Int) {
     PhoneRemote(R.string.phone_title), TorrServer(R.string.settings_torrserver), Search(R.string.settings_search),
+    TorrentSearch(R.string.settings_torrent_search), Catalog(R.string.catalog_network_title),
     Metadata(R.string.settings_metadata), Playback(R.string.settings_playback), Updates(R.string.settings_updates),
-    Appearance(R.string.settings_appearance), About(R.string.settings_about)
+    Appearance(R.string.settings_appearance), About(R.string.settings_about), Developer(R.string.settings_developer)
 }
 
 @Composable fun SettingsScreen(state: SettingsUi, server: ServerState, vm: SettingsViewModel,
     torrState: TorrServerSettingsUi, connection: ConnectionState, torrVm: TorrServerSettingsViewModel,
     initialCategory: SettingsCategory? = null, dismiss: () -> Unit,
     phoneRemote: @Composable () -> Unit = {}, updates: @Composable () -> Unit) {
+    val categories = remember { SettingsCategory.entries.filter { it != SettingsCategory.Developer || BuildConfig.DEBUG } }
     var category by rememberSaveable { mutableStateOf(initialCategory) }
     var engineOpen by rememberSaveable { mutableStateOf(false) }
     var licenses by remember { mutableStateOf(false) }
@@ -117,7 +119,7 @@ enum class SettingsCategory(val title: Int) {
                                 if (category == null) {
                                     LazyColumn(Modifier.weight(1f).testTag("settings:categories"), state = categoriesState,
                                         verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(4.dp)) {
-                                        items(SettingsCategory.entries, key = { it.name }) { value ->
+                                        items(categories, key = { it.name }) { value ->
                                             TvAction(stringResource(value.title), modifier = Modifier.fillMaxWidth()
                                                 .focusRequester(categoryFocus.getValue(value)).testTag("settings:category:${value.name}")) {
                                                 category = value
@@ -145,6 +147,8 @@ enum class SettingsCategory(val title: Int) {
                                                     TvAction(stringResource(R.string.settings_test_connection), action = vm::test)
                                                 }
                                             }
+                                            SettingsCategory.TorrentSearch -> torrentSearchSettingsItems(s.torrentSearch, vm.torrentProviders, vm::torrentSearch)
+                                            SettingsCategory.Catalog -> item { CatalogNetworkSettingsPanel(s.catalogNetwork, vm::catalogNetwork) }
                                             SettingsCategory.Metadata -> item {
                                                 SettingsGroup(stringResource(category!!.title)) {
                                                     Text(stringResource(R.string.settings_metadata_priority), color = Muted)
@@ -160,6 +164,7 @@ enum class SettingsCategory(val title: Int) {
                                             }
                                             SettingsCategory.Playback -> item {
                                                 SettingsGroup(stringResource(category!!.title)) {
+                                                    PlaybackSettings(s, vm)
                                                     TvToggle(stringResource(R.string.settings_resume), s.resume) { value -> vm.edit { it.copy(resume = value) } }
                                                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                                         EditField(stringResource(R.string.settings_audio), s.audioLanguage, modifier = Modifier.fillMaxWidth(), russian = true) { value -> vm.edit { it.copy(audioLanguage = value.trim()) } }
@@ -195,6 +200,11 @@ enum class SettingsCategory(val title: Int) {
                                                     }
                                                 }
                                             }
+                                            SettingsCategory.Developer -> item {
+                                                if(BuildConfig.DEBUG)SettingsGroup(stringResource(R.string.settings_developer)) {
+                                                    tv.torrserve.silicon.features.developer.DeveloperSettings(vm.developer)
+                                                }
+                                            }
                                             SettingsCategory.About -> item {
                                                 SettingsGroup(stringResource(category!!.title)) {
                                                     Text(stringResource(R.string.settings_about_text, BuildConfig.VERSION_NAME), color = Muted)
@@ -227,7 +237,7 @@ enum class SettingsCategory(val title: Int) {
                             engineFocus.requestFocus(); restoreEngineFocus = false
                         } else if (category == null) {
                             val target = returnCategory ?: SettingsCategory.PhoneRemote
-                            categoriesState.scrollToItem(SettingsCategory.entries.indexOf(target))
+                            categoriesState.scrollToItem(categories.indexOf(target))
                             withFrameNanos { }
                             categoryFocus.getValue(target).requestFocus()
                             returnCategory = null

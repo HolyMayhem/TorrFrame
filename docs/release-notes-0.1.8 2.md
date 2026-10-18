@@ -1,4 +1,4 @@
-# TorrServe Silicon TV 0.1.8 — adjustable interface scale
+# TorrFrame TV 0.1.8 — adjustable interface scale
 
 Default interface scale is 85%. The first Settings group, Appearance, provides
 minus/plus controls for 70–110% in 5% steps and a reset to 85%. Changes apply

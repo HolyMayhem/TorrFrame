@@ -19,5 +19,5 @@ case "$TASK_PID" in ''|*[!0-9]*) echo 'No verified server PID available'; exit 1
 "$TASK_ADB" shell dumpsys gfxinfo tv.torrserve.silicon framestats > "$TASK_OUT/frames.txt"
 "$TASK_ADB" shell input keyevent KEYCODE_BACK
 "$TASK_ADB" shell am start -W -n tv.torrserve.silicon/.MainActivity > "$TASK_OUT/warm-start.txt"
-"$TASK_ADB" logcat -d -s TorrServeTiming:I > "$TASK_OUT/timings.txt"
+"$TASK_ADB" logcat -d -s TorrFrameTiming:I > "$TASK_OUT/timings.txt"
 echo "Measurements: $TASK_OUT"

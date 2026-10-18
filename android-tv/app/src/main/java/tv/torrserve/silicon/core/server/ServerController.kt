@@ -1,5 +1,6 @@
 package tv.torrserve.silicon.core.server
 
+import tv.torrserve.silicon.core.localization.uiString
 import android.content.Context
 import android.system.Os
 import android.system.OsConstants
@@ -29,6 +30,13 @@ class ServerController(private val context: Context, private val api: TorrServer
     private var idleJob: Job? = null
     @Volatile var foreground = false
     @Volatile var playbackOwned = false
+    private val mutableExternalPlayback = MutableStateFlow(false)
+    val externalPlayback = mutableExternalPlayback.asStateFlow()
+    val hasPlayback get() = playbackOwned || externalPlayback.value
+    fun externalPlayback(active: Boolean) {
+        mutableExternalPlayback.value = active
+        scheduleIdleStop()
+    }
     @Volatile var backgroundOwned = false
     private val mutable = MutableStateFlow<ServerState>(ServerState.Stopped)
     val state = mutable.asStateFlow()
@@ -41,8 +49,8 @@ class ServerController(private val context: Context, private val api: TorrServer
     }
     fun scheduleIdleStop() {
         idleJob?.cancel()
-        if (!foreground && !playbackOwned && !backgroundOwned) idleJob = scope.launch {
-            delay(15_000); if (!foreground && !playbackOwned && !backgroundOwned) stop()
+        if (!foreground && !hasPlayback && !backgroundOwned) idleJob = scope.launch {
+            delay(15_000); if (!foreground && !hasPlayback && !backgroundOwned) stop()
         }
     }
     suspend fun start() = scope.async(Dispatchers.IO) { lock.withLock {
@@ -51,7 +59,7 @@ class ServerController(private val context: Context, private val api: TorrServer
         mutable.value = ServerState.Starting
         val began = tv.torrserve.silicon.core.performance.Diagnostics.mark()
         try {
-            check(executable.isFile && executable.canExecute()) { context.getString(tv.torrserve.silicon.R.string.server_apk_missing) }
+            check(executable.isFile && executable.canExecute()) { context.uiString(tv.torrserve.silicon.R.string.server_apk_missing) }
             recoverOrphan()
             val bindAddress = settings.state.value.serverBindAddress
             java.net.ServerSocket().use { it.bind(java.net.InetSocketAddress(bindAddress,port())) }
@@ -59,7 +67,7 @@ class ServerController(private val context: Context, private val api: TorrServer
             // then exec replaces it with the packaged ELF. Arguments stay positional.
             val child = ProcessBuilder("/system/bin/sh", "-c",
                 "echo \$\$ > \"\$1\"; exec \"\$2\" --path \"\$3\" --port \"\$4\" --ip \"\$5\"",
-                "torrserve", marker.absolutePath, executable.absolutePath, directory.absolutePath, port().toString(), bindAddress)
+                "torrframe", marker.absolutePath, executable.absolutePath, directory.absolutePath, port().toString(), bindAddress)
                 .directory(directory).redirectErrorStream(true).redirectOutput(File("/dev/null"))
                 .apply { environment()["GOMEMLIMIT"] = "${cacheMb()+128}MiB"; environment()["GOGC"] = "50" }.start()
             process = child
@@ -71,7 +79,7 @@ class ServerController(private val context: Context, private val api: TorrServer
             val version = withTimeout(30_000) {
                 var found: String? = null
                 while (found == null) {
-                    check(child.isAlive) { context.getString(tv.torrserve.silicon.R.string.server_exited_early) }
+                    check(child.isAlive) { context.uiString(tv.torrserve.silicon.R.string.server_exited_early) }
                     found = try { api.version().takeIf { it.startsWith("MatriX") || it.startsWith("TorrServer") } }
                         catch (e: Exception) { if (e is CancellationException) throw e; null }
                     if (found == null) delay(250)
@@ -89,14 +97,14 @@ class ServerController(private val context: Context, private val api: TorrServer
                 lock.withLock {
                     if (process === child) {
                         process = null; marker.delete()
-                        mutable.value = ServerState.Error(context.getString(tv.torrserve.silicon.R.string.server_exited))
+                        mutable.value = ServerState.Error(context.uiString(tv.torrserve.silicon.R.string.server_exited))
                     }
                 }
             }
         } catch (e: Exception) {
             process?.destroyForcibly(); process = null; marker.delete()
             if (e is CancellationException) { mutable.value = ServerState.Stopped; throw e }
-            mutable.value = ServerState.Error(context.getString(tv.torrserve.silicon.R.string.server_start_failed))
+            mutable.value = ServerState.Error(context.uiString(tv.torrserve.silicon.R.string.server_start_failed))
         }
     } }.await()
     private fun recoverOrphan() {
@@ -115,7 +123,7 @@ class ServerController(private val context: Context, private val api: TorrServer
         }; marker.delete()
     }
     private fun stopManagedProcess() {
-        check(!playbackOwned) { context.getString(tv.torrserve.silicon.R.string.server_stop_playback) }
+        check(!hasPlayback) { context.uiString(tv.torrserve.silicon.R.string.server_stop_playback) }
         mutable.value = ServerState.Stopping
         val child = process; process = null
         if (child == null) recoverOrphan()
@@ -135,7 +143,7 @@ class ServerController(private val context: Context, private val api: TorrServer
         if (!settings.state.value.useLocalServer) {
             withTimeout(12_000) { api.at(settings.state.value.torrServerUrl).version() }
         } else {
-            start(); check(state.value is ServerState.Running) { context.getString(tv.torrserve.silicon.R.string.server_unavailable) }
+            start(); check(state.value is ServerState.Running) { context.uiString(tv.torrserve.silicon.R.string.server_unavailable) }
         }
     }
 }

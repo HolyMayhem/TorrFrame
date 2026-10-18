@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.*
@@ -23,9 +24,27 @@ import tv.torrserve.silicon.features.catalog.domain.*
 import tv.torrserve.silicon.ui.components.*
 import tv.torrserve.silicon.ui.theme.*
 
-@Composable fun CatalogScreen(state: CatalogUi, vm: CatalogViewModel, entryFocus: FocusRequester) {
+@Composable fun CatalogScreen(state: CatalogUi, vm: CatalogViewModel, entryFocus: FocusRequester,
+    torrentSearch: ((CatalogItem) -> Unit)? = null, restoreTorrentFocus: Boolean = false, refreshRevision:Int = 0,
+    showFavorites: Boolean = true, showWatchLater: Boolean = true) {
     val vertical = rememberLazyListState()
+    val detailStates = rememberSaveableStateHolder()
+    val savedDetailEntries = remember { mutableSetOf<Long>() }
+    LaunchedEffect(state.selected, state.detailEntry, state.detailTrail) {
+        val active = if (state.selected != null) state.detailTrail.toSet() + state.detailEntry else emptySet()
+        (savedDetailEntries - active).forEach { detailStates.removeState(it) }
+        savedDetailEntries.retainAll(active)
+        savedDetailEntries.addAll(active)
+    }
     val rows = CatalogSection.entries.associateWith { rememberLazyListState() }
+    val personalRows = CatalogUserList.entries.associateWith { rememberLazyListState() }
+    val homeLists = if (state.filter == CatalogFilter.All) CatalogUserList.entries.filter {
+        if (it == CatalogUserList.Favorites) showFavorites else showWatchLater
+    } else emptyList()
+    val personalFeeds = CatalogUserList.entries.associateWith { list ->
+        CatalogFeed(state.userEntries.filter { it.contains(list) }.map { it.item(state.language) },
+            page = 1, totalPages = 1, loading = !state.listsReady && !state.listError, error = state.listError)
+    }
     val genreRows = CatalogType.entries.associateWith { key(state.filter) { rememberLazyListState() } }
     val filters = rememberLazyListState()
     val filterFocus = CatalogFilter.entries.associateWith { remember { FocusRequester() } }
@@ -39,6 +58,7 @@ import tv.torrserve.silicon.ui.theme.*
     val activeFilterFocus = filterFocus.getValue(CatalogFilter.entries.firstOrNull { it.name == focusedFilterName } ?: CatalogFilter.All)
     val grid = rememberLazyGridState()
     var expandedGroup by rememberSaveable(state.filter, state.query) { mutableStateOf<String?>(null) }
+    var homeCollection by rememberSaveable { mutableStateOf(false) }
     val collectionGrid = key(expandedGroup) { rememberLazyGridState() }
     var restoreMore by remember { mutableStateOf(false) }
     val restore = remember { FocusRequester() }
@@ -49,13 +69,17 @@ import tv.torrserve.silicon.ui.theme.*
     var editing by remember { mutableStateOf(false) }
     var previousLanguage by remember { mutableStateOf(state.language) }
     val width = if (LocalTvLayout.current.short) 104.dp else 116.dp
-    val firstGroup = if (state.filter.isGenre) state.filter.genreTypes.firstOrNull {
+    val firstGroup = homeLists.firstOrNull { personalFeeds.getValue(it).items.isNotEmpty() }?.let { "list:${it.name}" }
+        ?: if (state.filter.isGenre) state.filter.genreTypes.firstOrNull {
         state.genreFeeds.getValue(it).items.isNotEmpty()
     }?.let { "genre:${it.path}" } else state.filter.sections.firstOrNull {
         state.sections.getValue(it).items.isNotEmpty()
     }?.name
     val hasPosters = if (state.query.isBlank()) firstGroup != null else state.results.items.isNotEmpty()
     LaunchedEffect(Unit) { vm.onVisible() }
+    LaunchedEffect(refreshRevision,state.language) {
+        if(refreshRevision>0 && state.language.isNotBlank())vm.refresh(refreshRevision)
+    }
     LaunchedEffect(state.filter) { vertical.scrollToItem(0) }
     LaunchedEffect(state.filter, state.query, state.selected) {
         if (state.selected == null) {
@@ -73,7 +97,11 @@ import tv.torrserve.silicon.ui.theme.*
     }
     BackHandler(state.selected == null && expandedGroup != null && !editing, onBack = ::collapseCollection)
     if (state.selected != null) {
-        CatalogDetailsScreen(state, vm::close) { vm.open(state.selected, true) }
+        detailStates.SaveableStateProvider(state.detailEntry) {
+            CatalogDetailsScreen(state, vm::close, torrentSearch, restoreTorrentFocus,
+                toggleList = { item, list -> vm.toggleList(item, list) {} }, openRelated = vm::openRelated,
+                retryRelated = vm::retryRelated, moreRelated = { vm.loadRelated(more = true) }, relatedHeld = held) { vm.open(state.selected, true) }
+        }
     } else if (expandedGroup != null) {
         val group = expandedGroup!!
         val type = CatalogType.entries.firstOrNull { group == "genre:${it.path}" }
@@ -99,11 +127,12 @@ import tv.torrserve.silicon.ui.theme.*
             }
             CatalogUserList.entries.forEach { list ->
                 TvAction(userListTitle(list), modifier = Modifier.focusRequester(listFocus.getValue(list)).testTag("catalog:list:${list.name}")) {
+                    homeCollection = false
                     expandedGroup = "list:${list.name}"
                 }
             }
         }
-        LazyRow(state = filters, modifier = Modifier.fillMaxWidth().focusGroup().testTag("catalog:filters"),
+        LazyRow(state = filters, modifier = Modifier.fillMaxWidth().scrollEdgeFade(filters).focusGroup().testTag("catalog:filters"),
             contentPadding = PaddingValues(4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             itemsIndexed(CatalogFilter.entries, key = { _, filter -> filter.name }) { index, filter ->
@@ -119,8 +148,16 @@ import tv.torrserve.silicon.ui.theme.*
                 }
             }
         }
-        if (state.query.isBlank()) LazyColumn(state = vertical, modifier = Modifier.weight(1f).testTag("catalog:sections"),
+        if (state.query.isBlank()) LazyColumn(state = vertical, modifier = Modifier.weight(1f).scrollEdgeFade(vertical, vertical = true).testTag("catalog:sections"),
             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            items(homeLists, key = { "list:${it.name}" }) { list ->
+                val group = "list:${list.name}"
+                CatalogFeedRow(group, userListTitle(list), personalFeeds.getValue(list), width, personalRows.getValue(list),
+                    if (group == firstGroup) firstPoster else null, if (group == firstGroup) activeFilterFocus else null,
+                    focusedKey.takeIf { focusedSection == group }, restore, retry = vm::retryUserLists,
+                    more = { homeCollection = true; expandedGroup = group }, open = vm::open,
+                    focused = { focusedKey = it.ref.key; focusedSection = group }, held = held)
+            }
             if (state.filter.isGenre) items(state.filter.genreTypes, key = { "genre:${it.path}" }) { type ->
                 val group = "genre:${type.path}"
                 CatalogFeedRow(group, genreTitle(type, state.filter),
@@ -145,7 +182,7 @@ import tv.torrserve.silicon.ui.theme.*
             if (feed.error) CatalogError(vm::retryResults, cached = feed.items.isNotEmpty())
             if (!feed.loading && !feed.error && feed.items.isEmpty()) TvText(catalogText("Nothing found. Try another title.", "Ничего не найдено. Попробуйте другое название."), color = Muted, modifier = Modifier.testTag("catalog:empty"))
             if (!feed.loading && !feed.error && feed.items.isEmpty() && feed.page < feed.totalPages) TvAction(catalogText("More results", "Ещё результаты"), action = vm::moreSearch)
-            LazyVerticalGrid(columns = GridCells.Adaptive(width), state = grid, modifier = Modifier.weight(1f).testTag("catalog:results"),
+            LazyVerticalGrid(columns = GridCells.Adaptive(width), state = grid, modifier = Modifier.weight(1f).scrollEdgeFade(grid, vertical = true).testTag("catalog:results"),
                 contentPadding = PaddingValues(6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 itemsIndexed(feed.items, key = { _, item -> item.ref.key }) { index, item ->
                     val isEntry by remember(grid, index) { derivedStateOf { index == grid.firstVisibleItemIndex } }
@@ -170,18 +207,19 @@ import tv.torrserve.silicon.ui.theme.*
         if (restoreMore) {
             val group = focusedSection
             val list = CatalogUserList.entries.firstOrNull { group == "list:${it.name}" }
-            if (list != null) {
+            if (list != null && !homeCollection) {
                 withFrameNanos { }; listFocus.getValue(list).requestFocus()
                 restoreMore = false
                 return@LaunchedEffect
             }
-            val groups = if (state.filter.isGenre) state.filter.genreTypes.map { "genre:${it.path}" } else state.filter.sections.map { it.name }
+            val groups = homeLists.map { "list:${it.name}" } +
+                if (state.filter.isGenre) state.filter.genreTypes.map { "genre:${it.path}" } else state.filter.sections.map { it.name }
             val index = groups.indexOf(group)
             if (index >= 0) vertical.scrollToItem(index)
             val type = CatalogType.entries.firstOrNull { group == "genre:${it.path}" }
             val section = CatalogSection.entries.firstOrNull { it.name == group }
-            val feed = if (type != null) state.genreFeeds.getValue(type) else section?.let { state.sections.getValue(it) }
-            val row = if (type != null) genreRows.getValue(type) else section?.let { rows.getValue(it) }
+            val feed = if (list != null) personalFeeds.getValue(list) else if (type != null) state.genreFeeds.getValue(type) else section?.let { state.sections.getValue(it) }
+            val row = if (list != null) personalRows.getValue(list) else if (type != null) genreRows.getValue(type) else section?.let { rows.getValue(it) }
             if (feed != null && row != null && feed.items.isNotEmpty()) row.scrollToItem(feed.items.take(10).size)
             withFrameNanos { }; withFrameNanos { }
             runCatching { restore.requestFocus() }.onFailure { entryFocus.requestFocus() }
@@ -222,7 +260,7 @@ import tv.torrserve.silicon.ui.theme.*
 @Composable private fun genreTitle(type: CatalogType, filter: CatalogFilter) =
     (if (type == CatalogType.Movie) catalogText("Movies", "Фильмы") else catalogText("Series", "Сериалы")) + " · " + filterTitle(filter)
 
-@Composable private fun CatalogFeedRow(group: String, title: String, feed: CatalogFeed, width: Dp,
+@Composable internal fun CatalogFeedRow(group: String, title: String, feed: CatalogFeed, width: Dp,
     row: LazyListState, entryFocus: FocusRequester?, up: FocusRequester?, restoreKey: String?, restore: FocusRequester,
     retry: () -> Unit, more: () -> Unit, open: (CatalogRef) -> Unit, focused: (CatalogItem) -> Unit,
     held: (CatalogItem, FocusRequester) -> Unit) {
@@ -232,7 +270,7 @@ import tv.torrserve.silicon.ui.theme.*
         if (feed.loading && feed.items.isEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             repeat(5) { CatalogSkeleton(Modifier.width(width)) }
         } else if (feed.items.isEmpty() && !feed.error) TvText(catalogText("No titles in this collection.", "В подборке пока нет фильмов."), color = Muted)
-        LazyRow(state = row, modifier = Modifier.fillMaxWidth().focusGroup().testTag("catalog:row:$group"),
+        LazyRow(state = row, modifier = Modifier.fillMaxWidth().scrollEdgeFade(row).focusGroup().testTag("catalog:row:$group"),
             horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(6.dp)) {
             itemsIndexed(feed.items.take(10), key = { _, item -> item.ref.key }) { index, item ->
                 val isEntry by remember(row, index) { derivedStateOf { index == row.firstVisibleItemIndex } }

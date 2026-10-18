@@ -1,4 +1,4 @@
-module torrserve-test-fixture
+module torrframe-test-fixture
 
 go 1.27
 

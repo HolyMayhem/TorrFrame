@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
@@ -28,7 +29,11 @@ import tv.torrserve.silicon.ui.theme.Surface
     } }
     Dialog(onDismissRequest = dismiss) {
         Column(Modifier.width(640.dp).height(430.dp).background(Surface).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            ChoiceRow(listOf("TorrServer-GPL-3.0.txt", "Apache-2.0.txt"),source) { source = it }
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(listOf("TorrServer-GPL-3.0.txt", "Apache-2.0.txt", "TorrentSearch-MIT.txt", "jsoup-MIT.txt", "JustPlayer-Unlicense.txt", "FFmpeg-LGPL-2.1.txt", "Player-Notices.txt")) { license ->
+                    TvAction(license, selected = source == license, translate = false) { source = license }
+                }
+            }
             TvText(stringResource(R.string.settings_license_info), fontSize = 14.sp, translate = false)
             LazyColumn(state = scroll, modifier = Modifier.weight(1f).focusable().onPreviewKeyEvent { event ->
                 if(event.type == KeyEventType.KeyDown && (event.key == Key.DirectionDown || event.key == Key.DirectionUp)) {

@@ -24,7 +24,7 @@ import java.net.ServerSocket
 /** Run on a clean ARM Android TV installation. Skips when an existing user enabled Phone Remote. */
 @RunWith(AndroidJUnit4::class)
 class PhoneRemoteIntegrationTest {
-    private val app get() = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as TorrServeApplication
+    private val app get() = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as TorrFrameApplication
     private class Memory : SessionPersistence {
         var data = emptyList<RemoteSession>()
         override suspend fun read() = data
@@ -118,5 +118,49 @@ class PhoneRemoteIntegrationTest {
                 assertTrue(graph.api.version().startsWith("MatriX"))
             } finally { graph.phoneRemote.enabled(false) }
         }
+    }
+    @Test fun removedMetadataTicketsCannotMatchReaddedTorrentsAndDoNotAccumulate() = runBlocking {
+        val name = "phone-remote-ticket-test.sqlite"
+        val store = LibraryStore(app, name)
+        val hash = "f".repeat(40)
+        try {
+            assertNull(store.metadataTicket(hash))
+            store.clearMetadata(hash)
+            store.put(Torrent(hash, "Original", emptyList()))
+            val old = requireNotNull(store.metadataTicket(hash, automatic = true))
+            store.remove(hash)
+            store.put(Torrent(hash, "Readded", emptyList()))
+            val fresh = requireNotNull(store.metadataTicket(hash, automatic = true))
+            assertNotEquals(old, fresh)
+            assertFalse(store.metadata(hash, Metadata("TMDB", "1", "Stale", "Stale", 2020, MediaKind.Movie), old))
+            assertTrue(store.metadata(hash, Metadata("TMDB", "2", "Fresh", "Fresh", 2024, MediaKind.Movie), fresh))
+            store.remove(hash)
+            val field = LibraryStore::class.java.getDeclaredField("metadataEpochs").apply { isAccessible = true }
+            assertTrue((field.get(store) as Map<*, *>).isEmpty())
+        } finally { store.close(); app.deleteDatabase(name) }
+    }
+    @Test fun phoneUsesSharedTorrentSearchAndExposesCurrentPreferences() = runBlocking {
+        val graph = app.graph; graph.ready.await()
+        val original = graph.settings.state.value
+        val session = SessionManager(Memory()).create("parity test").session
+        val commands = RemoteCommands(graph)
+        try {
+            graph.settings.update { it.copy(torrentSearch = it.torrentSearch.copy(enabledProviders = emptySet())) }
+            // With no sources selected the shared engine completes without touching the network or requiring Jackett.
+            val search = commands.execute(session, "search", JSONObject().put("query", "Test").put("filter", "Movies"))
+            assertEquals(0, search.getJSONArray("items").length())
+            assertTrue(search.has("sources"))
+            val edits = JSONObject().put("uiAccent", "white").put("playerMode", "Ask")
+                .put("builtInPlayer", JSONObject().put("speed", 1.25))
+            commands.execute(session, "settings.update", JSONObject().put("revision", graph.settings.revision.value).put("edits", edits))
+            assertEquals("white", graph.settings.state.value.uiAccent)
+            assertEquals(1.25f, graph.settings.state.value.builtInPlayer.speed)
+            val json = tv.torrserve.silicon.phoneRemote.api.RemoteJson.settings(graph.settings.state.value, graph.settings.revision.value)
+            assertTrue(json.has("torrentSearch")); assertTrue(json.has("lanAccess")); assertTrue(json.has("builtInPlayer"))
+            for (magnet in listOf("http://example.com/file.torrent", "magnet:?xt=urn:btih:invalid")) {
+                try { commands.execute(session, "library.magnet", JSONObject().put("magnet", magnet)); fail("Invalid magnet accepted") }
+                catch (_: IllegalArgumentException) { }
+            }
+        } finally { graph.settings.save(original) }
     }
 }

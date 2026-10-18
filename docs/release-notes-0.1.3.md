@@ -1,4 +1,4 @@
-# TorrServe Silicon TV 0.1.3 — local preview
+# TorrFrame TV 0.1.3 — local preview
 
 - Use the owner-supplied square artwork for the launcher icon and application header.
 - Replace the temporary Android TV banner with the supplied 16:9 artwork.

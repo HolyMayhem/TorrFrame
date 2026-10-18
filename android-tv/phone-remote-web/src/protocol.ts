@@ -12,6 +12,11 @@ export function applyEvent(
     return { state: current, refresh: true };
   const next = { ...current, sequence: event.sequence };
   switch (event.type) {
+    case "catalog.updated":
+      return {
+        state: { ...next, catalogRevision: (current.catalogRevision || 0) + 1 },
+        refresh: false,
+      };
     case "library.updated":
       return { state: next, refresh: true };
     case "settings.updated":

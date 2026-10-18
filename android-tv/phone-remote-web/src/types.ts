@@ -44,6 +44,28 @@ export interface Settings {
   useLocalServer: boolean;
   port: number;
   startOnBoot: boolean;
+  lanAccess: boolean;
+  uiTheme: string;
+  uiAccent: string;
+  uiScalePercent: number;
+  animationsEnabled: boolean;
+  showNavigationHints: boolean;
+  playerMode: string;
+  externalPlayer: string;
+  builtInPlayer: PlayerPreferences;
+  torrentSearch: SearchOptions;
+  catalogNetwork: CatalogNetworkSettings;
+}
+export interface CatalogNetworkSettings {
+  route: "Direct" | "Auto" | "Proxy";
+  source: "Tmdb" | "Cub" | "Auto";
+  showFavorites: boolean;
+  showWatchLater: boolean;
+  apiProxy: string;
+  imageMirrors: string[];
+  cubUrl: string;
+  cubTokenConfigured: boolean;
+  cubToken?: string;
 }
 export interface Server {
   local: boolean;
@@ -58,6 +80,9 @@ export interface Playback {
   title: string;
   playing: boolean;
   buffering: boolean;
+  playWhenReady: boolean;
+  ended: boolean;
+  seekable: boolean;
   position: number;
   duration: number;
   error: boolean;
@@ -96,6 +121,8 @@ export interface Snapshot {
   playback: Playback;
   updates: Updates;
   operations: Operation[];
+  searchProviders: { id: string; name: string }[];
+  catalogRevision?: number;
 }
 export interface RemoteEvent {
   v: number;
@@ -105,6 +132,14 @@ export interface RemoteEvent {
   data?: unknown;
 }
 export type Command =
+  | "catalog.browse"
+  | "catalog.details"
+  | "catalog.related"
+  | "catalog.lists"
+  | "catalog.toggle"
+  | "settings.players"
+  | "library.magnet"
+  | "server.lan"
   | "search"
   | "library.add"
   | "library.sync"
@@ -155,9 +190,72 @@ export interface Engine {
     key: string;
     label: string;
     hint: string;
+    labelRu: string;
+    labelEn: string;
+    hintRu: string;
+    hintEn: string;
     value: string;
     boolean: boolean;
     min: number;
     max: number;
   }[];
+}
+
+export interface PlayerPreferences {
+  speed: number;
+  aspect: string;
+  decoder: string;
+  matchFrameRate: boolean;
+  skipSilence: boolean;
+  subtitleSize: number;
+  subtitleColor: string;
+  subtitleBackground: boolean;
+  subtitleBold: boolean;
+  embeddedSubtitleStyle: boolean;
+}
+export interface SearchOptions {
+  sources?: string[] | null;
+  resolutions: string[];
+  formats: string[];
+  minBytes: number;
+  maxBytes: number;
+  minSeeds: number;
+  hideZero: boolean;
+  timeout: number;
+  titleMode: string;
+}
+export interface CatalogItem {
+  id: number;
+  mediaType: "Movie" | "Tv";
+  key: string;
+  title: string;
+  originalTitle: string;
+  poster: string;
+  backdrop: string;
+  year: number | null;
+  rating: number;
+  favorite?: boolean;
+  watchLater?: boolean;
+  overview?: string;
+  genres?: string[];
+  runtime?: number;
+  cast?: string[];
+  directors?: string[];
+  seasons?: number;
+  episodes?: number;
+  status?: string;
+}
+export interface CatalogPage {
+  items: CatalogItem[];
+  page: number;
+  totalPages: number;
+  partial?: boolean;
+  stale?: boolean;
+}
+export interface SearchPreset {
+  query: string;
+  filter?: string;
+  originalTitle?: string;
+  year?: number | null;
+  tmdbId?: number;
 }

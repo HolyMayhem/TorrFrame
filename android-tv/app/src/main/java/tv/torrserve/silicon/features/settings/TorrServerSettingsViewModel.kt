@@ -1,5 +1,6 @@
 package tv.torrserve.silicon.features.settings
 
+import tv.torrserve.silicon.core.localization.uiString
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.*
@@ -27,12 +28,12 @@ class TorrServerSettingsViewModel(private val graph: AppGraph) : ViewModel() {
         viewModelScope.launch {
             graph.settings.state.collect { settings -> mutable.update {
                 val changed = settings.torrServerUrl != it.settings.torrServerUrl || settings.useLocalServer != it.settings.useLocalServer
-                it.copy(settings = settings, engine = if (changed) null else it.engine,
+                it.copy(settings = settings, message = if(settings.uiLanguage != it.settings.uiLanguage) "" else it.message, engine = if (changed) null else it.engine,
                     edits = if (changed) emptyMap() else it.edits, diagnostics = if (changed) null else it.diagnostics)
             } }
         }
     }
-    private fun text(id: Int, vararg values: Any) = graph.app.getString(id, *values)
+    private fun text(id: Int, vararg values: Any) = graph.app.uiString(id, *values)
     private fun message(id: Int) { mutable.update { it.copy(message = text(id)) } }
     private fun action(block: suspend () -> Unit) {
         if (state.value.busy) return

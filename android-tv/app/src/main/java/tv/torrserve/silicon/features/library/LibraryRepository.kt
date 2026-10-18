@@ -18,17 +18,19 @@ class LibraryRepository(val store: LibraryStore, private val api: TorrServerApi,
     suspend fun sync() {
         server.requireRunning(); Diagnostics.timed("library_load") { api.list().forEach { store.put(it) } }
     }
-    suspend fun add(result: SearchResult): String = adding.withLock {
+    suspend fun add(result: SearchResult): String = import(result.title, result.hash) { jackett.download(result) }
+    suspend fun add(payload: TorrentPayload, title: String, hash: String = ""): String = import(title, hash) { payload }
+    private suspend fun import(title: String, hash: String, payload: suspend () -> TorrentPayload): String = adding.withLock {
         server.requireRunning()
-        val existing = result.hash.takeIf { it.isNotBlank() }?.let { hash -> store.item(hash) }
+        val existing = hash.takeIf { it.isNotBlank() }?.let { store.item(it) }
         // A local row can survive a server failure before TorrServer persists its metadata.
         // Re-add the search payload when the server no longer has that hash.
         if (existing != null && api.list().any { it.hash == existing.hash }) return@withLock existing.hash
-        val torrent = when(val payload = jackett.download(result)) {
-            is TorrentPayload.Magnet -> api.addMagnet(payload.value, result.title)
-            is TorrentPayload.File -> api.upload(payload.value, result.title)
+        val torrent = when(val value = payload()) {
+            is TorrentPayload.Magnet -> api.addMagnet(value.value, title)
+            is TorrentPayload.File -> api.upload(value.value, title)
         }
-        store.put(torrent, result.title); enrich(torrent.hash); torrent.hash
+        store.put(torrent, title); enrich(torrent.hash); torrent.hash
     }
     suspend fun addMagnet(value: String): String = adding.withLock {
         server.requireRunning(); val torrent = api.addMagnet(value, "")

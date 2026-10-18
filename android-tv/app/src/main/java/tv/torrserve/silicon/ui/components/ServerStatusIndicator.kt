@@ -33,7 +33,7 @@ fun serverIndicator(local: Boolean, server: ServerState, connection: ConnectionS
     }
 }
 @Composable fun ServerStatusIndicator(local: Boolean, server: ServerState, connection: ConnectionState, open: () -> Unit) {
-    val motion = rememberTvButtonMotion(outline = Color.Transparent, shape = CircleShape)
+    val motion = rememberTvButtonMotion(shape = CircleShape)
     val status = serverIndicator(local, server, connection)
     val color = when (status) {
         ServerIndicator.Online -> Color(0xFF008800)
@@ -47,9 +47,11 @@ fun serverIndicator(local: Boolean, server: ServerState, connection: ConnectionS
         ServerIndicator.Error -> R.string.server_connection_error
         ServerIndicator.Busy -> if (server == ServerState.Stopping && local) R.string.server_process_stopping else R.string.server_connecting
     })
-    Button(onClick = { motion.activate(); open() }, modifier = motion.modifier.then(motion.pointerClick(action = open)).testTag("server:indicator"),
+    Button(onClick = { motion.activate(); open() }, modifier = motion.modifier.then(motion.pointerClick(action = open))
+        .height(TvDimensions.actionHeight).testTag("server:indicator"),
+        shape = ButtonDefaults.shape(CircleShape),
         interactionSource = motion.interactions, colors = motion.colors,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
         border = motion.border,
         scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

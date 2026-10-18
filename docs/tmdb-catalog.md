@@ -1,5 +1,8 @@
 # TMDB catalog
 
+Configurable proxy/image routes and the prepared CUB adapter are documented in
+[Catalog connection](catalog-network.md). CUB live verification requires issued access.
+
 Implemented in `codex/tmdb-catalog` inside the existing `app` module.
 
 ## Existing architecture and integration
@@ -42,7 +45,7 @@ catalog shortcut copy was updated because catalog titles cannot yet be added as 
   poster cards, errors/placeholders, metadata pages, theme-aware surfaces and visible
   remote focus. Vertical and individual row positions stay in saveable list states;
   the previously focused card is restored after details. No network calls in UI.
-- `MainActivity.kt`, `TorrServeApplication.kt`: ViewModel factory/navigation/DI.
+- `MainActivity.kt`, `TorrFrameApplication.kt`: ViewModel factory/navigation/DI.
 - `MetadataProviders.kt`, `Http.kt`: reuse transport and preserve Retry-After metadata.
 - `TvComponents.kt`: optional live input callback on the existing text editor.
 - `SettingsScreen.kt`, `res/drawable/tmdb_logo.xml`: official attribution.
@@ -242,3 +245,36 @@ library metadata language different, verifies RU → EN → RU details/search, a
 restores the original settings. Unit tests cover absent translations, explicit
 language/country selection, Latin localized titles, fallback errors and cache reuse.
 Results are recorded in `artifacts/catalog-localization/verification.txt`.
+
+## Detail card actions
+
+Movie and TV detail cards keep the poster on the left and aligned rating/credits on the right, including the no-backdrop layout. A compact row of four equally sized buttons under the title contains TorrentSearch, a Jackett placeholder, Favorites and Watch later. List buttons call the existing `CatalogViewModel.toggleList` and persistent user-list store, reflect membership, and remove the item on a second press. Back navigation, full synopsis, focus restoration after search and existing catalog loading remain in place.
+
+## Similar movies and series
+
+Detail cards show a related-title row after the credits. The list comes from
+`/movie/{id}/similar` or `/tv/{id}/similar`; only a successful empty first page
+falls back to the corresponding `/recommendations` endpoint. Results retain
+TMDB order, with the existing adult/malformed-record filtering, duplicate removal
+and exclusion of the current title. No local recommendation scoring is used.
+
+Related requests run separately from details and have their own loading, retry and
+pagination state. An error does not block the movie card; an empty result hides
+the row. Ten posters and a six-poster collection card use the existing TV
+components. The collection opens the existing paginated vertical grid. Pagination
+continues on the chosen TMDB source, without mixing the two lists.
+
+The existing repository/cache coalesces concurrent requests and keys entries as
+`related:{similar|recommendations}:{movie|tv}:{id}:{language}:{page}`. TTL is
+24 hours, retention seven days; fresh cache reuse and stale offline data behave
+like other catalog feeds. The UI language supplies `ru-RU`/`en-US`.
+
+Nested detail visits retain parent details/pages and independent saved scroll,
+grid and D-pad focus state. Back first closes the related collection, then returns
+through the visited movies, then returns to the originating catalog card. History
+is bounded to 24 parents; process recreation stores typed identities and reloads
+their data through the same cache. A language change never restores a parent's
+snapshot in the previous language.
+
+Tests: `CatalogRelatedTests`, related cases in `CatalogNavigationTest`, and the
+explicit network test `CatalogLiveTest.realSimilarAndRecommendedMovieTvListsSupportBothLanguages`.

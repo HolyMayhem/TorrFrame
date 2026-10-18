@@ -15,7 +15,7 @@ class PhoneRemoteOperationTests {
         val sessions = SessionManager(MemorySessions())
         val first = sessions.create("first").session; val second = sessions.create("second").session
         var calls = 0
-        val operations = RemoteOperations(scope, { _, _, _ -> calls++; JSONObject().put("value", 1) }, { "failed" })
+        val operations = RemoteOperations(scope, { _, _, _ -> calls++; JSONObject().put("value", 1) }, { _, _ -> "failed" })
         val request = JSONObject().put("requestId", "a".repeat(32)).put("type", "search")
         try {
             val id = operations.submit(first, request).getString("operationId")
@@ -28,7 +28,7 @@ class PhoneRemoteOperationTests {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val session = SessionManager(MemorySessions()).create("client").session
         val started = CompletableDeferred<Unit>(); var wrote = false
-        val operations = RemoteOperations(scope, { _, _, _ -> started.complete(Unit); delay(10_000); wrote = true; JSONObject() }, { "failed" })
+        val operations = RemoteOperations(scope, { _, _, _ -> started.complete(Unit); delay(10_000); wrote = true; JSONObject() }, { _, _ -> "failed" })
         try {
             val id = operations.submit(session, JSONObject().put("requestId", "b".repeat(32)).put("type", "search")).getString("operationId")
             withTimeout(3000) { started.await() }; operations.revokeExcept(emptySet())

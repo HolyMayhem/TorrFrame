@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+import { CatalogImage } from "./CatalogImage";
 import {
   useEffect,
   createContext,
@@ -8,6 +10,7 @@ import {
 import type { LibraryItem, Metadata } from "../types";
 export const ToastContext = createContext("");
 export const icons = {
+  catalog: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
   home: "M3 10L12 3l9 7v11h-6v-7H9v7H3z",
   search: "M21 21l-6-6M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0",
   library: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
@@ -54,7 +57,7 @@ export function Brand() {
     <div className="brand">
       <img src="/app-icon.png" width="36" height="36" alt="" />
       <div>
-        <strong>TorrServe</strong>
+        <strong>TorrFrame</strong>
         <small>Phone Remote</small>
       </div>
     </div>
@@ -132,7 +135,7 @@ export function Sheet({
           <h2>{title}</h2>
           <button
             className="icon-button"
-            aria-label="Закрыть"
+            aria-label={t("Закрыть")}
             onClick={close}
             autoFocus
           >
@@ -156,25 +159,11 @@ export function Poster({
   metadata?: Metadata | null;
   title: string;
 }) {
-  const ref = useRef<HTMLImageElement>(null);
-  useEffect(() => {
-    if (ref.current) ref.current.style.display = "";
-  }, [metadata?.poster]);
   return (
     <div className="poster">
       <span>{title.slice(0, 1)}</span>
       {metadata?.poster && (
-        <img
-          ref={ref}
-          src={metadata.poster}
-          loading="lazy"
-          decoding="async"
-          alt=""
-          referrerPolicy="no-referrer"
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
+        <CatalogImage src={metadata.poster} />
       )}
     </div>
   );
@@ -196,7 +185,7 @@ export function FilmCard({
           item.metadata?.rating ? `★ ${item.metadata.rating.toFixed(1)}` : null,
         ]
           .filter(Boolean)
-          .join(" · ") || "В медиатеке"}
+          .join(" · ") || t("В медиатеке")}
       </small>
       {item.duration > 0 && item.position > 0 && (
         <div className="progress">
@@ -254,5 +243,5 @@ export const time = (ms: number) => {
 };
 export const size = (bytes: number) =>
   bytes >= 1073741824
-    ? `${(bytes / 1073741824).toFixed(1)} ГБ`
-    : `${(bytes / 1048576).toFixed(0)} МБ`;
+    ? t("{v0} ГБ", { v0: (bytes / 1073741824).toFixed(1) })
+    : t("{v0} МБ", { v0: (bytes / 1048576).toFixed(0) });

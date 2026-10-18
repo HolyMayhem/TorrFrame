@@ -16,7 +16,7 @@ import tv.torrserve.silicon.phoneRemote.discovery.LocalAddressResolver
 /** Use an isolated ARM TV emulator: these tests restart the packaged server. */
 @RunWith(AndroidJUnit4::class)
 class TorrServerLanTest {
-    private val app get() = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as TorrServeApplication
+    private val app get() = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as TorrFrameApplication
     private val graph get() = app.graph
     private fun pid() = (graph.server.state.value as ServerState.Running).pid
     private suspend fun address(): String = withTimeout(10_000) {

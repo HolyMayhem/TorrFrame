@@ -66,18 +66,18 @@ SDK=$("$TASK_ADB" -s "$TARGET" shell getprop ro.build.version.sdk | tr -d '\r')
 case "$SDK" in ''|*[!0-9]*) fail 'Could not read TV Android API level.' ;; esac
 [ "$SDK" -ge 26 ] || fail 'Android 8.0 / API 26 or newer is required.'
 if [ "$(uname -s)" = Darwin ]; then
-    DEFAULT_BUILD_ROOT="$HOME/Library/Caches/TorrServeSiliconAndroidTV/deploy/$ABI"
+    DEFAULT_BUILD_ROOT="$HOME/Library/Caches/TorrFrameAndroidTV/deploy/$ABI"
 else
-    DEFAULT_BUILD_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/TorrServeSiliconAndroidTV/deploy/$ABI"
+    DEFAULT_BUILD_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/TorrFrameAndroidTV/deploy/$ABI"
 fi
-BUILD_ROOT=${TORRSERVE_DEPLOY_BUILD_ROOT:-$DEFAULT_BUILD_ROOT}
-case "$BUILD_ROOT" in /*) ;; *) fail 'TORRSERVE_DEPLOY_BUILD_ROOT must be an absolute path.' ;; esac
+BUILD_ROOT=${TORRFRAME_DEPLOY_BUILD_ROOT:-${TORRSERVE_DEPLOY_BUILD_ROOT:-$DEFAULT_BUILD_ROOT}}
+case "$BUILD_ROOT" in /*) ;; *) fail 'TORRFRAME_DEPLOY_BUILD_ROOT must be an absolute path.' ;; esac
 STARTED=$SECONDS
 if [ "$BUILD" -eq 1 ]; then
     printf 'Building %s for %s (Gradle daemon and incremental compilation)…\n' "$VARIANT" "$ABI"
     if [ "$VARIANT" = release ]; then TASK=:app:assembleRelease; else TASK=:app:assembleDebug; fi
     "$TASK_ROOT/scripts/build-local.sh" --daemon --max-workers=4 --project-cache-dir "$BUILD_ROOT/.gradle" "$TASK" \
-        "-PtorrserveAbi=$ABI" "-PtorrserveBuildRoot=$BUILD_ROOT" -PpreviewSigning=true
+        "-PtorrframeAbi=$ABI" "-PtorrframeBuildRoot=$BUILD_ROOT" -PpreviewSigning=true
 fi
 METADATA="$BUILD_ROOT/app/outputs/apk/$VARIANT/output-metadata.json"
 [ -f "$METADATA" ] || fail 'No APK for this ABI/variant. Run without --no-build first.'

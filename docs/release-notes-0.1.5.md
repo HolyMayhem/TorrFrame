@@ -1,4 +1,4 @@
-# TorrServe Silicon TV 0.1.5 — local preview
+# TorrFrame TV 0.1.5 — local preview
 
 Use the owner-supplied circular PNG for the application's header logo. Export a
 separate transparent sRGB drawable for each screen density while keeping the

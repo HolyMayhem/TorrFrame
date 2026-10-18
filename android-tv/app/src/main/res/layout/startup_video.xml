@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:focusable="false"
+    android:clickable="false"
+    android:descendantFocusability="blocksDescendants"
+    android:importantForAccessibility="noHideDescendants">
+    <androidx.media3.ui.AspectRatioFrameLayout
+        android:id="@+id/startup_video_aspect"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        app:resize_mode="fit">
+        <TextureView android:id="@+id/startup_video_texture"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:focusable="false" />
+    </androidx.media3.ui.AspectRatioFrameLayout>
+</FrameLayout>

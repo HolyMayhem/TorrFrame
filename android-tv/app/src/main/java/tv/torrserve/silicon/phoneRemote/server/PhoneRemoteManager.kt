@@ -1,5 +1,6 @@
 package tv.torrserve.silicon.phoneRemote.server
 
+import tv.torrserve.silicon.core.localization.uiString
 import android.content.Intent
 import android.net.*
 import kotlinx.coroutines.*
@@ -40,11 +41,11 @@ class PhoneRemoteManager(private val graph: AppGraph) {
         try { graph.app.startForegroundService(Intent(graph.app, PhoneRemoteService::class.java)) }
         catch (_: RuntimeException) { error() }
     }
-    fun error() { mutable.value = mutable.value.copy(status = PhoneRemoteStatus.Error, error = graph.app.getString(R.string.phone_start_failed)) }
+    fun error() { mutable.value = mutable.value.copy(status = PhoneRemoteStatus.Error, error = graph.app.uiString(R.string.phone_start_failed)) }
     suspend fun enabled(enabled: Boolean) = configuration.withLock {
         val value = prefs.state.value
         if (enabled && value.port == graph.settings.state.value.port) {
-            mutable.value = mutable.value.copy(status = PhoneRemoteStatus.Error, error = graph.app.getString(R.string.phone_port_conflict)); return@withLock
+            mutable.value = mutable.value.copy(status = PhoneRemoteStatus.Error, error = graph.app.uiString(R.string.phone_port_conflict)); return@withLock
         }
         if (enabled) { prefs.save(value.copy(enabled = true)); startService() }
         else withContext(NonCancellable) {
@@ -55,7 +56,7 @@ class PhoneRemoteManager(private val graph: AppGraph) {
                 lock.withLock { ++generation; stopLocked(); mutable.value = PhoneRemoteState(port = value.port) }
             } finally { graph.app.stopService(Intent(graph.app, PhoneRemoteService::class.java)) }
             if (failure != null) {
-                mutable.value = PhoneRemoteState(PhoneRemoteStatus.Error, port = value.port, error = graph.app.getString(R.string.phone_preferences_failed))
+                mutable.value = PhoneRemoteState(PhoneRemoteStatus.Error, port = value.port, error = graph.app.uiString(R.string.phone_preferences_failed))
                 throw failure
             }
         }

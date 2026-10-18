@@ -26,12 +26,13 @@ import org.junit.runner.RunWith
 import tv.torrserve.silicon.features.catalog.domain.*
 import tv.torrserve.silicon.features.catalog.presentation.*
 import tv.torrserve.silicon.ui.components.LocalUiLanguage
-import tv.torrserve.silicon.ui.theme.TorrServeTheme
+import tv.torrserve.silicon.ui.theme.TorrFrameTheme
 
 @RunWith(AndroidJUnit4::class)
 class CatalogDetailsPresentationTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private var backCalls = 0
+    private var torrentCalls = 0
     private fun details(backdrop: String = "", type: CatalogType = CatalogType.Movie) = CatalogDetails(
         CatalogItem(CatalogRef(157336, type), "Интерстеллар", "Interstellar", backdrop = backdrop,
             date = "2014-11-05", rating = 8.6, votes = 12345),
@@ -40,17 +41,19 @@ class CatalogDetailsPresentationTest {
         if (type == CatalogType.Tv) 3 else null, if (type == CatalogType.Tv) 30 else null,
         if (type == CatalogType.Tv) "Returning Series" else "", "2026-01-02")
 
-    private fun setup(value: CatalogDetails, scale: Int = 85, light: Boolean = false, language: String = "ru"): MutableState<CatalogDetails> {
+    private fun setup(value: CatalogDetails, scale: Int = 85, light: Boolean = false, language: String = "ru", actions: Boolean = false): MutableState<CatalogDetails> {
         val data = mutableStateOf(value)
         compose.runOnUiThread {
             compose.activity.setContent {
-                TorrServeTheme(scale, light, animationsEnabled = false) {
+                TorrFrameTheme(scale, light, animationsEnabled = false) {
                     CompositionLocalProvider(LocalUiLanguage provides language) {
                         BackHandler { backCalls++ }
                         // Match the bounded viewport supplied by the application's main content area.
                         Box(Modifier.fillMaxSize()) {
                             CatalogDetailsScreen(CatalogUi(selected = data.value.item.ref,
-                                details = CatalogLoad(data.value)), back = { backCalls++ }, retry = {})
+                                details = CatalogLoad(data.value), listsReady = true), back = { backCalls++ },
+                                torrentSearch = if(actions){{ torrentCalls++ }}else null,
+                                toggleList = if(actions){{ _, _ -> }}else null, retry = {})
                         }
                     }
                 }
@@ -181,8 +184,8 @@ class CatalogDetailsPresentationTest {
                 val poster = compose.onNodeWithTag("catalog:detail:poster").fetchSemanticsNode().boundsInRoot
                 assertTrue("Banner starts directly below the main navigation", banner.top - screen.top < screen.height * .03f)
                 assertTrue("Back is on the banner", button.top >= banner.top && button.bottom < banner.bottom)
-                assertTrue("Title is at the bottom left", title.center.y > banner.center.y && title.left < banner.center.x)
-                assertTrue("Title stays clear of the poster", title.right < poster.left)
+                assertTrue("Title is at the bottom beside the left poster", title.center.y > banner.center.y && title.left > poster.right)
+                assertTrue("Title stays clear of the poster", poster.right < title.left)
                 assertTrue("Poster is larger: poster=$poster banner=$banner scale=$scale", poster.width / banner.width >= .18f)
                 assertTrue("Poster hangs below the banner", poster.top < banner.bottom && poster.bottom > banner.bottom)
                 assertTrue("Most of the banner remains uncovered", (banner.bottom - poster.top) * poster.width < banner.width * banner.height * .2f)
@@ -218,7 +221,7 @@ class CatalogDetailsPresentationTest {
                 compose.onNodeWithTag("catalog:stat:genres:value").assertTextEquals(value.genres.joinToString(" · "))
                 val stats=compose.onNodeWithTag("catalog:detail:stats").fetchSemanticsNode().boundsInRoot
                 val poster=compose.onNodeWithTag("catalog:detail:poster").fetchSemanticsNode().boundsInRoot
-                assertTrue("Information stays left of the poster",stats.right < poster.left)
+                assertTrue("Information stays right of the poster",poster.right < stats.left)
             }
         } finally { file.delete() }
     }
@@ -235,4 +238,50 @@ class CatalogDetailsPresentationTest {
             compose.onAllNodesWithText(value.overview).assertCountEquals(1)
         } finally { file.delete() }
     }
+    @Test fun equalActionsAlignBelowTitleOnTheRightOfPosterAndNavigateWithRemote() {
+        val file=image()
+        try {
+            for ((scale,light,language) in listOf(Triple(110,true,"ru"),Triple(70,false,"en"))) {
+                for(backdrop in listOf("",file.toURI().toString())) {
+                    setup(details(backdrop),scale,light,language,actions=true)
+                    compose.onNodeWithTag("catalog:torrentsearch").performScrollTo()
+                    val poster=compose.onNodeWithTag("catalog:detail:poster").fetchSemanticsNode().boundsInRoot
+                    val title=compose.onNodeWithTag("catalog:detail:title").fetchSemanticsNode().boundsInRoot
+                    val tags=listOf("catalog:torrentsearch","catalog:jackett","catalog:favorite","catalog:watch-later")
+                    val buttons=tags.map { compose.onNodeWithTag(it).fetchSemanticsNode().boundsInRoot }
+                    assertTrue(buttons.first().top>=title.bottom)
+                    buttons.forEach { assertEquals(buttons.first().top,it.top,1f);assertEquals(buttons.first().height,it.height,1f);assertEquals(buttons.first().width,it.width,1f);assertTrue(poster.right<it.left) }
+                    buttons.zipWithNext().forEach { (a,b)->assertTrue(a.right<b.left) }
+                    for(tag in tags)compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { layouts ->
+                        val result=mutableListOf<TextLayoutResult>();layouts(result);assertFalse("Truncated action $tag at scale $scale",result.single().hasVisualOverflow)
+                    }
+                    compose.onNodeWithTag(tags.first()).performSemanticsAction(SemanticsActions.RequestFocus)
+                    remote(KeyEvent.KEYCODE_DPAD_RIGHT);compose.onNodeWithTag("catalog:jackett").assertIsFocused()
+                    remote(KeyEvent.KEYCODE_DPAD_CENTER);compose.onNodeWithTag("catalog:jackett:placeholder").assertExists()
+                    remote(KeyEvent.KEYCODE_BACK);compose.onNodeWithTag("catalog:jackett").assertIsFocused()
+                    remote(KeyEvent.KEYCODE_DPAD_RIGHT);compose.onNodeWithTag("catalog:favorite").assertIsFocused()
+                    remote(KeyEvent.KEYCODE_DPAD_RIGHT);compose.onNodeWithTag("catalog:watch-later").assertIsFocused()
+                    remote(KeyEvent.KEYCODE_DPAD_LEFT);remote(KeyEvent.KEYCODE_DPAD_LEFT);remote(KeyEvent.KEYCODE_DPAD_LEFT)
+                    compose.onNodeWithTag("catalog:torrentsearch").assertIsFocused();remote(KeyEvent.KEYCODE_DPAD_CENTER)
+                    remote(KeyEvent.KEYCODE_DPAD_UP);compose.onNodeWithTag("catalog:back").assertIsFocused()
+                }
+            }
+            assertEquals(4,torrentCalls)
+        } finally { file.delete() }
+    }
+
+    @Test fun failedBackdropRecoversOnTheSameMovieWithoutLosingRemoteFocus() {
+        val pending = File(compose.activity.cacheDir, "recovering-backdrop-${System.nanoTime()}.png")
+        try {
+            setup(details(pending.toURI().toString()))
+            waitForPosterLayout()
+            remote(KeyEvent.KEYCODE_DPAD_DOWN)
+            compose.onNodeWithTag("catalog:detail:hero").assertIsFocused()
+            compose.activity.resources.openRawResource(R.drawable.brand_mark).use { input -> pending.outputStream().use { input.copyTo(it) } }
+            compose.waitUntil(8_000) { compose.onAllNodesWithTag("catalog:detail:posterLayout").fetchSemanticsNodes().isEmpty() }
+            compose.onNodeWithTag("catalog:detail:cinematic").assertIsDisplayed()
+            compose.onNodeWithTag("catalog:detail:hero").assertIsFocused()
+        } finally { pending.delete() }
+    }
+
 }

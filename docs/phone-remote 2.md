@@ -1,6 +1,6 @@
 # Phone Remote
 
-Phone Remote — дополнительный локальный интерфейс TorrServe. По умолчанию выключен.
+Phone Remote — дополнительный локальный интерфейс TorrFrame. По умолчанию выключен.
 Основные экраны TV, поиск, SQLite-медиатека, настройки, встроенный TorrServer и
 Media3-плеер работают независимо от него. Модуль не запускается из BOOT_COMPLETED.
 
@@ -83,7 +83,7 @@ node_modules исключены из Git. Добавлены только Ktor C
 - `features/updates/UpdateManager.kt` — существующая логика обновлений, вынесенная
   из ViewModel без замены проверок безопасности.
 
-Изменены `TorrServeApplication`, `MainActivity`, manifest, Gradle, русские ресурсы,
+Изменены `TorrFrameApplication`, `MainActivity`, manifest, Gradle, русские ресурсы,
 `LibraryStore`, `SettingsStore`, `ServerController`, `LibraryRepository`,
 `MetadataProviders`, экраны/ViewModel настроек и карточки, `PlaybackService`,
 `PlayerActivity`, `UpdatesViewModel`, общие TV-компоненты и лицензии.

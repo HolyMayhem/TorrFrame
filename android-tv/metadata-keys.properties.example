@@ -1,5 +1,5 @@
 # Copy to metadata-keys.properties (ignored by Git), or set the corresponding
-# TORRSERVE_TMDB_API_KEY / TORRSERVE_OMDB_API_KEY / TORRSERVE_KINOPOISK_API_KEY env vars.
+# TORRFRAME_TMDB_API_KEY / TORRFRAME_OMDB_API_KEY / TORRFRAME_KINOPOISK_API_KEY env vars.
 TMDB=
 OMDB=
 Kinopoisk=

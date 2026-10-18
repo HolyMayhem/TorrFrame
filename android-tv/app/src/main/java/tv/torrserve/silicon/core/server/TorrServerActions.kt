@@ -1,5 +1,6 @@
 package tv.torrserve.silicon.core.server
 
+import tv.torrserve.silicon.core.localization.uiString
 import android.content.Context
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
@@ -31,11 +32,11 @@ class TorrServerActions(private val context: Context, private val store: Setting
             throw e
         }
     }
-    private fun idle() { if (server.playbackOwned) throw ApplicationActionFailure(R.string.server_stop_playback) }
+    private fun idle() { if (server.hasPlayback) throw ApplicationActionFailure(R.string.server_stop_playback) }
     private fun local() { check(store.state.value.useLocalServer) }
     private fun service() {
         try { LocalServerService.start(context) }
-        catch (_: RuntimeException) { server.backgroundError(context.getString(R.string.boot_restricted)); throw ApplicationActionFailure(R.string.boot_restricted) }
+        catch (_: RuntimeException) { server.backgroundError(context.uiString(R.string.boot_restricted)); throw ApplicationActionFailure(R.string.boot_restricted) }
     }
     suspend fun connect(address: String, local: Boolean, port: Int, expectedRevision: Long? = null): Int = applicationMutation {
         if (expectedRevision != null && store.revision.value != expectedRevision) throw tv.torrserve.silicon.core.storage.SettingsConflict()
@@ -57,7 +58,7 @@ class TorrServerActions(private val context: Context, private val store: Setting
     suspend fun start() = applicationMutation { local(); server.requireRunning(); if (store.state.value.needsLocalService) service(); connection.check(); Unit }
     suspend fun stop() = applicationMutation { local(); idle(); LocalServerService.stop(context); server.backgroundOwned = false; server.stop(); connection.check(); Unit }
     suspend fun restart() = applicationMutation { local(); idle(); server.restart(); if (store.state.value.needsLocalService && server.state.value is ServerState.Running) service(); connection.check(); Unit }
-    suspend fun boot(enabled: Boolean, expectedRevision: Long? = null) = applicationMutation { local(); store.update(expectedRevision) { it.copy(startOnBoot = enabled) }; if (store.state.value.needsLocalService) service() else LocalServerService.stop(context); Unit }
+    suspend fun boot(enabled: Boolean, expectedRevision: Long? = null) = applicationMutation { local(); store.update(expectedRevision) { it.copy(startOnBoot = enabled) }; if (store.state.value.needsLocalService || server.externalPlayback.value) service() else LocalServerService.stop(context); Unit }
     suspend fun lan(enabled: Boolean, expectedRevision: Long? = null): Int = applicationMutation {
         local(); idle()
         val previous = store.state.value

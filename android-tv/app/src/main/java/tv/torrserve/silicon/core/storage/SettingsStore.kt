@@ -16,6 +16,7 @@ import javax.crypto.spec.GCMParameterSpec
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import tv.torrserve.silicon.core.server.ServerAddress
+import tv.torrserve.torrentsearch.model.TorrentSearchOptions
 
 data class Settings(val jackettUrl: String = "", val jackettKey: String = "",
     val metadataOrder: List<String> = MetadataPriority.defaultOrder, val language: String = "en-US",
@@ -26,7 +27,12 @@ data class Settings(val jackettUrl: String = "", val jackettKey: String = "",
     val startOnBoot: Boolean = false, val engineSettingsInitialized: Boolean = false,
     val lanAccess: Boolean = true, val uiScalePercent: Int = UiScale.DEFAULT,
     val uiTheme: String = "dark", val showNavigationHints: Boolean = true,
-    val uiAccent: String = UiAccent.DEFAULT, val animationsEnabled: Boolean = true) {
+    val uiAccent: String = UiAccent.DEFAULT, val animationsEnabled: Boolean = true,
+    val torrentSearch: TorrentSearchOptions = TorrentSearchOptions(),
+    val catalogNetwork: tv.torrserve.silicon.core.network.CatalogNetworkSettings = tv.torrserve.silicon.core.network.CatalogNetworkSettings(),
+    val playerMode: tv.torrserve.silicon.features.player.PlayerMode = tv.torrserve.silicon.features.player.PlayerMode.Internal,
+    val externalPlayer: String = "",
+    val builtInPlayer: tv.torrserve.silicon.features.player.PlayerPreferences = tv.torrserve.silicon.features.player.PlayerPreferences()) {
     val jackettConfigured get() = jackettUrl.isNotBlank() && jackettKey.isNotBlank()
     val needsLocalService get() = useLocalServer && (lanAccess || startOnBoot)
     val serverBindAddress get() = if (lanAccess) "0.0.0.0" else "127.0.0.1"
@@ -40,6 +46,7 @@ class SettingsStore(context: Context) {
     private val mutableRevision = MutableStateFlow(0L)
     val revision = mutableRevision.asStateFlow()
     private fun secretKey(): SecretKey {
+        // Stable storage identity: retain the alias across app renames to decrypt saved settings.
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getKey("torrserve-api-keys", null) as? SecretKey)?.let { return it }
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").apply {
@@ -68,6 +75,9 @@ class SettingsStore(context: Context) {
             port = prefs.getInt("port", 8090), cacheMb = prefs.getInt("cacheMb", 64),
             resume = prefs.getBoolean("resume", true), audioLanguage = prefs.getString("audio", "").orEmpty(),
             subtitleLanguage = prefs.getString("subtitles", "").orEmpty(),
+            playerMode = tv.torrserve.silicon.features.player.PlayerMode.from(prefs.getString("playerMode", null)),
+            externalPlayer = prefs.getString("externalPlayer", "").orEmpty(),
+            builtInPlayer = tv.torrserve.silicon.features.player.PlayerPreferences.decode(prefs.getString("builtInPlayer", null)),
             updateRepository = prefs.getString("updates", "").orEmpty(), uiLanguage = prefs.getString("uiLanguage", "en") ?: "en",
             aniListEnabled = prefs.getBoolean("aniListEnabled", prefs.getString("provider", "") == "AniList"),
             torrServerUrl = prefs.getString("torrServerUrl", null) ?: ServerAddress.local(prefs.getInt("port", 8090)),
@@ -78,6 +88,8 @@ class SettingsStore(context: Context) {
             uiTheme = prefs.getString("uiTheme", "dark").takeIf { it == "light" } ?: "dark",
             showNavigationHints = prefs.getBoolean("showNavigationHints", true),
             animationsEnabled = prefs.getBoolean("animationsEnabled", true),
+            torrentSearch = TorrentSearchSettingsCodec.decode(prefs.getString("torrentSearch", null)),
+            catalogNetwork = tv.torrserve.silicon.core.network.CatalogNetworkSettings.decode(prefs.getString("catalogNetwork", null), decode(prefs.getString("cubToken", ""))),
             uiAccent = UiAccent.normalized(prefs.getString("uiAccent", UiAccent.DEFAULT)))
         mutableRevision.value = prefs.getLong("revision", 0)
         // Persist migration before removing legacy keys; Jackett's encrypted key is retained.
@@ -98,6 +110,9 @@ class SettingsStore(context: Context) {
         require(s.uiScalePercent == UiScale.normalized(s.uiScalePercent)) { "Некорректный масштаб интерфейса." }
         require(s.uiTheme in setOf("dark", "light"))
         require(s.uiAccent in UiAccent.colors)
+        require(s.torrentSearch==s.torrentSearch.normalized()) { "Некорректные настройки TorrentSearch." }
+        require(s.builtInPlayer == s.builtInPlayer.normalized())
+        s.catalogNetwork.validated()
         val address = ServerAddress.normalize(s.torrServerUrl)
         require(!s.useLocalServer || ServerAddress.isLocal(address, s.port)) { "Адрес встроенного сервера должен соответствовать локальному порту." }
         val revision = mutableRevision.value + 1
@@ -110,8 +125,12 @@ class SettingsStore(context: Context) {
             .putInt("uiScalePercent", s.uiScalePercent)
             .putString("uiTheme", s.uiTheme).putBoolean("showNavigationHints", s.showNavigationHints)
             .putString("uiAccent", s.uiAccent).putBoolean("animationsEnabled", s.animationsEnabled)
+            .putString("torrentSearch", TorrentSearchSettingsCodec.encode(s.torrentSearch))
+            .putString("catalogNetwork", s.catalogNetwork.encode()).putString("cubToken", encode(s.catalogNetwork.cubToken))
             .putString("language", s.language).putInt("port", s.port).putInt("cacheMb", s.cacheMb)
             .putBoolean("resume", s.resume).putString("audio", s.audioLanguage).putString("subtitles", s.subtitleLanguage)
+            .putString("builtInPlayer", s.builtInPlayer.encode())
+            .putString("playerMode", s.playerMode.name).putString("externalPlayer", s.externalPlayer)
             .putString("updates", s.updateRepository.trim()).putString("uiLanguage", s.uiLanguage).commit()
         check(success) { "Не удалось сохранить настройки." }; mutableRevision.value = revision; mutable.value = s.copy(torrServerUrl = address, metadataOrder = MetadataPriority.normalized(s.metadataOrder))
     }

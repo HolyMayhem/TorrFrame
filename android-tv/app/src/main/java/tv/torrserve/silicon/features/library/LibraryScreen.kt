@@ -1,9 +1,18 @@
 package tv.torrserve.silicon.features.library
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
+import tv.torrserve.silicon.ui.theme.SurfaceSecondary
+import tv.torrserve.silicon.ui.theme.Muted
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
+import tv.torrserve.silicon.R
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -14,24 +23,48 @@ import tv.torrserve.silicon.core.models.*
 import tv.torrserve.silicon.ui.components.*
 import tv.torrserve.silicon.ui.theme.TvDimensions
 
-@Composable fun LibraryScreen(state: LibraryUi, refresh: () -> Unit, search: () -> Unit, entryFocus: FocusRequester? = null, open: (String) -> Unit) {
-    var sort by rememberSaveable { mutableStateOf("Recently Added") }
+@Composable fun LibraryScreen(state: LibraryUi, refresh: () -> Unit, search: () -> Unit, entryFocus: FocusRequester? = null,
+    availability: LibraryAvailability = LibraryAvailability.Ready, serverSettings: () -> Unit = {}, open: (String) -> Unit) {
     var filter by rememberSaveable { mutableStateOf("All") }
     var focused by rememberSaveable { mutableStateOf<String?>(null) }
     val requester = remember { FocusRequester() }; val grid = rememberLazyGridState()
     val localFallback = remember { FocusRequester() }
     val fallback = entryFocus ?: localFallback
-    val items = remember(state.items, sort, filter) {
-        val values = state.items.filter {
+    val items = remember(state.items, filter) {
+        state.items.sortedByDescending { it.addedAt }.filter {
             val kind = it.metadata?.kind ?: tv.torrserve.silicon.features.metadata.MediaNameParser.parse(it.sourceTitle).kind
             filter == "All" || kind == if(filter == "Movies") MediaKind.Movie else MediaKind.Tv
         }
-        when(sort) { "Title" -> values.sortedBy { it.title.lowercase() }; "Year" -> values.sortedByDescending { it.metadata?.year ?: 0 }; else -> values }
     }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("My Library", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
             TvAction("Refresh", !state.busy, modifier = Modifier.focusRequester(fallback), action = refresh); TvAction("Explore catalog", primary = true, action = search)
+        }
+        if(availability != LibraryAvailability.Ready) {
+            val title=stringResource(when(availability) {
+                LibraryAvailability.Stopped -> R.string.library_server_stopped
+                LibraryAvailability.Connecting -> R.string.library_server_connecting
+                else -> R.string.library_server_unavailable
+            })
+            val explanation=stringResource(when(availability) {
+                LibraryAvailability.Stopped -> R.string.library_server_stopped_hint
+                LibraryAvailability.Connecting -> R.string.library_server_connecting_hint
+                LibraryAvailability.AccessDenied -> R.string.server_access_denied
+                LibraryAvailability.InvalidResponse -> R.string.server_invalid_response
+                else -> R.string.library_server_unavailable_hint
+            })
+            if(state.items.isEmpty())InfoPanel(title,explanation,Modifier.fillMaxWidth().testTag("library:server-status")) {
+                TvAction(stringResource(R.string.library_server_settings),modifier=Modifier.testTag("library:server-settings"),action=serverSettings)
+            } else Row(Modifier.fillMaxWidth().testTag("library:server-status").background(SurfaceSecondary,RoundedCornerShape(12.dp)).padding(12.dp),
+                horizontalArrangement=Arrangement.spacedBy(16.dp),verticalAlignment=Alignment.CenterVertically) {
+                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                    Text(title,style=MaterialTheme.typography.titleMedium)
+                    Text(explanation,color=Muted,maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall)
+                }
+                TvAction(stringResource(R.string.library_server_settings),modifier=Modifier.testTag("library:server-settings"),action=serverSettings)
+            }
+            if(state.items.isEmpty())return@Column
         }
         if(state.items.isEmpty() && !state.busy) {
             Message(state.message)
@@ -40,7 +73,6 @@ import tv.torrserve.silicon.ui.theme.TvDimensions
             }
             return@Column
         }
-        ChoiceRow(listOf("Recently Added", "Title", "Year"), sort) { sort = it }
         ChoiceRow(listOf("All", "Movies", "TV Shows"), filter) { filter = it }
         Message(state.message)
         if (state.busy) Text("Loading…")

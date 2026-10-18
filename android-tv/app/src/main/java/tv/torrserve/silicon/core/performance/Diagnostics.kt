@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicLong
 object Diagnostics {
     fun mark() = SystemClock.elapsedRealtime()
     fun elapsed(name: String, start: Long) {
-        if(BuildConfig.DEBUG) Log.i("TorrServeTiming", "${name}_ms=${SystemClock.elapsedRealtime()-start}")
+        if(BuildConfig.DEBUG) Log.i("TorrFrameTiming", "${name}_ms=${SystemClock.elapsedRealtime()-start}")
     }
     suspend fun <T> timed(name: String, operation: suspend () -> T): T {
         val start = mark(); return try { operation() } finally { elapsed(name,start) }
@@ -30,7 +30,7 @@ class FrameMonitor(private val window: Window, private val budgetNanos: Long) {
     fun close() {
         if(BuildConfig.DEBUG) {
             window.removeOnFrameMetricsAvailableListener(listener); thread.quitSafely()
-            Log.i("TorrServeTiming", "frames=${frames.get()} over_budget=${slow.get()} longest_frame_ms=${longest.get()/1_000_000}")
+            Log.i("TorrFrameTiming", "frames=${frames.get()} over_budget=${slow.get()} longest_frame_ms=${longest.get()/1_000_000}")
         }
     }
 }

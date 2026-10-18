@@ -38,7 +38,7 @@ import tv.torrserve.silicon.ui.theme.Muted
             val viewportWidth = with(LocalDensity.current) { constraints.maxWidth.toDp() }
             val columns = (viewportWidth / (width + 12.dp)).toInt().coerceAtLeast(1)
             LazyVerticalGrid(columns = GridCells.Adaptive(width), state = grid,
-                modifier = Modifier.fillMaxSize().focusRequester(gridFocus).focusGroup().testTag("catalog:collection:grid"),
+                modifier = Modifier.fillMaxSize().scrollEdgeFade(grid, vertical = true).focusRequester(gridFocus).focusGroup().testTag("catalog:collection:grid"),
                 contentPadding = PaddingValues(6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 itemsIndexed(feed.items, key = { _, item -> item.ref.key }) { index, item ->

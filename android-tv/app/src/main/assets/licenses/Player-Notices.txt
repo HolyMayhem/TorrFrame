@@ -1,0 +1,18 @@
+The built-in player uses AndroidX Media3 1.11.1 (Apache License 2.0) and FFmpeg 6.0.1 (LGPL 2.1 or later).
+
+Just Player (moneytoo/Player) is released under the Unlicense. Its subtitle MIME mapping, renderer-priority approach and same-resolution display-mode matching were used as references and adapted for TorrFrame. Its UI, application and modified ExoPlayer binaries are not included.
+Reference commit: c593ac3f5ca0784d06f424984abf8650f5bd1f8b
+https://github.com/moneytoo/Player
+
+The Media3 FFmpeg audio renderer and JNI bridge are from AndroidX Media3 tag 1.11.1, commit 8c6678b657ede1e7883fc164ef73ed483c7796c3. Original copyright and Apache license headers are preserved.
+https://github.com/androidx/media/tree/1.11.1/libraries/decoder_ffmpeg
+
+FFmpeg is built with GPL, nonfree and version3 components disabled. Only internal audio decoders, avutil and swresample are enabled. No external codec libraries are linked.
+Copyright (c) FFmpeg contributors. See FFmpeg-LGPL-2.1.txt.
+https://ffmpeg.org
+
+Corresponding source, configuration and relinking instructions are distributed with the project in third-party/ffmpeg and android-tv/player-ffmpeg. The scripts/build-player-ffmpeg.sh script rebuilds the replaceable libffmpegJNI.so for both ARM ABIs. Source archive SHA-256:
+9b16b8731d78e596b4be0d720428ca42df642bb2d78342881ff7f5bc29fc9623
+Source release: https://ffmpeg.org/releases/ffmpeg-6.0.1.tar.xz
+
+You may modify and rebuild these libraries, relink/repackage them with the application, and reverse engineer the application for debugging such modifications as permitted by the LGPL. No separate player artwork or UI assets from Just Player are used.

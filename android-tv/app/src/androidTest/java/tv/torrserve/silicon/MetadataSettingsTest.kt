@@ -13,7 +13,7 @@ import tv.torrserve.silicon.features.metadata.MediaNameParser
 
 @RunWith(AndroidJUnit4::class)
 class MetadataSettingsTest {
-    private val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as TorrServeApplication
+    private val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as TorrFrameApplication
     @Test fun releaseNameCandidatesAreCompatibleWithAndroidRegex() {
         for(provider in listOf("OMDb", "TMDB", "Kinopoisk", "AniList")) {
             val candidates = MediaNameParser.candidates(listOf(

@@ -11,6 +11,13 @@ import androidx.tv.material3.LocalTextStyle
 
 val LocalUiLanguage = compositionLocalOf { "en" }
 private val russian = mapOf(
+    "No supported video files were found." to "Поддерживаемые видеофайлы не найдены.",
+    "No confident match found, or the provider is unavailable. The original title is retained." to "Точное совпадение не найдено или источник недоступен. Исходное название сохранено.",
+    "Unable to complete the action." to "Не удалось выполнить действие.",
+    "Timed out waiting for torrent metadata. Try again later." to "Истекло время ожидания метаданных торрента. Попробуйте позже.",
+    "Unable to complete the action. Check the server and network connection." to "Не удалось выполнить действие. Проверьте сервер и подключение к сети.",
+    "Some indexers returned incomplete results." to "Некоторые индексаторы вернули неполные результаты.",
+    "min" to "мин.",
     "Catalog" to "Каталог",
     "Explore catalog" to "Открыть каталог",
     "Your added torrents and viewing progress appear here. Explore movies and series in Catalog." to "Здесь появятся добавленные вами торренты и история просмотра. Фильмы и сериалы можно посмотреть в каталоге.",
@@ -64,11 +71,24 @@ private val russian = mapOf(
     "Connected" to "Подключено", "Disconnected" to "Не подключено", "Invalid API Key" to "Неверный API-ключ",
     "Connection Error" to "Ошибка подключения", "Timeout" to "Превышено время ожидания"
 )
+internal fun localizeServiceFailure(value: String): String {
+    val suffixes = mapOf(
+        ": invalid API key or access denied." to ": неверный API-ключ или доступ запрещён.",
+        ": too many requests. Try again later." to ": слишком много запросов. Попробуйте позже.",
+        ": request timed out." to ": превышено время ожидания.",
+        ": response is too large." to ": слишком большой ответ.",
+        ": invalid response." to ": некорректный ответ.",
+        ": cannot connect or request timed out. Check address and connection." to ": не удалось подключиться или истекло время ожидания. Проверьте адрес и соединение."
+    )
+    for ((english, russian) in suffixes) if(value.endsWith(english)) return value.removeSuffix(english) + russian
+    val http = Regex("^(.+) returned HTTP ([0-9]+)\\.$").matchEntire(value)
+    return if(http != null) "${http.groupValues[1]} вернул HTTP ${http.groupValues[2]}." else value
+}
 @Composable fun localize(value: String): String {
     if(LocalUiLanguage.current != "ru") return value
     val prefix = if(value.startsWith("✓ ") || value.startsWith("● ")) value.take(2) else ""
     val plain = value.removePrefix(prefix)
-    return prefix + (russian[plain] ?: if(plain.startsWith("Enter ")) "Введите ${russian[plain.removePrefix("Enter ")] ?: plain.removePrefix("Enter ")}" else plain)
+    return prefix + (russian[plain] ?: if(plain.startsWith("Enter ")) "Введите ${russian[plain.removePrefix("Enter ")] ?: plain.removePrefix("Enter ")}" else localizeServiceFailure(plain))
 }
 @Composable fun TvText(text: String, modifier: Modifier = Modifier, color: Color = Color.Unspecified,
     fontSize: TextUnit = TextUnit.Unspecified, maxLines: Int = Int.MAX_VALUE,

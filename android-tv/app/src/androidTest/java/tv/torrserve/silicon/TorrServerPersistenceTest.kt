@@ -12,7 +12,7 @@ import tv.torrserve.silicon.core.storage.SettingsStore
 
 @RunWith(AndroidJUnit4::class)
 class TorrServerPersistenceTest {
-    private val app get() = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as TorrServeApplication
+    private val app get() = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as TorrFrameApplication
     @Test fun connectionAndBootPreferenceSurviveReloadWithoutLosingExistingSettings() = runBlocking {
         app.graph.ready.await()
         val original = app.graph.settings.state.value

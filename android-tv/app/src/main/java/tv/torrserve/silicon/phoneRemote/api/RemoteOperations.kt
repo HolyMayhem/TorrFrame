@@ -17,7 +17,7 @@ data class RemoteOperation(val id: String, val owner: String, val requestId: Str
         .put("status", status).put("error", error).put("conflict", conflict).apply { if (includeResult) put("result", result ?: JSONObject.NULL) }
 }
 class RemoteOperations(private val scope: CoroutineScope, private val execute: suspend (RemoteSession, String, JSONObject) -> JSONObject,
-    private val errorMessage: (Exception) -> String) {
+    private val errorMessage: (Exception, String) -> String) {
     private val records = LinkedHashMap<String, RemoteOperation>()
     private val jobs = java.util.concurrent.ConcurrentHashMap<String, Job>()
     private val permits = Semaphore(2)
@@ -30,6 +30,7 @@ class RemoteOperations(private val scope: CoroutineScope, private val execute: s
         records.values.filter { it.owner !in active && it.status == "running" }.forEach { jobs[it.id]?.cancel() }
     }
     @Synchronized fun submit(session: RemoteSession, request: JSONObject): JSONObject {
+        val language = request.optString("language", "en"); require(language in listOf("ru", "en"))
         val requestId = request.getString("requestId"); require(requestId.matches(Regex("[A-Za-z0-9_-]{16,64}")))
         records.values.firstOrNull { it.owner == session.id && it.requestId == requestId }?.let { return JSONObject().put("operationId", it.id) }
         check(records.values.count { it.status == "running" } < 8)
@@ -41,14 +42,14 @@ class RemoteOperations(private val scope: CoroutineScope, private val execute: s
         mutable.tryEmit(operation.json())
         val job = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                val result = withTimeout(minOf(120_000, (session.expiresAt - System.currentTimeMillis()).coerceAtLeast(1))) { permits.withPermit { execute(session, type, args) } }
+                val result = withTimeout(minOf(if (type == "search") 240_000 else 120_000, (session.expiresAt - System.currentTimeMillis()).coerceAtLeast(1))) { permits.withPermit { execute(session, type, args) } }
                 check(result.toString().toByteArray(Charsets.UTF_8).size <= 512 * 1024) { "Remote response limit" }
                 update(operation.copy(status = "completed", result = result))
             } catch (e: Exception) {
                 if (e is CancellationException && e !is TimeoutCancellationException) {
                     update(operation.copy(status = "cancelled")); throw e
                 }
-                update(operation.copy(status = "failed", error = errorMessage(e), conflict = e is SettingsConflict))
+                update(operation.copy(status = "failed", error = errorMessage(e, language), conflict = e is SettingsConflict))
             } finally { jobs.remove(operation.id) }
         }
         jobs[operation.id] = job; job.start()

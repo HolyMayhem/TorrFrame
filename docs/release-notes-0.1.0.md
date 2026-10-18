@@ -1,4 +1,4 @@
-# TorrServe Silicon TV 0.1.0 — local preview
+# TorrFrame TV 0.1.0 — local preview
 
 A native Android TV application with a bundled ARM64 TorrServer, remote-friendly
 Compose for TV screens, Jackett search, a persistent library and Media3 playback.

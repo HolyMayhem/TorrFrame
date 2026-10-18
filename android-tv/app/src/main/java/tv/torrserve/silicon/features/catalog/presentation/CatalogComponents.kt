@@ -20,12 +20,19 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.*
-import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import androidx.compose.foundation.Image
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import tv.torrserve.silicon.features.catalog.domain.*
 import tv.torrserve.silicon.ui.components.*
 import tv.torrserve.silicon.ui.theme.*
+import tv.torrserve.silicon.core.network.CatalogNetworkSettings
+
+val LocalCatalogImageSettings = staticCompositionLocalOf { CatalogNetworkSettings() }
 
 @Composable internal fun catalogText(en: String, ru: String) = if (LocalUiLanguage.current == "ru") ru else en
+@Composable internal fun relatedTitle(type: CatalogType) = if (type == CatalogType.Movie)
+    catalogText("Similar movies", "Похожие фильмы") else catalogText("Similar series", "Похожие сериалы")
 @Composable internal fun filterTitle(filter: CatalogFilter): String = when (filter) {
     CatalogFilter.All -> catalogText("All", "Все")
     CatalogFilter.Movies -> catalogText("Movies", "Фильмы")
@@ -52,14 +59,14 @@ import tv.torrserve.silicon.ui.theme.*
     CatalogSection.TrendingTv -> catalogText("Trending series", "Сериалы в тренде")
 }
 @Composable internal fun CatalogImage(url: String, title: String, modifier: Modifier = Modifier) {
-    var failed by remember(url) { mutableStateOf(false) }
+    val painter = rememberCatalogImagePainter(url)
+    val state by painter.state.collectAsStateWithLifecycle()
     Box(modifier.background(SurfaceSecondary), contentAlignment = Alignment.Center) {
-        if (url.isBlank() || failed) Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally,
+        if (url.isBlank() || state is AsyncImagePainter.State.Error) Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             TvText("◇", color = Muted, style = MaterialTheme.typography.headlineMedium, translate = false)
             TvText(title, maxLines = 3, overflow = TextOverflow.Ellipsis, translate = false, color = Muted)
-        } else AsyncImage(url, contentDescription = title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
-            onError = { failed = true })
+        } else Image(painter, contentDescription = title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
 }
 @Composable internal fun CatalogPosterCard(item: CatalogItem, modifier: Modifier = Modifier,
@@ -115,11 +122,11 @@ import tv.torrserve.silicon.ui.theme.*
 }
 
 @Composable private fun CollectionMiniPoster(url: String, modifier: Modifier) {
-    var failed by remember(url) { mutableStateOf(false) }
+    val painter = rememberCatalogImagePainter(url)
+    val state by painter.state.collectAsStateWithLifecycle()
     Box(modifier.background(SurfaceSecondary), contentAlignment = Alignment.Center) {
-        if (url.isBlank() || failed) TvText("◇", color = Muted, translate = false)
-        else AsyncImage(url, contentDescription = null, modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop, onError = { failed = true })
+        if (url.isBlank() || state is AsyncImagePainter.State.Error) TvText("◇", color = Muted, translate = false)
+        else Image(painter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
 }
 @Composable internal fun CatalogSkeleton(modifier: Modifier = Modifier) {
@@ -127,7 +134,7 @@ import tv.torrserve.silicon.ui.theme.*
 }
 @Composable internal fun CatalogError(retry: () -> Unit, modifier: Modifier = Modifier, cached: Boolean = false) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        TvText(if (cached) catalogText("Showing saved data. Could not refresh TMDB.", "Показаны сохранённые данные. Не удалось обновить TMDB.")
+        TvText(if (cached) catalogText("Showing saved data. Could not refresh the catalog.", "Показаны сохранённые данные. Не удалось обновить каталог.")
             else catalogText("Could not load the catalog. Check your internet connection.", "Не удалось загрузить каталог. Проверьте подключение к интернету."), color = Muted)
         TvAction(catalogText("Retry", "Повторить"), action = retry)
     }

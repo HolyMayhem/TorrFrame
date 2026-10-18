@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getOperation, getState, RemoteError, request, submit } from "./api";
 import { applyEvent } from "./protocol";
@@ -8,6 +9,8 @@ export function useRemote() {
     [pairRequired, setPairRequired] = useState(false),
     [error, setError] = useState(""),
     [pairGeneration, setPairGeneration] = useState(0);
+  const requests = useRef(new AbortController());
+  const pendingOperations = useRef(new Set<() => void>());
   const latest = useRef<Snapshot | null>(null),
     socket = useRef<WebSocket | null>(null),
     refreshing = useRef<Promise<void> | null>(null),
@@ -19,10 +22,12 @@ export function useRemote() {
       refreshAgain.current = true;
       return refreshing.current;
     }
+    const owner = requests.current;
     const work = async () => {
       do {
         refreshAgain.current = false;
-        let next = await getState();
+        let next = await getState(owner.signal);
+        if (owner.signal.aborted) return;
         const events = queued.current;
         queued.current = [];
         for (const event of events) {
@@ -46,15 +51,17 @@ export function useRemote() {
     try {
       await pending;
     } finally {
-      refreshing.current = null;
+      if (refreshing.current === pending) refreshing.current = null;
     }
   }, []);
   useEffect(() => {
+    requests.current = new AbortController();
+    const owner = requests.current;
     let disposed = false,
       attempt = 0,
       timer: ReturnType<typeof setTimeout> | undefined;
     const fail = (e: unknown) => {
-      const err = e instanceof Error ? e.message : "Нет связи";
+      const err = e instanceof Error ? e.message : t("Нет связи");
       if (!disposed) {
         setConnected(false);
         setError(err);
@@ -115,7 +122,7 @@ export function useRemote() {
         ws.onclose = () => {
           if (disposed) return;
           setConnected(false);
-          setError("Связь прервана. Переподключаемся…");
+          setError(t("Связь прервана. Переподключаемся…"));
           timer = setTimeout(
             () => void connect(),
             Math.min(15000, 500 * 2 ** attempt++),
@@ -144,7 +151,7 @@ export function useRemote() {
                 ? "iPhone"
                 : /Android/i.test(navigator.userAgent)
                   ? "Android"
-                  : "Браузер",
+                  : t("Браузер"),
           });
         } catch (e) {
           try {
@@ -161,12 +168,18 @@ export function useRemote() {
     return () => {
       disposed = true;
       clearTimeout(timer);
+      owner.abort();
+      for (const cancel of pendingOperations.current) cancel();
+      pendingOperations.current.clear();
+      listeners.current.clear();
+      queued.current = [];
+      refreshing.current = null;
       socket.current?.close();
       socket.current = null;
     };
   }, [refresh, pairGeneration]);
   const pairCode = useCallback(async (code: string) => {
-    await request("/pair", { code, device: "Браузер" });
+    await request("/pair", { code, device: t("Браузер") });
     setError("");
     setPairRequired(false);
     setPairGeneration((value) => value + 1);
@@ -182,8 +195,17 @@ export function useRemote() {
         !socket.current ||
         socket.current.readyState !== WebSocket.OPEN
       )
-        throw new RemoteError("Дождитесь восстановления связи с телевизором.");
-      const { operationId } = await submit(type, args, current.csrf);
+        throw new RemoteError(
+          t("Дождитесь восстановления связи с телевизором."),
+        );
+      const owner = requests.current;
+      const { operationId } = await submit(
+        type,
+        args,
+        current.csrf,
+        owner.signal,
+      );
+      if (owner.signal.aborted) throw new RemoteError(t("Операция отменена."));
       return await new Promise<T>((resolve, reject) => {
         let finished = false;
         let poll: ReturnType<typeof setTimeout> | undefined;
@@ -192,16 +214,19 @@ export function useRemote() {
             finish(
               undefined,
               new RemoteError(
-                "Операция ещё выполняется. Проверьте её состояние на телевизоре.",
+                t(
+                  "Операция ещё выполняется. Проверьте её состояние на телевизоре.",
+                ),
               ),
             ),
-          125000,
+          type === "search" ? 245000 : 125000,
         );
         const cleanup = () => {
           finished = true;
           clearTimeout(deadline);
           clearTimeout(poll);
           listeners.current.delete(operationId);
+          pendingOperations.current.delete(cancel);
         };
         const finish = (op?: Operation, err?: Error) => {
           if (finished) return;
@@ -213,12 +238,12 @@ export function useRemote() {
           if (!op || op.status === "running") return;
           cleanup();
           if (op.status === "completed") resolve(op.result as T);
-          else reject(new RemoteError(op.error || "Операция отменена."));
+          else reject(new RemoteError(op.error || t("Операция отменена.")));
         };
         const check = async () => {
           if (finished) return;
           try {
-            const op = await getOperation(operationId);
+            const op = await getOperation(operationId, owner.signal);
             finish(op);
             if (!finished) poll = setTimeout(() => void check(), 2500);
           } catch (e) {
@@ -227,6 +252,9 @@ export function useRemote() {
             else if (!finished) poll = setTimeout(() => void check(), 2500);
           }
         };
+        const cancel = () =>
+          finish(undefined, new RemoteError(t("Операция отменена.")));
+        pendingOperations.current.add(cancel);
         listeners.current.set(operationId, (op) => {
           if (op.status !== "running") void check();
         });

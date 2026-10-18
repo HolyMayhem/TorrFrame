@@ -11,6 +11,10 @@ import kotlin.random.Random
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
+fun interface CatalogJsonClient {
+    suspend fun get(path: String, parameters: Map<String, String>): JSONObject
+}
+
 /** Shared TMDB auth, cancellation and rate budget for metadata and catalog requests. */
 class TmdbClient(
     private val http: Http,
@@ -19,10 +23,10 @@ class TmdbClient(
     private val now: () -> Long = System::currentTimeMillis,
     private val pause: suspend (Long) -> Unit = { delay(it) },
     private val jitter: () -> Long = { Random.nextLong(100, 350) },
-) {
+) : CatalogJsonClient {
     private val permits = Semaphore(2)
     @Volatile private var nextAllowedAt = 0L
-    suspend fun get(path: String, parameters: Map<String, String>): JSONObject = permits.withPermit {
+    override suspend fun get(path: String, parameters: Map<String, String>): JSONObject = permits.withPermit {
         val url = (baseUrl.trimEnd('/') + "/" + path.trimStart('/')).toHttpUrl().newBuilder()
         parameters.forEach { (k, v) -> url.addQueryParameter(k, v) }
         url.addQueryParameter("api_key", key())

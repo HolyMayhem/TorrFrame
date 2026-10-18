@@ -183,7 +183,7 @@ Back из диалогов, восстановление фокуса и про�
 - `android-tv/app/src/androidTest/java/tv/torrserve/silicon/RemoteNavigationTest.kt`
 - `android-tv/app/src/main/AndroidManifest.xml`
 - `android-tv/app/src/main/java/tv/torrserve/silicon/MainActivity.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/TorrServeApplication.kt`
+- `android-tv/app/src/main/java/tv/torrserve/silicon/TorrFrameApplication.kt`
 - `android-tv/app/src/main/java/tv/torrserve/silicon/core/network/Http.kt`
 - `android-tv/app/src/main/java/tv/torrserve/silicon/core/server/ServerController.kt`
 - `android-tv/app/src/main/java/tv/torrserve/silicon/core/server/TorrServerApi.kt`

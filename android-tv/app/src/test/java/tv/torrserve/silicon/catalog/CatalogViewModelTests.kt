@@ -17,6 +17,8 @@ class CatalogViewModelTests {
     @Before fun main() { Dispatchers.setMain(dispatcher) }
     @After fun clean() { store.clear();Dispatchers.resetMain() }
     private class Repository : CatalogRepository {
+        override fun related(ref: CatalogRef, source: CatalogRelatedSource, language: String, page: Int, force: Boolean) =
+            flowOf(CatalogLoad(data = CatalogPage(emptyList(), page, 1)))
         val queries=mutableListOf<String>(); val pages=mutableListOf<Int>(); var delayMs=0L;var failPage=0
         var searchCancelled=false;val sections=mutableListOf<CatalogSection>();val detailLanguages=mutableListOf<String>()
         val discoveries=mutableListOf<Triple<CatalogFilter,CatalogType,String>>();val discoverPages=mutableListOf<Int>();var genreDelay=0L
@@ -160,4 +162,24 @@ class CatalogViewModelTests {
         vm.filter(CatalogFilter.Series);runCurrent();assertEquals(listOf(CatalogSection.PopularTv,CatalogSection.TrendingTv),repo.sections)
         vm.filter(CatalogFilter.All);runCurrent();assertEquals(6,repo.sections.size)
     }
+    @Test fun developerRefreshReloadsCurrentGenreOncePerRequestAndPreservesSelection()=runTest {
+        val repo=Repository();val vm=vm(repo);runCurrent()
+        vm.filter(CatalogFilter.Comedy);runCurrent();vm.open(CatalogRef(1,CatalogType.Movie));runCurrent()
+        val count=repo.discoveries.size;val details=repo.detailLanguages.size;val sections=repo.sections.size
+        vm.refresh(1);runCurrent()
+        assertEquals(count+2,repo.discoveries.size);assertEquals(details+1,repo.detailLanguages.size)
+        assertEquals(sections,repo.sections.size);assertEquals(CatalogFilter.Comedy,vm.state.value.filter)
+        assertEquals(CatalogRef(1,CatalogType.Movie),vm.state.value.selected)
+        vm.refresh(1);runCurrent();assertEquals(count+2,repo.discoveries.size)
+        vm.refresh(2);runCurrent();assertEquals(count+4,repo.discoveries.size)
+    }
+    @Test fun developerRefreshCancelsOldTextSearchAndKeepsQuery()=runTest {
+        val repo=Repository().apply{delayMs=1000};val vm=vm(repo);runCurrent()
+        vm.query("Interstellar");advanceTimeBy(451);runCurrent()
+        vm.refresh(1);runCurrent();assertTrue(repo.searchCancelled)
+        assertEquals(listOf("Interstellar","Interstellar"),repo.queries)
+        advanceTimeBy(1001);runCurrent();assertEquals("Interstellar",vm.state.value.query)
+        assertEquals(1,vm.state.value.results.items.size)
+    }
+
 }

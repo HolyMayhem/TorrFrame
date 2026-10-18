@@ -1,6 +1,7 @@
 package tv.torrserve.silicon.features.catalog.presentation
 
 import androidx.compose.animation.animateColorAsState
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,11 +9,14 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -23,14 +27,22 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
-import coil3.compose.AsyncImage
+import androidx.tv.material3.Button
+import androidx.tv.material3.ButtonDefaults
+import coil3.compose.AsyncImagePainter
+import androidx.compose.foundation.Image
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -38,17 +50,94 @@ import tv.torrserve.silicon.features.catalog.domain.*
 import tv.torrserve.silicon.ui.components.*
 import tv.torrserve.silicon.ui.theme.*
 
-@Composable internal fun CatalogDetailsScreen(state: CatalogUi, back: () -> Unit, retry: () -> Unit) {
+@Composable internal fun CatalogDetailsScreen(state: CatalogUi, back: () -> Unit,
+    torrentSearch: ((CatalogItem) -> Unit)? = null, restoreTorrentFocus: Boolean = false,
+    toggleList: ((CatalogItem, CatalogUserList) -> Unit)? = null,
+    openRelated: ((CatalogRef) -> Unit)? = null, retryRelated: () -> Unit = {}, moreRelated: () -> Unit = {},
+    relatedHeld: ((CatalogItem, FocusRequester) -> Unit)? = null, retry: () -> Unit) {
     val backFocus = remember { FocusRequester() }
+    val actionFocus = remember { listOf("torrent", "jackett", "favorite", "later").associateWith { FocusRequester() } }
+    val torrentFocus = actionFocus.getValue(if(torrentSearch!=null) "torrent" else "jackett")
+    var focusedAction by remember(state.selected) { mutableStateOf<String?>(null) }
+    var actionsFocused by remember { mutableStateOf(false) }
+    var restoreActionAfterFailure by remember { mutableStateOf<String?>(null) }
     val heroFocus = remember { FocusRequester() }
     val details = state.details.data
+    val hasActions = torrentSearch != null || toggleList != null
+    val actions: (@Composable () -> Unit)? = if (details != null && hasActions) {{
+        DetailActions(details.item, state, actionFocus, backFocus, torrentSearch, toggleList,
+            focused = { focusedAction=it }, groupFocused = { actionsFocused=it })
+    }} else null
     val backdrop = details?.item?.backdrop.orEmpty()
     // An image failure changes only the presentation; metadata and its cache stay intact.
     var backdropFailed by remember(state.selected, backdrop) { mutableStateOf(false) }
     var restoreHeroAfterFailure by remember(state.selected, backdrop) { mutableStateOf(false) }
     var heroFocused by remember { mutableStateOf(false) }
+    val backdropPainter = rememberCatalogImagePainter(backdrop.replace("/t/p/w780/", "/t/p/w1280/"))
+    val backdropState by backdropPainter.state.collectAsStateWithLifecycle()
+    LaunchedEffect(backdropState) {
+        when (backdropState) {
+            is AsyncImagePainter.State.Error -> if (!backdropFailed) {
+                restoreHeroAfterFailure = heroFocused
+                restoreActionAfterFailure = focusedAction.takeIf { actionsFocused }
+                backdropFailed = true
+            }
+            is AsyncImagePainter.State.Success -> if (backdropFailed) {
+                restoreHeroAfterFailure = heroFocused
+                restoreActionAfterFailure = focusedAction.takeIf { actionsFocused }
+                backdropFailed = false
+            }
+            else -> Unit
+        }
+    }
     val cinematic = backdrop.isNotBlank() && !backdropFailed
     val scroll = rememberLazyListState()
+    val relatedRow = rememberLazyListState()
+    val relatedGrid = rememberLazyGridState()
+    val relatedRestore = remember { FocusRequester() }
+    val collectionBack = remember { FocusRequester() }
+    var expandedRelated by rememberSaveable { mutableStateOf(false) }
+    var relatedRowKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var relatedGridKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var restoreRelatedRow by rememberSaveable { mutableStateOf(false) }
+    var restoreRelatedGrid by rememberSaveable { mutableStateOf(false) }
+    val relatedGroup = "related:${state.selected?.key}"
+    val relatedTitle = relatedTitle(state.selected?.type ?: CatalogType.Movie)
+    val posterWidth = if (LocalTvLayout.current.short) 104.dp else 116.dp
+    fun relatedSelected(ref: CatalogRef) {
+        if (expandedRelated) { relatedGridKey = ref.key; restoreRelatedGrid = true }
+        else { relatedRowKey = ref.key; restoreRelatedRow = true }
+        openRelated?.invoke(ref)
+    }
+    fun collapseRelated() {
+        expandedRelated = false; relatedRowKey = "more:$relatedGroup"; restoreRelatedRow = true
+    }
+    fun retryRelatedList() {
+        // Retry removes its button after success; hand focus to a poster instead
+        // of leaving the remote on a control that no longer exists.
+        if (expandedRelated) restoreRelatedGrid = true else restoreRelatedRow = true
+        retryRelated()
+    }
+    if (expandedRelated && openRelated != null) {
+        BackHandler(onBack = ::collapseRelated)
+        CatalogCollectionScreen(relatedTitle, state.related, relatedGrid, posterWidth, collectionBack,
+            relatedGridKey, relatedRestore, !restoreRelatedGrid, ::collapseRelated, ::retryRelatedList, moreRelated,
+            open = ::relatedSelected, focused = { relatedGridKey = it.ref.key },
+            held = relatedHeld ?: { _, _ -> }, locale = state.language)
+        LaunchedEffect(restoreRelatedGrid, state.related.loading, state.related.items) {
+            if (restoreRelatedGrid && !state.related.loading) {
+                val index = if (relatedGridKey == null && state.related.items.isNotEmpty()) 0
+                    else state.related.items.indexOfFirst { it.ref.key == relatedGridKey }
+                if (index >= 0) relatedGridKey = state.related.items[index].ref.key
+                withFrameNanos { }; withFrameNanos { }
+                if (index >= 0 && relatedGrid.layoutInfo.visibleItemsInfo.none { it.key == relatedGridKey }) relatedGrid.scrollToItem(index)
+                withFrameNanos { }; withFrameNanos { }
+                if (index >= 0) relatedRestore.requestFocus() else collectionBack.requestFocus()
+                restoreRelatedGrid = false
+            }
+        }
+        return
+    }
     BoxWithConstraints(Modifier.fillMaxSize().testTag("catalog:details")) {
         // Observe the current theme density even if physical constraints did not change.
         val density = LocalDensity.current
@@ -63,15 +152,12 @@ import tv.torrserve.silicon.ui.theme.*
             item("hero") {
                 // The back button keeps the same composition/focus identity while the layout changes.
                 Box(Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                    val focusModifier = Modifier.focusRequester(heroFocus).focusProperties { up = backFocus }
+                    val focusModifier = Modifier.focusRequester(heroFocus).focusProperties { up = backFocus; if (hasActions) down = torrentFocus }
                         .onFocusChanged { heroFocused = it.isFocused }.testTag("catalog:detail:hero")
                     if (details != null && cinematic) CinematicDetails(details, heroHeight, cinematicPosterWidth, titleSize,
-                        focusModifier, onBackdropError = {
-                            restoreHeroAfterFailure = heroFocused
-                            backdropFailed = true
-                        })
+                        focusModifier, actions, backdropPainter)
                     else if (details != null) Box(Modifier.padding(top = 56.dp)) {
-                        PosterDetails(details, largePosterWidth, titleSize, focusModifier)
+                        PosterDetails(details, largePosterWidth, titleSize, focusModifier, actions)
                     }
                     else if (state.details.loading) Row(Modifier.padding(top = 56.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                         CatalogSkeleton(Modifier.width(160.dp))
@@ -79,14 +165,20 @@ import tv.torrserve.silicon.ui.theme.*
                     }
                     TvBackAction(modifier = Modifier.align(Alignment.TopStart)
                         .padding(if (cinematic) 16.dp else 0.dp).focusRequester(backFocus)
-                        .focusProperties { if (details != null) down = heroFocus }
+                        .focusProperties { if (details != null) { down = heroFocus; if(hasActions)right=torrentFocus } }
                         .testTag("catalog:back"), action = back)
                 }
             }
             if (state.details.error) item("error") { CatalogError(retry, cached = details != null) }
             if (details != null) {
-                if (cinematic) item("overview") { DetailSynopsis(details, Modifier.fillMaxWidth()) }
+                item("overview") { DetailSynopsis(details, Modifier.fillMaxWidth()) }
                 item("credits") { DetailCredits(details) }
+                if (openRelated != null && (state.related.items.isNotEmpty() || state.related.loading || state.related.error)) item("related") {
+                    CatalogFeedRow(relatedGroup, relatedTitle, state.related, posterWidth, relatedRow, null, null,
+                        relatedRowKey, relatedRestore, retry = ::retryRelatedList,
+                        more = { relatedRowKey = "more:$relatedGroup"; expandedRelated = true },
+                        open = ::relatedSelected, focused = { relatedRowKey = it.ref.key }, held = relatedHeld ?: { _, _ -> })
+                }
                 item("source") {
                     TvText(catalogText("Movie information and images from TMDB", "Информация и изображения предоставлены TMDB"),
                         color = Muted, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(8.dp))
@@ -94,65 +186,149 @@ import tv.torrserve.silicon.ui.theme.*
             }
         }
     }
-    LaunchedEffect(state.selected) { withFrameNanos { }; backFocus.requestFocus() }
-    // Keep the same remote focus target if the backdrop fails while reading the hero.
+    LaunchedEffect(state.selected) {
+        withFrameNanos { }
+        if (restoreTorrentFocus && torrentSearch!=null && details!=null) { restoreRelatedRow = false; torrentFocus.requestFocus() }
+        else if (!restoreRelatedRow) backFocus.requestFocus()
+    }
+    LaunchedEffect(restoreRelatedRow, state.related.loading, state.related.items, details != null) {
+        if (restoreRelatedRow && details != null && !state.related.loading) {
+            val index = if (relatedRowKey == null && state.related.items.isNotEmpty()) 0
+                else if (relatedRowKey == "more:$relatedGroup") state.related.items.take(10).size
+                else state.related.items.take(10).indexOfFirst { it.ref.key == relatedRowKey }
+            if (index >= 0 && state.related.items.isNotEmpty()) {
+                if (relatedRowKey == null) relatedRowKey = state.related.items[index].ref.key
+                withFrameNanos { }; withFrameNanos { }
+                if (scroll.layoutInfo.visibleItemsInfo.none { it.key == "related" }) scroll.scrollToItem(if (state.details.error) 4 else 3)
+                val key = if (relatedRowKey == "more:$relatedGroup") "more" else relatedRowKey
+                if (relatedRow.layoutInfo.visibleItemsInfo.none { it.key == key }) relatedRow.scrollToItem(index)
+                withFrameNanos { }; withFrameNanos { }
+                relatedRestore.requestFocus()
+            } else backFocus.requestFocus()
+            restoreRelatedRow = false
+        }
+    }
+    // Keep the same remote target when the backdrop fails or recovers while reading the hero.
     LaunchedEffect(backdropFailed) {
-        if (backdropFailed && restoreHeroAfterFailure) {
+        if (restoreActionAfterFailure!=null) {
+            withFrameNanos { };actionFocus.getValue(restoreActionAfterFailure!!).requestFocus();restoreActionAfterFailure=null
+        } else if (restoreHeroAfterFailure) {
             withFrameNanos { }; heroFocus.requestFocus(); restoreHeroAfterFailure = false
         }
     }
 }
 
 @Composable private fun CinematicDetails(details: CatalogDetails, height: Dp, posterWidth: Dp,
-    titleSize: TextUnit, modifier: Modifier, onBackdropError: () -> Unit) {
+    titleSize: TextUnit, modifier: Modifier, actions: (@Composable () -> Unit)?, backdropPainter: AsyncImagePainter) {
     val background = Background
     val posterOverlap = posterWidth * 1.5f * .42f
     Column(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth()) {
             DetailRegion(modifier.fillMaxWidth(), padding = 0.dp) {
                 Box(Modifier.fillMaxWidth().testTag("catalog:detail:cinematic")) {
-                    AsyncImage(details.item.backdrop.replace("/t/p/w780/", "/t/p/w1280/"), contentDescription = null,
-                        contentScale = ContentScale.Crop, onError = { onBackdropError() },
+                    Image(backdropPainter, contentDescription = null,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier.matchParentSize().clip(RoundedCornerShape(12.dp)))
                     Box(Modifier.matchParentSize().background(Brush.horizontalGradient(
-                        0f to background.copy(alpha = .45f), .4f to background.copy(alpha = .18f),
-                        1f to background.copy(alpha = .04f))))
+                        0f to background.copy(alpha = .04f), .6f to background.copy(alpha = .18f),
+                        1f to background.copy(alpha = .45f))))
                     Box(Modifier.matchParentSize().background(Brush.verticalGradient(
                         0f to background.copy(alpha = .2f), .35f to background.copy(alpha = .08f),
                         .7f to background.copy(alpha = .6f), 1f to background)))
                     Column(Modifier.fillMaxWidth().heightIn(min = height)
-                        .padding(start = 16.dp, end = posterWidth + 48.dp, top = 68.dp, bottom = 20.dp),
+                        .padding(start = posterWidth + 48.dp, end = 16.dp, top = 68.dp, bottom = 20.dp),
                         verticalArrangement = Arrangement.Bottom) {
                         DetailTitle(details, titleSize, showOriginal = false)
                     }
                 }
             }
             // Only the top part covers the frame; the rest hangs into the section below.
-            DetailPoster(details, Modifier.align(Alignment.BottomEnd).offset(y = posterOverlap)
-                .padding(end = 16.dp).width(posterWidth))
+            DetailPoster(details, Modifier.align(Alignment.BottomStart).offset(y = posterOverlap)
+                .padding(start = 16.dp).width(posterWidth))
         }
         Column(Modifier.fillMaxWidth().heightIn(min = posterOverlap)
-            .padding(start = 16.dp, end = posterWidth + 48.dp, top = 16.dp, bottom = 8.dp),
+            .padding(start = posterWidth + 48.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            actions?.invoke()
             AccentMetadata(details)
         }
     }
 }
 
 @Composable private fun PosterDetails(details: CatalogDetails, posterWidth: Dp, titleSize: TextUnit,
-    modifier: Modifier) {
+    modifier: Modifier, actions: (@Composable () -> Unit)?) {
     Row(Modifier.fillMaxWidth().testTag("catalog:detail:posterLayout").padding(8.dp),
         horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Top) {
-        Column(Modifier.width(posterWidth), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            DetailPoster(details, Modifier.fillMaxWidth())
-            if (details.item.date.isNotBlank()) DetailCredit(catalogText("Premiere", "Премьера"), detailDate(details.item.date))
-            if (details.directors.isNotEmpty()) DetailCredit(catalogText("Director", "Режиссёр"), details.directors.joinToString(", "))
-        }
-        Box(Modifier.width(1.dp).height(posterWidth * 1.5f).background(Outline.copy(alpha = .5f)))
+        DetailPoster(details, Modifier.width(posterWidth))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            DetailRegion(modifier.fillMaxWidth()) { DetailHeading(details, titleSize) }
-            DetailSynopsis(details, Modifier.fillMaxWidth())
+            DetailRegion(modifier.fillMaxWidth()) { DetailTitle(details, titleSize, showOriginal = false) }
+            actions?.invoke()
+            AccentMetadata(details)
         }
+    }
+}
+
+@Composable private fun DetailActions(item: CatalogItem, state: CatalogUi, focus: Map<String,FocusRequester>,
+    back: FocusRequester, torrentSearch: ((CatalogItem) -> Unit)?, toggleList: ((CatalogItem, CatalogUserList) -> Unit)?,
+    focused: (String) -> Unit, groupFocused: (Boolean) -> Unit) {
+    val entry = state.userEntries.firstOrNull { it.ref == item.ref }
+    val favorite = entry?.favorite == true
+    val later = entry?.watchLater == true
+    val favoriteFocus = focus.getValue("favorite")
+    val laterFocus = focus.getValue("later")
+    var restoreList by remember { mutableStateOf<CatalogUserList?>(null) }
+    var jackett by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().onFocusChanged { groupFocused(it.hasFocus) }.focusGroup().testTag("catalog:detail:actions"), horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        DetailAction("TorrentSearch", Modifier.weight(1f).focusRequester(focus.getValue("torrent")).onFocusChanged { if(it.isFocused)focused("torrent") }.focusProperties { up=back }
+            .testTag("catalog:torrentsearch"), enabled=torrentSearch!=null) { torrentSearch?.invoke(item) }
+        DetailAction("Jackett", Modifier.weight(1f).focusRequester(focus.getValue("jackett")).onFocusChanged { if(it.isFocused)focused("jackett") }.focusProperties { up=back }.testTag("catalog:jackett")) { jackett=true }
+        DetailAction(if(favorite)catalogText("Remove favorite", "Удалить из избранного") else catalogText("Add to favorites", "Добавить в избранное"),
+            Modifier.weight(1f).focusRequester(favoriteFocus).onFocusChanged { if(it.isFocused)focused("favorite") }.focusProperties { up=back }.testTag("catalog:favorite"),
+            selected=favorite, enabled=state.listsReady && !state.listBusy && toggleList!=null) {
+            restoreList=CatalogUserList.Favorites;toggleList?.invoke(item,CatalogUserList.Favorites)
+        }
+        DetailAction(if(later)catalogText("Remove from watch later", "Удалить из «Смотреть позже»") else catalogText("Watch later", "Смотреть позже"),
+            Modifier.weight(1f).focusRequester(laterFocus).onFocusChanged { if(it.isFocused)focused("later") }.focusProperties { up=back }.testTag("catalog:watch-later"),
+            selected=later, enabled=state.listsReady && !state.listBusy && toggleList!=null) {
+            restoreList=CatalogUserList.WatchLater;toggleList?.invoke(item,CatalogUserList.WatchLater)
+        }
+    }
+    if(state.listError)TvText(catalogText("Could not save the list. Try again.", "Не удалось сохранить список. Попробуйте ещё раз."),color=Muted)
+    LaunchedEffect(state.listBusy,restoreList) {
+        if(!state.listBusy && restoreList!=null) {
+            withFrameNanos { }
+            if(restoreList==CatalogUserList.Favorites)favoriteFocus.requestFocus()else laterFocus.requestFocus()
+            restoreList=null
+        }
+    }
+    if(jackett) {
+        val close=remember { FocusRequester() }
+        Dialog(onDismissRequest={jackett=false}) {
+            Column(Modifier.width(360.dp).background(Surface,RoundedCornerShape(20.dp)).padding(20.dp)
+                .testTag("catalog:jackett:placeholder"),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                TvText("Jackett",style=MaterialTheme.typography.titleLarge,translate=false)
+                TvText(catalogText("Jackett search will be available here later.", "Поиск через Jackett появится здесь позже."))
+                TvBackAction(Modifier.focusRequester(close)) { jackett=false }
+            }
+            LaunchedEffect(Unit) { withFrameNanos { };close.requestFocus() }
+        }
+    }
+}
+
+@Composable private fun DetailAction(label: String, modifier: Modifier, enabled: Boolean = true,
+    selected: Boolean = false, action: () -> Unit) {
+    val shape=RoundedCornerShape(10.dp)
+    val motion=rememberTvButtonMotion(enabled,container=if(selected)SurfaceSecondary else Surface,
+        outline=if(selected)Accent else Outline,shape=shape)
+    Button(onClick={motion.activate();action()},enabled=enabled,
+        modifier=modifier.height(40.dp).then(motion.modifier).then(motion.pointerClick(enabled,action=action))
+            .semantics { this.selected=selected },
+        interactionSource=motion.interactions,colors=motion.colors,border=motion.border,
+        shape=ButtonDefaults.shape(shape),contentPadding=PaddingValues(horizontal=8.dp,vertical=4.dp),
+        scale=ButtonDefaults.scale(focusedScale=1f,pressedScale=1f)) {
+        TvText(label,modifier=motion.contentModifier,style=MaterialTheme.typography.labelLarge.copy(fontSize=13.sp,lineHeight=15.sp,textAlign=TextAlign.Center),
+            maxLines=2,overflow=TextOverflow.Ellipsis,translate=false)
     }
 }
 
@@ -160,13 +336,6 @@ import tv.torrserve.silicon.ui.theme.*
     CatalogImage(details.item.poster.replace("/t/p/w342/", "/t/p/w500/"), details.item.title,
         modifier.aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp))
             .border(1.dp, Outline.copy(alpha = .7f), RoundedCornerShape(8.dp)).testTag("catalog:detail:poster"))
-}
-
-@Composable private fun DetailHeading(details: CatalogDetails, titleSize: TextUnit) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        DetailTitle(details, titleSize)
-        DetailMetadata(details)
-    }
 }
 
 @Composable private fun DetailTitle(details: CatalogDetails, titleSize: TextUnit, showOriginal: Boolean = true) {
@@ -179,24 +348,6 @@ import tv.torrserve.silicon.ui.theme.*
             maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("catalog:detail:title"))
         if (showOriginal && details.item.originalTitle.isNotBlank() && details.item.originalTitle != details.item.title)
             TvText(details.item.originalTitle, color = Muted, translate = false)
-    }
-}
-
-@Composable private fun DetailMetadata(details: CatalogDetails) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (details.item.votes > 0) Box(Modifier.background(Accent.copy(alpha = .18f), RoundedCornerShape(8.dp))
-                .padding(horizontal = 12.dp, vertical = 6.dp)) {
-                TvText("★ %.1f".format(Locale.US, details.item.rating), color = AccentText,
-                    style = MaterialTheme.typography.titleMedium, translate = false)
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                details.runtime?.let { TvText("$it " + catalogText("min", "мин."), translate = false) }
-                if (details.item.votes > 0) TvText(formatVotes(details.item.votes) + " " + catalogText("TMDB votes", "оценок TMDB"),
-                    color = Muted, translate = false, style = MaterialTheme.typography.labelLarge)
-            }
-        }
-        if (details.genres.isNotEmpty()) TvText(details.genres.joinToString(" · "), translate = false)
     }
 }
 

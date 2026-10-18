@@ -27,6 +27,7 @@ class LibraryStore(context: Context, databaseName: String = "library.sqlite") : 
     private val metadataLock = Mutex()
     private val manualMetadata = mutableSetOf<String>()
     private val metadataEpochs = mutableMapOf<String, Long>()
+    private var metadataSequence = 0L
     private val revision = MutableStateFlow(0L)
     val changes = revision.asStateFlow()
     val library = revision.mapLatest { list() }
@@ -68,24 +69,29 @@ class LibraryStore(context: Context, databaseName: String = "library.sqlite") : 
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }; changed()
     }
-    suspend fun metadataTicket(hash: String, automatic: Boolean = false): Long? = metadataLock.withLock {
+    private fun exists(hash: String) = readableDatabase.rawQuery("SELECT 1 FROM library WHERE hash=?", arrayOf(hash)).use { it.moveToFirst() }
+    suspend fun metadataTicket(hash: String, automatic: Boolean = false): Long? = withContext(Dispatchers.IO) { metadataLock.withLock {
+        if (!exists(hash)) return@withLock null
         if (automatic && hash in manualMetadata) return@withLock null
         if (!automatic) manualMetadata.add(hash)
-        val next = (metadataEpochs[hash] ?: 0) + 1; metadataEpochs[hash] = next; next
-    }
+        val next = ++metadataSequence; metadataEpochs[hash] = next; next
+    } }
     suspend fun metadata(hash: String, value: Metadata, ticket: Long? = null): Boolean = withContext(Dispatchers.IO) { metadataLock.withLock {
+        if (!exists(hash)) { metadataEpochs.remove(hash); manualMetadata.remove(hash); return@withLock false }
         if (ticket != null && metadataEpochs[hash] != ticket) return@withLock false
-        if (ticket == null) { manualMetadata.add(hash); metadataEpochs[hash] = (metadataEpochs[hash] ?: 0) + 1 }
+        if (ticket == null) { manualMetadata.add(hash); metadataEpochs[hash] = ++metadataSequence }
         val count = writableDatabase.update("library", ContentValues().apply { put("metadata", value.json().toString()) }, "hash=?", arrayOf(hash))
         changed(); count > 0
     } }
     suspend fun clearMetadata(hash: String) = withContext(Dispatchers.IO) { metadataLock.withLock {
-        manualMetadata.add(hash); metadataEpochs[hash] = (metadataEpochs[hash] ?: 0) + 1
+        if (!exists(hash)) return@withLock
+        manualMetadata.add(hash); metadataEpochs[hash] = ++metadataSequence
         writableDatabase.update("library", ContentValues().apply { putNull("metadata") }, "hash=?", arrayOf(hash)); changed()
     } }
     suspend fun rename(hash: String, title: String) = withContext(Dispatchers.IO) { metadataLock.withLock {
         require(title.isNotBlank() && title.length <= 250)
-        manualMetadata.add(hash); metadataEpochs[hash] = (metadataEpochs[hash] ?: 0) + 1
+        require(exists(hash))
+        manualMetadata.add(hash); metadataEpochs[hash] = ++metadataSequence
         val db = writableDatabase; db.beginTransaction()
         try {
             val metadata = db.rawQuery("SELECT metadata FROM library WHERE hash=?", arrayOf(hash)).use { c ->
@@ -97,14 +103,16 @@ class LibraryStore(context: Context, databaseName: String = "library.sqlite") : 
         changed()
     } }
     suspend fun remove(hash: String) = withContext(Dispatchers.IO) { metadataLock.withLock {
-        metadataEpochs[hash] = (metadataEpochs[hash] ?: 0) + 1; manualMetadata.remove(hash)
+        metadataEpochs.remove(hash); manualMetadata.remove(hash)
         writableDatabase.delete("library", "hash=?", arrayOf(hash)); changed()
     } }
     suspend fun checkpoint(hash: String, file: Int, position: Long, duration: Long) = withContext(Dispatchers.IO) {
-        writableDatabase.insertWithOnConflict("playback", null, ContentValues().apply {
-            put("hash", hash); put("file_id", file); put("position", position.coerceAtLeast(0)); put("duration", duration.coerceAtLeast(0))
-            put("updated_at", System.currentTimeMillis())
-        }, SQLiteDatabase.CONFLICT_REPLACE); changed()
+        // A title may be removed while playback is stopping. Check its existence
+        // in the same SQL statement, so a late checkpoint cannot create an orphan.
+        writableDatabase.execSQL("INSERT OR REPLACE INTO playback(hash,file_id,position,duration,updated_at) " +
+            "SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM library WHERE hash=?)",
+            arrayOf<Any>(hash, file, position.coerceAtLeast(0), duration.coerceAtLeast(0), System.currentTimeMillis(), hash))
+        changed()
     }
     suspend fun progress(hash: String, file: Int): Long = withContext(Dispatchers.IO) {
         readableDatabase.rawQuery("SELECT position FROM playback WHERE hash=? AND file_id=?", arrayOf(hash, file.toString())).use {

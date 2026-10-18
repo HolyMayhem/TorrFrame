@@ -51,7 +51,7 @@ import tv.torrserve.silicon.ui.theme.*
 import tv.torrserve.silicon.core.models.LibraryItem
 
 @Composable fun TvAction(label: String, enabled: Boolean = true, modifier: Modifier = Modifier,
-    primary: Boolean = false, selected: Boolean = false, action: () -> Unit) {
+    primary: Boolean = false, selected: Boolean = false, translate: Boolean = true, action: () -> Unit) {
     val shape = RoundedCornerShape(TvDimensions.buttonRadius)
     val motion = rememberTvButtonMotion(enabled,
         container = if(primary) Accent else if(selected) SurfaceSecondary else Surface,
@@ -62,7 +62,24 @@ import tv.torrserve.silicon.core.models.LibraryItem
         interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
-        TvText(label, modifier = motion.contentModifier, style = MaterialTheme.typography.labelLarge)
+        TvText(label, modifier = motion.contentModifier, style = MaterialTheme.typography.labelLarge, translate = translate)
+    }
+}
+@Composable fun TvIconAction(@androidx.annotation.DrawableRes icon: Int, label: String, modifier: Modifier = Modifier,
+    enabled: Boolean = true, primary: Boolean = false, action: () -> Unit) {
+    val shape = CircleShape
+    val motion = rememberTvButtonMotion(enabled,
+        container = if (primary) Accent else Surface, content = if (primary) OnAccent else TextPrimary,
+        outline = if (primary) Accent.copy(alpha = .6f) else Outline, shape = shape)
+    Button(onClick = { motion.activate(); action() }, enabled = enabled,
+        modifier = modifier.size(TvDimensions.actionHeight).then(motion.modifier).then(motion.pointerClick(enabled, action = action)),
+        shape = ButtonDefaults.shape(shape), contentPadding = PaddingValues(0.dp),
+        interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
+        scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Image(painterResource(icon), contentDescription = localize(label),
+                colorFilter = ColorFilter.tint(LocalContentColor.current), modifier = Modifier.size(20.dp).then(motion.contentModifier))
+        }
     }
 }
 @Composable fun TvNavItem(label: String, isSelected: Boolean, modifier: Modifier = Modifier, displayLabel: String = label, action: () -> Unit) {
@@ -84,15 +101,8 @@ import tv.torrserve.silicon.core.models.LibraryItem
     }
 }
 @Composable fun SettingsShortcut(modifier: Modifier = Modifier, isOpen: Boolean = false, open: () -> Unit) {
-    val motion = rememberTvButtonMotion(shape = CircleShape)
-    Button(onClick = { motion.activate(); open() }, modifier = modifier.then(motion.modifier).then(motion.pointerClick(action = open)).size(TvDimensions.actionHeight).testTag("nav:Settings")
-        .semantics { selected = isOpen },
-        shape = ButtonDefaults.shape(CircleShape), contentPadding = PaddingValues(8.dp),
-        interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
-        scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
-        Image(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings_title),
-            colorFilter = ColorFilter.tint(LocalContentColor.current), modifier = Modifier.fillMaxSize().then(motion.contentModifier))
-    }
+    TvIconAction(R.drawable.ic_settings, stringResource(R.string.settings_title),
+        modifier = modifier.testTag("nav:Settings").semantics { selected = isOpen }, action = open)
 }
 @Composable fun BrandMark(modifier: Modifier = Modifier) {
     Image(painterResource(R.drawable.brand_mark), contentDescription = null, modifier = modifier.size(24.dp))
@@ -116,8 +126,8 @@ import tv.torrserve.silicon.core.models.LibraryItem
     var editing by remember { mutableStateOf(false) }
     Column(modifier.testTag("field-group:$label"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         TvText(label, color = Muted, fontSize = 14.sp)
-        TvAction(if (value.isBlank()) { if (russian) stringResource(R.string.field_enter, label) else "Enter $label" } else if(secret) "••••••••" else value,
-            modifier = Modifier.fillMaxWidth().testTag("field:$label")) { editing = true }
+        TvAction(if (value.isBlank()) { stringResource(R.string.field_enter, localize(label)) } else if(secret) "••••••••" else value,
+            modifier = Modifier.fillMaxWidth().testTag("field:$label"), translate = value.isBlank()) { editing = true }
     }
     if (editing) TextEditor(label, value, secret, keyboardType, { editing = false }, russian) { onValue(it); editing = false }
 }
@@ -154,8 +164,8 @@ import tv.torrserve.silicon.core.models.LibraryItem
                 keyboardOptions = options, onKeyboardAction = finishEditing,
                 textStyle = TextStyle(color = TextPrimary, fontSize = 16.sp), cursorBrush = SolidColor(FocusBorderColor))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TvAction(if (russian) stringResource(R.string.dialog_done) else "Done", modifier = Modifier.focusRequester(doneFocus).testTag("dialog:done"), primary = true) { keyboard?.hide(); save(field.text.toString()) }
-                TvAction(if (russian) stringResource(R.string.dialog_cancel) else "Cancel", modifier = Modifier.testTag("dialog:cancel")) { keyboard?.hide(); dismiss() }
+                TvAction(stringResource(R.string.dialog_done), modifier = Modifier.focusRequester(doneFocus).testTag("dialog:done"), primary = true) { keyboard?.hide(); save(field.text.toString()) }
+                TvAction(stringResource(R.string.dialog_cancel), modifier = Modifier.testTag("dialog:cancel")) { keyboard?.hide(); dismiss() }
             }
         }
         LaunchedEffect(Unit) { focus.requestFocus(); if(!hardwareKeyboard) keyboard?.show() }
@@ -163,9 +173,21 @@ import tv.torrserve.silicon.core.models.LibraryItem
 }
 @Composable fun TvToggle(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
     val motion = rememberTvButtonMotion(container = SurfaceSecondary, outline = Color.Transparent)
+    var focused by remember { mutableStateOf(false) }
     val thumbOffset by animateDpAsState(if (checked) 18.dp else 0.dp, tween(if (LocalAnimationsEnabled.current) 180 else 0), label = "switchThumb")
     val trackColor by animateColorAsState(if (checked) Accent else Muted, tween(if (LocalAnimationsEnabled.current) 180 else 0), label = "switchTrack")
-    Button(onClick = { motion.activate(); onChange(!checked) }, modifier = modifier.then(motion.modifier).then(motion.pointerClick { onChange(!checked) }).fillMaxWidth().heightIn(min = TvDimensions.actionHeight)
+    // White is also the focused row background; separate both the track and thumb from it.
+    val whiteChecked = Accent == Color.White && checked
+    val thumbColor by animateColorAsState(if (whiteChecked) OnAccent else Color.White,
+        tween(if (LocalAnimationsEnabled.current) 180 else 0), label = "switchThumbColor")
+    val trackOutline by animateColorAsState(when {
+        whiteChecked -> OnAccent.copy(alpha = .55f)
+        checked && focused -> OnAccent.copy(alpha = .85f)
+        else -> Color.Transparent
+    },
+        tween(if (LocalAnimationsEnabled.current) 180 else 0), label = "switchOutline")
+    Button(onClick = { motion.activate(); onChange(!checked) }, modifier = modifier.onFocusChanged { focused = it.isFocused }
+        .then(motion.modifier).then(motion.pointerClick { onChange(!checked) }).fillMaxWidth().heightIn(min = TvDimensions.actionHeight)
         .semantics { role = Role.Switch; toggleableState = if (checked) ToggleableState.On else ToggleableState.Off },
         shape = ButtonDefaults.shape(RoundedCornerShape(TvDimensions.buttonRadius)),
         interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
@@ -173,9 +195,10 @@ import tv.torrserve.silicon.core.models.LibraryItem
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             TvText(label, Modifier.weight(1f).wrapContentWidth(Alignment.Start).then(motion.contentModifier), style = MaterialTheme.typography.titleMedium)
             TvText(stringResource(if (checked) R.string.toggle_on else R.string.toggle_off))
-            Box(Modifier.width(42.dp).height(24.dp).background(trackColor, RoundedCornerShape(12.dp)).padding(3.dp),
+            Box(Modifier.width(42.dp).height(24.dp).background(trackColor, RoundedCornerShape(12.dp))
+                .border(1.dp, trackOutline, RoundedCornerShape(12.dp)).testTag("toggle:track").padding(3.dp),
                 contentAlignment = Alignment.CenterStart) {
-                Box(Modifier.offset(x = thumbOffset).size(18.dp).background(Color.White, RoundedCornerShape(9.dp)))
+                Box(Modifier.offset(x = thumbOffset).size(18.dp).background(thumbColor, RoundedCornerShape(9.dp)))
             }
         }
     }
@@ -218,7 +241,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
             verticalArrangement = Arrangement.spacedBy(20.dp)) {
             TvText(title, style = MaterialTheme.typography.headlineSmall); TvText(text, color = Muted)
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                TvAction(if (russian) stringResource(R.string.dialog_cancel) else "Cancel", modifier = Modifier.focusRequester(focus), action = dismiss)
+                TvAction(stringResource(R.string.dialog_cancel), modifier = Modifier.focusRequester(focus), action = dismiss)
                 TvAction(confirmLabel, action = confirm)
             }
         }; LaunchedEffect(Unit) { focus.requestFocus() }

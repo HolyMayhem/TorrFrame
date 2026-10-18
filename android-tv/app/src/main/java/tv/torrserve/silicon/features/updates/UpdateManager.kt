@@ -1,5 +1,6 @@
 package tv.torrserve.silicon.features.updates
 
+import tv.torrserve.silicon.core.localization.uiString
 import android.app.Application
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -21,7 +22,7 @@ data class UpdatesUi(val busy: Boolean = false, val message: String = "", val se
     val asset: UpdateAsset? = null, val downloaded: File? = null, val failed: Boolean = false)
 class UpdateManager(private val app: Application, private val graph: AppGraph) {
     private val mutable = MutableStateFlow(UpdatesUi()); val state = mutable.asStateFlow()
-    private fun text(id: Int, vararg values: Any) = app.getString(id, *values)
+    private fun text(id: Int, vararg values: Any) = app.uiString(id, *values)
     @Synchronized private fun action(block: suspend () -> Unit): Job? {
         if(state.value.busy) return null
         mutable.update { it.copy(busy = true, message = "", failed = false) }
@@ -33,7 +34,7 @@ class UpdateManager(private val app: Application, private val graph: AppGraph) {
     }
     private suspend fun release(repository: String) = withContext(Dispatchers.Default) { JSONObject(graph.http.bytes(Request.Builder()
         .url("https://api.github.com/repos/$repository/releases/latest".toHttpUrl())
-        .header("Accept", "application/vnd.github+json").header("User-Agent", "TorrServe-Silicon-TV").build(), "GitHub").toString(Charsets.UTF_8)) }
+        .header("Accept", "application/vnd.github+json").header("User-Agent", "TorrFrame-TV").build(), "GitHub").toString(Charsets.UTF_8)) }
     fun server() = action {
         val version = release("YouROK/TorrServer").getString("tag_name")
         mutable.update { it.copy(serverVersion = version, message = text(R.string.update_latest_server, version)) }

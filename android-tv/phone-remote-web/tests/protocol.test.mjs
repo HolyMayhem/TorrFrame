@@ -13,3 +13,8 @@ test('unsupported protocol requires resynchronization',()=>assert.equal(applyEve
 test('websocket readiness requests a snapshot',()=>assert.equal(applyEvent(state,{v:1,epoch:'a',sequence:10,type:'sync.ready'}).refresh,true));
 
 test('library changes request shared data rather than a second client-owned library',()=>assert.equal(applyEvent(state,{v:1,epoch:'a',sequence:11,type:'library.updated',data:{revision:5}}).refresh,true));
+
+test('catalog list changes advance revision without reloading the entire library',()=>{
+ const next=applyEvent(state,{v:1,epoch:'a',sequence:11,type:'catalog.updated'});
+ assert.equal(next.refresh,false);assert.equal(next.state.catalogRevision,1);assert.equal(next.state.library,state.library);
+});

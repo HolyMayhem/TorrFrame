@@ -1,4 +1,4 @@
-# TorrServe Silicon TV 0.1.4 — local preview
+# TorrFrame TV 0.1.4 — local preview
 
 Metadata now uses embedded build-time API keys and an ordered fallback chain:
 IMDb via OMDb, then TMDB, then Kinopoisk by default. Users can move providers up

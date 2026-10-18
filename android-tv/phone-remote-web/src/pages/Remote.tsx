@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { useEffect, useState } from "react";
 import { useAction, type Actions } from "../actions";
 import type { Snapshot } from "../types";
@@ -28,13 +29,14 @@ export function RemotePage({
     return (
       <>
         <div className="page-heading">
-          <small>УПРАВЛЕНИЕ БЕЗ ПУЛЬТА</small>
-          <h1>Пульт</h1>
+          <small>{t("УПРАВЛЕНИЕ БЕЗ ПУЛЬТА")} </small>
+          <h1>{t("Пульт")} </h1>
           <p>{state.device.name}</p>
         </div>
-        <Empty icon="remote" title="Выберите фильм">
-          Откройте фильм в медиатеке и нажмите «Смотреть на TV». Пауза,
-          перемотка и дорожки появятся здесь.
+        <Empty icon="remote" title={t("Выберите фильм")}>
+          {t(
+            "Откройте фильм в медиатеке и нажмите «Смотреть на TV». Пауза, перемотка и дорожки появятся здесь.",
+          )}{" "}
         </Empty>
       </>
     );
@@ -44,8 +46,8 @@ export function RemotePage({
   return (
     <>
       <div className="page-heading">
-        <small>СЕЙЧАС НА TV</small>
-        <h1>Пульт</h1>
+        <small>{t("СЕЙЧАС НА TV")} </small>
+        <h1>{t("Пульт")} </h1>
         <p>{state.device.name}</p>
       </div>
       <section className="remote-player">
@@ -55,22 +57,22 @@ export function RemotePage({
         <h2>{p.title}</h2>
         <p className="muted">
           {p.error
-            ? "Ошибка воспроизведения"
+            ? t("Ошибка воспроизведения")
             : p.buffering
-              ? "Буферизация…"
+              ? t("Буферизация…")
               : p.playing
-                ? "Воспроизводится"
-                : "На паузе"}
+                ? t("Воспроизводится")
+                : t("На паузе")}
         </p>
         <label className="seek">
-          <span className="sr-only">Позиция воспроизведения</span>
+          <span className="sr-only">{t("Позиция воспроизведения")} </span>
           <input
             type="range"
             min={0}
             max={Math.max(1, p.duration)}
             step={1000}
             value={Math.min(seek, Math.max(1, p.duration))}
-            disabled={disabled || p.duration === 0}
+            disabled={disabled || !p.seekable || p.duration === 0}
             onChange={(e) => {
               setDragging(true);
               setSeek(Number(e.target.value));
@@ -83,7 +85,7 @@ export function RemotePage({
         </label>
         <div className="transport">
           <button
-            disabled={disabled}
+            disabled={disabled || !p.seekable}
             className="skip"
             onClick={() =>
               void command("seek", {
@@ -91,18 +93,25 @@ export function RemotePage({
               })
             }
           >
-            ↶<small>30 сек</small>
+            ↶<small>{t("30 сек")} </small>
           </button>
           <button
             className="play-pause"
-            aria-label={p.playing ? "Пауза" : "Продолжить"}
+            aria-label={
+              p.playWhenReady && !p.ended ? t("Пауза") : t("Продолжить")
+            }
             disabled={disabled}
-            onClick={() => void command(p.playing ? "pause" : "play")}
+            onClick={() =>
+              void command(p.playWhenReady && !p.ended ? "pause" : "play")
+            }
           >
-            <Icon name={p.playing ? "pause" : "play"} size={30} />
+            <Icon
+              name={p.playWhenReady && !p.ended ? "pause" : "play"}
+              size={30}
+            />
           </button>
           <button
-            disabled={disabled || p.duration === 0}
+            disabled={disabled || !p.seekable || p.duration === 0}
             className="skip"
             onClick={() =>
               void command("seek", {
@@ -110,7 +119,7 @@ export function RemotePage({
               })
             }
           >
-            ↷<small>30 сек</small>
+            ↷<small>{t("30 сек")} </small>
           </button>
         </div>
         <Button
@@ -119,21 +128,23 @@ export function RemotePage({
           onClick={() =>
             void actions
               .confirm(
-                "Остановить просмотр?",
-                "Плеер на телевизоре закроется. История просмотра сохраняется.",
+                t("Остановить просмотр?"),
+                t(
+                  "Плеер на телевизоре закроется. История просмотра сохраняется.",
+                ),
               )
               .then((ok) => {
                 if (ok) return command("stop", { confirmed: true });
               })
           }
         >
-          Остановить просмотр
+          {t("Остановить просмотр")}{" "}
         </Button>
       </section>
-      <Panel title="Дорожки">
+      <Panel title={t("Дорожки")}>
         <div className="field-grid">
           <label className="field">
-            Аудио
+            {t("Аудио")}{" "}
             <select
               disabled={disabled || !p.tracks.some((t) => t.type === "audio")}
               value={
@@ -151,7 +162,7 @@ export function RemotePage({
             </select>
           </label>
           <label className="field">
-            Субтитры
+            {t("Субтитры")}{" "}
             <select
               disabled={disabled}
               value={
@@ -160,7 +171,7 @@ export function RemotePage({
               }
               onChange={(e) => void command("track", { track: e.target.value })}
             >
-              <option value="subtitle:off">Выключены</option>
+              <option value="subtitle:off">{t("Выключены")} </option>
               {p.tracks
                 .filter((t) => t.type === "subtitle")
                 .map((t) => (

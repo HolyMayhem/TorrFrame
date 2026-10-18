@@ -1,4 +1,4 @@
-# TorrServe Silicon TV 0.1.1 — local preview
+# TorrFrame TV 0.1.1 — local preview
 
 - Fix unreadable text on dark backgrounds by providing the inherited content color.
 - Add consistent typography, button outlines, focus borders and selected navigation states.

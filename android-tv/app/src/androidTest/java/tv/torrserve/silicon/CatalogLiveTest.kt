@@ -14,8 +14,29 @@ import tv.torrserve.silicon.features.catalog.domain.*
 /** Explicit integration suite; requires an internet connection to TMDB. No keys in fixtures. */
 @RunWith(AndroidJUnit4::class)
 class CatalogLiveTest {
+    @Test fun realSimilarAndRecommendedMovieTvListsSupportBothLanguages() = runBlocking {
+        val graph = ApplicationProvider.getApplicationContext<TorrFrameApplication>().graph
+        graph.ready.await()
+        withTimeout(60_000) {
+            for (ref in listOf(CatalogRef(157336, CatalogType.Movie), CatalogRef(1396, CatalogType.Tv))) {
+                for (source in CatalogRelatedSource.entries) {
+                    val ru = graph.catalog.related(ref, source, "ru-RU", force = true).last()
+                    val en = graph.catalog.related(ref, source, "en-US", force = true).last()
+                    assertFalse("${ref.key}/${source.path}/ru", ru.error)
+                    assertFalse("${ref.key}/${source.path}/en", en.error)
+                    val russian = requireNotNull(ru.data); val english = requireNotNull(en.data)
+                    assertTrue(russian.items.isNotEmpty()); assertTrue(english.items.isNotEmpty())
+                    assertTrue(russian.items.all { it.ref.type == ref.type && it.ref != ref })
+                    assertTrue(russian.items.all { it.title.isNotBlank() })
+                    val again = graph.catalog.related(ref, source, "ru-RU").last()
+                    assertEquals(russian, again.data)
+                    android.util.Log.i("CatalogRelatedLive", "${ref.key}/${source.path}: ru=${russian.items.size}, en=${english.items.size}")
+                }
+            }
+        }
+    }
     @Test fun realGenreIdsAndMovieTvCollectionsAreAvailable() = runBlocking {
-        val graph=ApplicationProvider.getApplicationContext<TorrServeApplication>().graph;graph.ready.await()
+        val graph=ApplicationProvider.getApplicationContext<TorrFrameApplication>().graph;graph.ready.await()
         withTimeout(45_000) {
             for(type in CatalogType.entries) {
                 val genres=graph.tmdb.get("genre/${type.path}/list",mapOf("language" to "ru-RU")).getJSONArray("genres")
@@ -35,7 +56,7 @@ class CatalogLiveTest {
         }
     }
     @Test fun realShelvesRussianEnglishSearchAndMovieTvDetails() = runBlocking {
-        val graph=ApplicationProvider.getApplicationContext<TorrServeApplication>().graph
+        val graph=ApplicationProvider.getApplicationContext<TorrFrameApplication>().graph
         graph.ready.await()
         val initialServer = graph.server.state.value
         val initialSettings = graph.settings.state.value
@@ -63,7 +84,7 @@ class CatalogLiveTest {
         assertTrue(initialSettings.jackettKey == graph.settings.state.value.jackettKey)
     }
     @Test fun realRussianAndEnglishTranslationsAreAvailableForMoviesAndSeries() = runBlocking {
-        val graph=ApplicationProvider.getApplicationContext<TorrServeApplication>().graph;graph.ready.await()
+        val graph=ApplicationProvider.getApplicationContext<TorrFrameApplication>().graph;graph.ready.await()
         withTimeout(45_000) {
             for ((ref,ruTitle,enTitle) in listOf(Triple(CatalogRef(157336,CatalogType.Movie),"Интерстеллар","Interstellar"),
                 Triple(CatalogRef(1396,CatalogType.Tv),"Во все тяжкие","Breaking Bad"))) {

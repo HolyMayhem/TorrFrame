@@ -16,19 +16,39 @@ data class CatalogUi(val query: String = "", val language: String = "", val sect
     val details: CatalogLoad<CatalogDetails> = CatalogLoad(), val filter: CatalogFilter = CatalogFilter.All,
     val genreFeeds: Map<CatalogType, CatalogFeed> = CatalogType.entries.associateWith { CatalogFeed() },
     val userEntries: List<CatalogListEntry> = emptyList(), val listsReady: Boolean = false,
-    val listBusy: Boolean = false, val listError: Boolean = false)
+    val listBusy: Boolean = false, val listError: Boolean = false,
+    val related: CatalogFeed = CatalogFeed(loading = false), val relatedSource: CatalogRelatedSource = CatalogRelatedSource.Similar,
+    val detailEntry: Long = 0, val detailTrail: List<Long> = emptyList())
+
+private data class CatalogDetailVisit(val ref: CatalogRef, val entry: Long, val language: String = "",
+    val details: CatalogLoad<CatalogDetails> = CatalogLoad(), val related: CatalogFeed = CatalogFeed(loading = false),
+    val source: CatalogRelatedSource = CatalogRelatedSource.Similar)
+
+private fun catalogRef(key: String): CatalogRef? {
+    val parts = key.split(':'); val id = parts.getOrNull(1)?.toIntOrNull()?.takeIf { it > 0 } ?: return null
+    val type = CatalogType.entries.firstOrNull { it.path == parts.first() } ?: return null
+    return CatalogRef(id, type)
+}
 
 /** Catalog-only state. No Jackett, library, TorrServer or playback dependency. */
 class CatalogViewModel(private val repository: CatalogRepository, languages: Flow<String>, private val saved: SavedStateHandle,
     private val now: () -> Long = System::currentTimeMillis,
-    private val userLists: CatalogUserLists = MemoryCatalogUserLists()) : ViewModel() {
-    private val mutable = MutableStateFlow(CatalogUi(query = saved["catalogQuery"] ?: "", selected = saved.get<String>("catalogSelected")?.let {
-        val parts = it.split(':'); val id = parts.getOrNull(1)?.toIntOrNull()
-        if (id == null) null else CatalogRef(id, if (parts.first() == "tv") CatalogType.Tv else CatalogType.Movie)
-    }, filter = CatalogFilter.entries.firstOrNull { it.name == saved.get<String>("catalogFilter") } ?: CatalogFilter.All))
+    private val userLists: CatalogUserLists = MemoryCatalogUserLists(),
+    configurationChanges: Flow<*> = emptyFlow<Unit>()) : ViewModel() {
+    private val visits = saved.get<ArrayList<String>>("catalogDetailTrail").orEmpty().mapNotNull { value ->
+        val entry = value.substringBefore('|').toLongOrNull() ?: return@mapNotNull null
+        catalogRef(value.substringAfter('|'))?.let { CatalogDetailVisit(it, entry) }
+    }.takeLast(24).toMutableList()
+    private var detailSequence = maxOf(saved.get<Long>("catalogDetailSequence") ?: 0, visits.maxOfOrNull { it.entry } ?: 0)
+    private val mutable = MutableStateFlow(CatalogUi(query = saved["catalogQuery"] ?: "",
+        selected = saved.get<String>("catalogSelected")?.let(::catalogRef),
+        detailEntry = saved["catalogDetailEntry"] ?: 0, detailTrail = visits.map { it.entry },
+        filter = CatalogFilter.entries.firstOrNull { it.name == saved.get<String>("catalogFilter") } ?: CatalogFilter.All))
     val state = mutable.asStateFlow()
     private var searchJob: Job? = null
     private var detailsJob: Job? = null
+    private var relatedJob: Job? = null
+    private var detailRevision = 0
     private val sectionJobs = mutableMapOf<CatalogSection, Job>()
     private val loadedAt = mutableMapOf<CatalogSection, Long>()
     private val genreJobs = mutableMapOf<CatalogType, Job>()
@@ -37,6 +57,7 @@ class CatalogViewModel(private val repository: CatalogRepository, languages: Flo
     private var searchLoadedAt: Long? = null
     private var revision = 0
     private var localeRevision = 0
+    private var developerRefreshRevision = 0
     private val listRequests = mutableSetOf<String>()
     private val listSlots = Semaphore(3)
     init { viewModelScope.launch {
@@ -84,10 +105,11 @@ class CatalogViewModel(private val repository: CatalogRepository, languages: Flo
     } }
     init { viewModelScope.launch {
         languages.distinctUntilChanged().collect { language ->
-            revision++; localeRevision++; searchJob?.cancel(); detailsJob?.cancel(); sectionJobs.values.forEach(Job::cancel); sectionJobs.clear(); loadedAt.clear()
+            revision++; localeRevision++; searchJob?.cancel(); detailsJob?.cancel(); relatedJob?.cancel(); sectionJobs.values.forEach(Job::cancel); sectionJobs.clear(); loadedAt.clear()
             genreJobs.values.forEach(Job::cancel); genreJobs.clear(); genreLoadedAt.clear()
             mutable.update { it.copy(language = language, sections = CatalogSection.entries.associateWith { CatalogFeed() },
-                genreFeeds = CatalogType.entries.associateWith { CatalogFeed() }, results = CatalogFeed(loading = it.query.isNotBlank()), details = CatalogLoad(loading = it.selected != null)) }
+                genreFeeds = CatalogType.entries.associateWith { CatalogFeed() }, results = CatalogFeed(loading = it.query.isNotBlank()),
+                details = CatalogLoad(loading = it.selected != null), related = CatalogFeed(loading = false), relatedSource = CatalogRelatedSource.Similar) }
             loadBrowse()
             if (state.value.query.isNotBlank()) scheduleSearch(false)
             state.value.selected?.let { open(it) }
@@ -125,6 +147,21 @@ class CatalogViewModel(private val repository: CatalogRepository, languages: Flo
             }
         }
     }
+    /** Explicit refresh for developer scenarios; existing repository caches and navigation stay intact. */
+    fun refresh(requestRevision:Int? = null) {
+        if(state.value.language.isBlank() || (requestRevision != null && requestRevision <= developerRefreshRevision))return
+        if(requestRevision != null)developerRefreshRevision=requestRevision
+        revision++;localeRevision++;filterRevision++
+        searchJob?.cancel();detailsJob?.cancel();relatedJob?.cancel()
+        sectionJobs.values.forEach(Job::cancel);sectionJobs.clear()
+        genreJobs.values.forEach(Job::cancel);genreJobs.clear()
+        val filter=state.value.filter
+        if(state.value.query.isNotBlank())scheduleSearch(true)
+        else if(filter.isGenre)filter.genreTypes.forEach{loadGenre(it,force=true)}
+        else filter.sections.forEach{loadSection(it,force=true)}
+        state.value.selected?.let{open(it,true)}
+    }
+    init { viewModelScope.launch { configurationChanges.distinctUntilChanged().drop(1).collect { refresh() } } }
     fun retrySearch() { if (state.value.query.isNotBlank()) scheduleSearch(true) }
     fun retryResults() { if ((state.value.results.failedPage ?: 1) > 1) moreSearch() else retrySearch() }
     fun retrySection(section: CatalogSection) { loadSection(section, more = (state.value.sections.getValue(section).failedPage ?: 1) > 1, force = true) }
@@ -186,15 +223,100 @@ class CatalogViewModel(private val repository: CatalogRepository, languages: Flo
             loading = load.loading && !more, loadingMore = load.loading && more, stale = load.stale, error = load.error)
     }
     fun open(ref: CatalogRef, force: Boolean = false) {
-        detailsJob?.cancel(); saved["catalogSelected"] = ref.key
-        mutable.update { it.copy(selected = ref, details = if (it.selected == ref) it.details.copy(loading = true) else CatalogLoad(loading = true)) }
+        if (state.value.selected != ref) {
+            visits.clear()
+            select(ref)
+        }
+        detailRevision++; detailsJob?.cancel(); relatedJob?.cancel()
+        saved["catalogSelected"] = ref.key
+        loadDetails(ref, force)
+        loadRelated(force = force)
+    }
+    private fun select(ref: CatalogRef) {
+        val entry = ++detailSequence
+        saved["catalogDetailSequence"] = detailSequence
+        saved["catalogDetailEntry"] = entry
+        saved["catalogSelected"] = ref.key
+        saveTrail()
+        mutable.update { it.copy(selected = ref, detailEntry = entry, detailTrail = visits.map { visit -> visit.entry },
+            details = CatalogLoad(loading = true), related = CatalogFeed(loading = false), relatedSource = CatalogRelatedSource.Similar) }
+    }
+    /** A detail visit keeps its own scroll/focus identity, including A -> B -> A chains. */
+    fun openRelated(ref: CatalogRef) {
+        val current = state.value
+        val parent = current.selected ?: return
+        if (ref == parent) return
+        visits += CatalogDetailVisit(parent, current.detailEntry, current.language, current.details.copy(loading = false),
+            current.related.copy(loading = false, loadingMore = false), current.relatedSource)
+        if (visits.size > 24) visits.removeAt(0)
+        detailRevision++; detailsJob?.cancel(); relatedJob?.cancel()
+        select(ref)
+        loadDetails(ref, false)
+        loadRelated()
+    }
+    private fun loadDetails(ref: CatalogRef, force: Boolean) {
+        mutable.update { it.copy(details = it.details.copy(loading = true)) }
         val language = state.value.language
-        val locale = localeRevision
+        val locale = localeRevision; val version = detailRevision
         detailsJob = viewModelScope.launch {
             repository.details(ref, language, force).collect { load ->
-                if (localeRevision == locale && state.value.selected == ref && state.value.language == language) mutable.update { it.copy(details = load) }
+                if (version == detailRevision && localeRevision == locale && state.value.selected == ref && state.value.language == language) mutable.update { it.copy(details = load) }
             }
         }
     }
-    fun close() { detailsJob?.cancel(); saved["catalogSelected"] = null; mutable.update { it.copy(selected = null, details = CatalogLoad()) } }
+    fun retryRelated() = loadRelated(more = (state.value.related.failedPage ?: 1) > 1, force = true)
+    fun loadRelated(more: Boolean = false, force: Boolean = false) {
+        val ref = state.value.selected ?: return
+        if (state.value.language.isBlank() || relatedJob?.isActive == true) return
+        val before = state.value.related
+        if (more && (before.loading || before.loadingMore || before.page >= before.totalPages)) return
+        val page = if (more) before.page + 1 else 1
+        val source = if (more) state.value.relatedSource else CatalogRelatedSource.Similar
+        val language = state.value.language; val locale = localeRevision; val version = detailRevision
+        fun current() = version == detailRevision && locale == localeRevision && state.value.selected == ref && state.value.language == language
+        mutable.update { it.copy(related = before.copy(loading = !more, loadingMore = more, error = false)) }
+        relatedJob = viewModelScope.launch {
+            try {
+                suspend fun collectSource(value: CatalogRelatedSource): CatalogLoad<CatalogPage>? {
+                    var last: CatalogLoad<CatalogPage>? = null
+                    repository.related(ref, value, language, page, force).collect { load ->
+                        last = load
+                        if (current()) mutable.update { it.copy(relatedSource = value,
+                            related = merge(if (more) before else CatalogFeed(loading = false), load, more)
+                                .copy(failedPage = if (load.error) page else null)) }
+                    }
+                    return last
+                }
+                val last = collectSource(source)
+                // Only an actual successful empty first page triggers TMDB's other list.
+                // Never mix, rescore or reorder the two sources, or switch sources mid-pagination.
+                if (current() && !more && source == CatalogRelatedSource.Similar && last != null &&
+                    !last.loading && !last.error && last.data?.items?.isEmpty() == true) {
+                    mutable.update { it.copy(related = CatalogFeed(loading = true), relatedSource = CatalogRelatedSource.Recommendations) }
+                    collectSource(CatalogRelatedSource.Recommendations)
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                if (current()) mutable.update { it.copy(related = it.related.copy(loading = false, loadingMore = false, error = true, failedPage = page)) }
+            }
+        }
+    }
+    private fun saveTrail() { saved["catalogDetailTrail"] = ArrayList(visits.map { "${it.entry}|${it.ref.key}" }) }
+    fun close() {
+        detailRevision++; detailsJob?.cancel(); relatedJob?.cancel()
+        val parent = visits.removeLastOrNull()
+        saveTrail()
+        if (parent == null) {
+            saved["catalogSelected"] = null
+            mutable.update { it.copy(selected = null, details = CatalogLoad(), related = CatalogFeed(loading = false), detailTrail = emptyList()) }
+            return
+        }
+        saved["catalogSelected"] = parent.ref.key; saved["catalogDetailEntry"] = parent.entry
+        val sameLanguage = parent.language == state.value.language
+        mutable.update { it.copy(selected = parent.ref, detailEntry = parent.entry, detailTrail = visits.map { visit -> visit.entry },
+            details = if (sameLanguage) parent.details else CatalogLoad(),
+            related = if (sameLanguage) parent.related else CatalogFeed(loading = false), relatedSource = parent.source) }
+        if (state.value.details.data == null) loadDetails(parent.ref, false)
+        if (state.value.related.page == 0) loadRelated()
+    }
 }

@@ -1,4 +1,4 @@
-# TorrServe Silicon TV 0.1.6 — local preview
+# TorrFrame TV 0.1.6 — local preview
 
 Support Mi Box devices running 32-bit Android with the official Android ARMv7
 TorrServer, alongside existing ARM64 support. Native binaries remain pinned to

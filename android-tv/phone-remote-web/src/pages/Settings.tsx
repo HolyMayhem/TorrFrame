@@ -1,3 +1,6 @@
+import { AdditionalSettings } from "../components/AdditionalSettings";
+import { CatalogNetworkSettings } from "../components/CatalogNetworkSettings";
+import { t, webLanguage } from "../i18n";
 import { useEffect, useState } from "react";
 import { request } from "../api";
 import { useAction, type Actions } from "../actions";
@@ -14,16 +17,16 @@ export function SettingsPage({
   return (
     <>
       <div className="page-heading">
-        <small>НАСТРОЙКИ ВАШЕГО TV</small>
-        <h1>Настройки</h1>
-        <p>Изменения сразу доступны на телевизоре.</p>
+        <small>{t("НАСТРОЙКИ ВАШЕГО TV")} </small>
+        <h1>{t("Настройки")} </h1>
+        <p>{t("Изменения сразу доступны на телевизоре.")} </p>
       </div>
       <div className="segmented">
         <button
           className={tab === "app" ? "selected" : ""}
           onClick={() => setTab("app")}
         >
-          Приложение
+          {t("Приложение")}{" "}
         </button>
         <button
           className={tab === "server" ? "selected" : ""}
@@ -67,7 +70,7 @@ function AppSettings({
       setEdits({});
       setKey("");
       await actions.remote.refresh();
-      actions.notify("Настройки сохранены на TV.");
+      actions.notify(t("Настройки сохранены на TV."));
     }
   };
   const move = (index: number, direction: number) => {
@@ -82,7 +85,7 @@ function AppSettings({
     <>
       {changed && base.revision !== state.settings.revision && (
         <div className="notice">
-          Настройки изменились на другом устройстве.
+          {t("Настройки изменились на другом устройстве.")}{" "}
           <Button
             onClick={() => {
               setEdits({});
@@ -90,13 +93,13 @@ function AppSettings({
               setBase(state.settings);
             }}
           >
-            Загрузить актуальные
+            {t("Загрузить актуальные")}{" "}
           </Button>
         </div>
       )}
-      <Panel title="Поиск · Jackett">
+      <Panel title={t("Поиск · Jackett")}>
         <label className="field">
-          Адрес Jackett
+          {t("Адрес Jackett")}{" "}
           <input
             type="url"
             placeholder="http://192.168.1.10:9117"
@@ -108,14 +111,14 @@ function AppSettings({
           />
         </label>
         <label className="field">
-          API-ключ
+          {t("API-ключ")}{" "}
           <input
             type="password"
             autoComplete="new-password"
             placeholder={
               base.jackettKeyConfigured
-                ? "Ключ сохранён · пустое поле сохраняет его"
-                : "Введите API-ключ"
+                ? t("Ключ сохранён · пустое поле сохраняет его")
+                : t("Введите API-ключ")
             }
             value={key}
             onChange={(e) => setKey(e.target.value)}
@@ -125,17 +128,19 @@ function AppSettings({
           disabled={disabled || changed}
           onClick={() =>
             void run("settings.testJackett").then((result) => {
-              if (result) actions.notify("Подключение к Jackett установлено.");
+              if (result)
+                actions.notify(t("Подключение к Jackett установлено."));
             })
           }
         >
-          Проверить сохранённое подключение
+          {t("Проверить сохранённое подключение")}{" "}
         </Button>
       </Panel>
-      <Panel title="Источники метаданных">
+      <Panel title={t("Источники метаданных")}>
         <p className="muted">
-          Первый уверенный результат завершает поиск. Здесь тот же порядок, что
-          на телевизоре.
+          {t(
+            "Первый уверенный результат завершает поиск. Здесь тот же порядок, что на телевизоре.",
+          )}{" "}
         </p>
         <div className="priority">
           {draft.metadataOrder.map((provider, index) => (
@@ -145,18 +150,18 @@ function AppSettings({
                 {provider === "OMDb"
                   ? "OMDB"
                   : provider === "Kinopoisk"
-                    ? "Кинопоиск"
+                    ? t("Кинопоиск")
                     : provider}
               </strong>
               <button
-                aria-label={`Поднять ${provider}`}
+                aria-label={t("Поднять {v0}", { v0: provider })}
                 disabled={index === 0}
                 onClick={() => move(index, -1)}
               >
                 ↑
               </button>
               <button
-                aria-label={`Опустить ${provider}`}
+                aria-label={t("Опустить {v0}", { v0: provider })}
                 disabled={index === draft.metadataOrder.length - 1}
                 onClick={() => move(index, 1)}
               >
@@ -166,18 +171,18 @@ function AppSettings({
           ))}
         </div>
         <Toggle
-          label="AniList для аниме"
+          label={t("AniList для аниме")}
           checked={draft.aniListEnabled}
           onChange={(value) => edit("aniListEnabled", value)}
         />
         <label className="field">
-          Язык метаданных
+          {t("Язык метаданных")}{" "}
           <select
             value={draft.language}
             onChange={(e) => edit("language", e.target.value)}
           >
-            <option value="ru-RU">Русский</option>
-            <option value="en-US">Английский</option>
+            <option value="ru-RU">{t("Русский")} </option>
+            <option value="en-US">{t("Английский")} </option>
           </select>
         </label>
         <Button
@@ -186,8 +191,8 @@ function AppSettings({
           onClick={() =>
             void actions
               .confirm(
-                "Очистить кеш метаданных?",
-                "Сохранённые карточки фильмов остаются в медиатеке.",
+                t("Очистить кеш метаданных?"),
+                t("Сохранённые карточки фильмов остаются в медиатеке."),
               )
               .then((ok) => {
                 if (ok)
@@ -197,18 +202,18 @@ function AppSettings({
               })
           }
         >
-          Очистить кеш метаданных
+          {t("Очистить кеш метаданных")}{" "}
         </Button>
       </Panel>
-      <Panel title="Воспроизведение и оформление">
+      <Panel title={t("Воспроизведение и оформление")}>
         <Toggle
-          label="Продолжать просмотр"
+          label={t("Продолжать просмотр")}
           checked={draft.resume}
           onChange={(value) => edit("resume", value)}
         />
         <div className="field-grid">
           <label className="field">
-            Язык аудио
+            {t("Язык аудио")}{" "}
             <input
               value={draft.audioLanguage}
               placeholder="ru / en"
@@ -217,7 +222,7 @@ function AppSettings({
             />
           </label>
           <label className="field">
-            Язык субтитров
+            {t("Язык субтитров")}{" "}
             <input
               value={draft.subtitleLanguage}
               placeholder="ru / en"
@@ -227,43 +232,51 @@ function AppSettings({
           </label>
         </div>
         <label className="field">
-          Язык TV-интерфейса
+          {t("Язык TV-интерфейса")}{" "}
           <select
             value={draft.uiLanguage}
             onChange={(e) => edit("uiLanguage", e.target.value)}
           >
-            <option value="ru">Русский</option>
-            <option value="en">Английский</option>
+            <option value="ru">{t("Русский")} </option>
+            <option value="en">{t("Английский")} </option>
           </select>
         </label>
       </Panel>
-      <Panel title="Обновления приложения">
+      <CatalogNetworkSettings value={draft.catalogNetwork} edit={edit} />
+      <AdditionalSettings
+        draft={draft}
+        edit={edit}
+        actions={actions}
+        providers={state.searchProviders}
+      />
+      <Panel title={t("Обновления приложения")}>
         <label className="field">
-          Репозиторий GitHub
+          {t("Репозиторий GitHub")}{" "}
           <input
             value={draft.updateRepository}
-            placeholder="владелец/репозиторий"
+            placeholder={t("владелец/репозиторий")}
             maxLength={100}
             onChange={(e) => edit("updateRepository", e.target.value)}
           />
         </label>
         <p className="muted">
-          Сначала сохраните репозиторий. Установка требует системного
-          подтверждения на TV.
+          {t(
+            "Сначала сохраните репозиторий. Установка требует системного подтверждения на TV.",
+          )}{" "}
         </p>
         <div className="button-row">
           <Button
             disabled={disabled || state.updates.busy || changed}
             onClick={() => void run("updates.check")}
           >
-            Проверить обновления
+            {t("Проверить обновления")}{" "}
           </Button>
           {state.updates.availableVersion && (
             <Button
               disabled={disabled || state.updates.busy}
               onClick={() => void run("updates.download")}
             >
-              Скачать {state.updates.availableVersion}
+              {t("Скачать")} {state.updates.availableVersion}
             </Button>
           )}
           {state.updates.downloaded && (
@@ -272,21 +285,23 @@ function AppSettings({
               onClick={() =>
                 void actions
                   .confirm(
-                    "Открыть установщик на TV?",
-                    "Завершите подтверждение обновления непосредственно на телевизоре.",
+                    t("Открыть установщик на TV?"),
+                    t(
+                      "Завершите подтверждение обновления непосредственно на телевизоре.",
+                    ),
                   )
                   .then((ok) => {
                     if (ok) return run("updates.install", { confirmed: true });
                   })
               }
             >
-              Установить на TV
+              {t("Установить на TV")}{" "}
             </Button>
           )}
         </div>
         <p className="muted">
           {state.updates.busy
-            ? "Выполняется проверка или загрузка…"
+            ? t("Выполняется проверка или загрузка…")
             : state.updates.message}
         </p>
       </Panel>
@@ -297,14 +312,15 @@ function AppSettings({
           onClick={() => void save()}
         >
           <Icon name="check" size={18} />
-          {busy ? "Сохранение…" : "Сохранить настройки"}
+          {busy ? t("Сохранение…") : t("Сохранить настройки")}
         </Button>
       </div>
       <Panel title="Phone Remote">
         <p className="muted">
-          TorrServe Silicon {state.device.appVersion}. Доступ действует 7 дней.
-          Его можно отозвать в настройках телевизора. HTTP в локальной сети не
-          шифрует трафик.
+          TorrFrame {state.device.appVersion}
+          {t(
+            ". Доступ действует 7 дней. Его можно отозвать в настройках телевизора. HTTP в локальной сети не шифрует трафик.",
+          )}{" "}
         </p>
         <Button
           kind="danger"
@@ -312,8 +328,8 @@ function AppSettings({
           onClick={() =>
             void actions
               .confirm(
-                "Завершить эту сессию?",
-                "Для нового подключения понадобится QR-код с телевизора.",
+                t("Завершить эту сессию?"),
+                t("Для нового подключения понадобится QR-код с телевизора."),
               )
               .then(async (ok) => {
                 if (ok) {
@@ -323,7 +339,7 @@ function AppSettings({
               })
           }
         >
-          Отключить этот браузер
+          {t("Отключить этот браузер")}{" "}
         </Button>
       </Panel>
     </>
@@ -380,8 +396,10 @@ function ServerSettings({
   const save = async () => {
     if (
       await actions.confirm(
-        "Применить параметры движка?",
-        "TorrServer пересоздаст Torrent-движок и сбросит активные раздачи, в том числе у других клиентов.",
+        t("Применить параметры движка?"),
+        t(
+          "TorrServer пересоздаст Torrent-движок и сбросит активные раздачи, в том числе у других клиентов.",
+        ),
       )
     ) {
       const result = await run<{ message: string }>("engine.save", {
@@ -403,8 +421,10 @@ function ServerSettings({
   const reset = async () => {
     if (
       await actions.confirm(
-        "Восстановить параметры сервера?",
-        "Сбрасываются все параметры движка, включая не показанные на экране. Активные раздачи будут сброшены.",
+        t("Восстановить параметры сервера?"),
+        t(
+          "Сбрасываются все параметры движка, включая не показанные на экране. Активные раздачи будут сброшены.",
+        ),
       )
     ) {
       const result = await run<{ message: string }>("engine.reset", {
@@ -419,7 +439,7 @@ function ServerSettings({
   };
   return (
     <>
-      <Panel title="Подключение">
+      <Panel title={t("Подключение")}>
         <div className="server-status">
           <i
             className={`dot ${state.server.connection === "Connected" ? "live" : ""}`}
@@ -427,23 +447,23 @@ function ServerSettings({
           <strong>
             {
               {
-                Connected: "Подключено",
-                Connecting: "Подключение…",
-                Unavailable: "Сервер недоступен",
-                Error: "Ошибка соединения",
+                Connected: t("Подключено"),
+                Connecting: t("Подключение…"),
+                Unavailable: t("Сервер недоступен"),
+                Error: t("Ошибка соединения"),
               }[state.server.connection]
             }
           </strong>
           <small>{state.server.version}</small>
         </div>
         <Toggle
-          label="Использовать встроенный сервер"
+          label={t("Использовать встроенный сервер")}
           checked={local}
           onChange={setLocal}
         />
         {local ? (
           <label className="field">
-            Порт встроенного сервера
+            {t("Порт встроенного сервера")}{" "}
             <input
               inputMode="numeric"
               type="number"
@@ -455,7 +475,7 @@ function ServerSettings({
           </label>
         ) : (
           <label className="field">
-            Адрес TorrServer
+            {t("Адрес TorrServer")}{" "}
             <input
               type="url"
               value={address}
@@ -470,25 +490,26 @@ function ServerSettings({
           kind="primary"
           onClick={() => void connect()}
         >
-          Сохранить подключение
+          {t("Сохранить подключение")}{" "}
         </Button>
         <p className="muted">
-          HTTP / HTTPS. При смене адреса медиатека сохраняется. Нужные раздачи
-          должны существовать на выбранном сервере.
+          {t(
+            "HTTP / HTTPS. При смене адреса медиатека сохраняется. Нужные раздачи должны существовать на выбранном сервере.",
+          )}{" "}
         </p>
       </Panel>
       {state.server.local && (
-        <Panel title="Встроенный TorrServer">
+        <Panel title={t("Встроенный TorrServer")}>
           <p>
             {state.server.process === "Running"
-              ? "Сервер запущен"
+              ? t("Сервер запущен")
               : state.server.process === "Starting"
-                ? "Сервер запускается…"
+                ? t("Сервер запускается…")
                 : state.server.process === "Stopping"
-                  ? "Сервер останавливается…"
-                : state.server.process === "Error"
-                  ? "Ошибка запуска"
-                  : "Сервер остановлен"}
+                  ? t("Сервер останавливается…")
+                  : state.server.process === "Error"
+                    ? t("Ошибка запуска")
+                    : t("Сервер остановлен")}
           </p>
           {state.server.error && <p className="notice">{state.server.error}</p>}
           <div className="button-row">
@@ -496,22 +517,22 @@ function ServerSettings({
               disabled={disabled}
               onClick={() => void run("server.start")}
             >
-              Запустить
+              {t("Запустить")}{" "}
             </Button>
             <Button
               disabled={disabled || state.playback.active}
               onClick={() =>
                 void actions
                   .confirm(
-                    "Перезапустить TorrServer?",
-                    "Активные соединения и раздачи будут прерваны.",
+                    t("Перезапустить TorrServer?"),
+                    t("Активные соединения и раздачи будут прерваны."),
                   )
                   .then((ok) => {
                     if (ok) return run("server.restart", { confirmed: true });
                   })
               }
             >
-              Перезапустить
+              {t("Перезапустить")}{" "}
             </Button>
             <Button
               kind="danger"
@@ -519,19 +540,19 @@ function ServerSettings({
               onClick={() =>
                 void actions
                   .confirm(
-                    "Остановить TorrServer?",
-                    "Сервер останется остановленным до нового запуска.",
+                    t("Остановить TorrServer?"),
+                    t("Сервер останется остановленным до нового запуска."),
                   )
                   .then((ok) => {
                     if (ok) return run("server.stop", { confirmed: true });
                   })
               }
             >
-              Остановить
+              {t("Остановить")}{" "}
             </Button>
           </div>
           <Toggle
-            label="Запускать при загрузке TV"
+            label={t("Запускать при загрузке TV")}
             checked={state.settings.startOnBoot}
             disabled={disabled}
             onChange={(enabled) =>
@@ -543,14 +564,45 @@ function ServerSettings({
           />
         </Panel>
       )}
-      <Panel title="Диагностика соединения">
+      {state.server.local && (
+        <Panel title={t("Локальная сеть", "Local network")}>
+          <Toggle
+            label={t(
+              "Доступ к TorrServer по сети",
+              "Allow LAN access to TorrServer",
+            )}
+            checked={state.settings.lanAccess}
+            disabled={disabled || state.playback.active}
+            onChange={(enabled) => {
+              void actions
+                .confirm(
+                  t("Изменить доступ по сети?", "Change LAN access?"),
+                  t(
+                    "TorrServer будет перезапущен.",
+                    "TorrServer will restart.",
+                  ),
+                )
+                .then((ok) => {
+                  if (ok)
+                    return run("server.lan", {
+                      enabled,
+                      revision: state.settings.revision,
+                      confirmed: true,
+                    });
+                });
+            }}
+          />
+        </Panel>
+      )}
+      <Panel title={t("Диагностика соединения")}>
         <p className="muted">
-          Реальная загрузка 8 МиБ с сервера. На localhost измеряется соединение
-          внутри приставки.
+          {t(
+            "Реальная загрузка 8 МиБ с сервера. На localhost измеряется соединение внутри приставки.",
+          )}{" "}
         </p>
         <div className="button-row">
           <Button disabled={disabled} onClick={() => void run("server.check")}>
-            Проверить доступность
+            {t("Проверить доступность")}{" "}
           </Button>
           <Button
             disabled={disabled}
@@ -560,41 +612,42 @@ function ServerSettings({
               })
             }
           >
-            Тест скорости
+            {t("Тест скорости")}{" "}
           </Button>
         </div>
         {diagnosis && (
           <div className="metrics">
             <div>
               <strong>
-                {diagnosis.latencyMs.toFixed(1)} <small>мс</small>
+                {diagnosis.latencyMs.toFixed(1)} <small>{t("мс")} </small>
               </strong>
-              <span>время ответа</span>
+              <span>{t("время ответа")} </span>
             </div>
             <div>
               <strong>
                 {diagnosis.speedMbps !== null
                   ? diagnosis.speedMbps.toFixed(2)
                   : "—"}{" "}
-                <small>{diagnosis.speedMbps !== null ? "Мбит/с" : ""}</small>
+                <small>{diagnosis.speedMbps !== null ? t("Мбит/с") : ""}</small>
               </strong>
               <span>
                 {diagnosis.speedMbps !== null
-                  ? "средняя скорость HTTP"
-                  : "скорость не измерена"}
+                  ? t("средняя скорость HTTP")
+                  : t("скорость не измерена")}
               </span>
             </div>
           </div>
         )}
       </Panel>
-      <Panel title="Параметры Torrent-движка">
+      <Panel title={t("Параметры Torrent-движка")}>
         <p className="muted">
-          Показаны только поля, предоставленные вашим сервером. Сохранение
-          пересоздаёт движок и сбрасывает активные раздачи.
+          {t(
+            "Показаны только поля, предоставленные вашим сервером. Сохранение пересоздаёт движок и сбрасывает активные раздачи.",
+          )}{" "}
         </p>
         <Button disabled={disabled} onClick={() => void load()}>
           <Icon name="refresh" size={18} />
-          {engine ? "Загрузить актуальные" : "Загрузить с сервера"}
+          {engine ? t("Загрузить актуальные") : t("Загрузить с сервера")}
         </Button>
         {engine && (
           <>
@@ -603,7 +656,9 @@ function ServerSettings({
                 field.boolean ? (
                   <Toggle
                     key={field.key}
-                    label={field.label}
+                    label={
+                      webLanguage() === "en" ? field.labelEn : field.labelRu
+                    }
                     checked={(edits[field.key] ?? field.value) === "true"}
                     onChange={(value) =>
                       setEdits((prev) => ({
@@ -614,7 +669,7 @@ function ServerSettings({
                   />
                 ) : (
                   <label className="field" key={field.key}>
-                    {field.label}
+                    {webLanguage() === "en" ? field.labelEn : field.labelRu}
                     <input
                       type="number"
                       inputMode="decimal"
@@ -629,7 +684,9 @@ function ServerSettings({
                         }))
                       }
                     />
-                    <small>{field.hint}</small>
+                    <small>
+                      {webLanguage() === "en" ? field.hintEn : field.hintRu}
+                    </small>
                   </label>
                 ),
               )}
@@ -644,7 +701,7 @@ function ServerSettings({
                 }
                 onClick={() => void save()}
               >
-                Сохранить на сервере
+                {t("Сохранить на сервере")}{" "}
               </Button>
               {engine.canReset && (
                 <Button
@@ -652,32 +709,33 @@ function ServerSettings({
                   disabled={disabled || state.playback.active}
                   onClick={() => void reset()}
                 >
-                  Восстановить значения
+                  {t("Восстановить значения")}{" "}
                 </Button>
               )}
             </div>
           </>
         )}
       </Panel>
-      <Panel title="Обновление TorrServer">
+      <Panel title={t("Обновление TorrServer")}>
         <p className="muted">
-          Встроенный бинарник обновляется вместе с APK. Обновление внешнего
-          сервера выполняет его владелец.
+          {t(
+            "Встроенный бинарник обновляется вместе с APK. Обновление внешнего сервера выполняет его владелец.",
+          )}{" "}
         </p>
         <Button
           disabled={disabled || state.updates.busy}
           onClick={() => void run("updates.server")}
         >
-          Проверить последнюю версию
+          {t("Проверить последнюю версию")}{" "}
         </Button>
         <p className="muted">
-          {state.updates.serverVersion || "Проверка ещё не выполнялась."}
+          {state.updates.serverVersion || t("Проверка ещё не выполнялась.")}
         </p>
       </Panel>
       {busy && (
         <div className="inline-loading">
           <span className="spinner" />
-          Выполняется операция…
+          {t("Выполняется операция…")}{" "}
         </div>
       )}
     </>

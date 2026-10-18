@@ -1,4 +1,4 @@
-# TorrServe Silicon TV 0.1.9 — themes, focus and film details
+# TorrFrame TV 0.1.9 — themes, focus and film details
 
 Appearance is the final Settings group: scale, language, light/dark theme and a
 toggle for the whole navigation footer. Preferences apply and persist immediately.

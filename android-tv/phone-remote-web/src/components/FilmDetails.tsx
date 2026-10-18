@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { useState } from "react";
 import { useAction, type Actions } from "../actions";
 import type { LibraryItem, MetadataChoice, VideoFile } from "../types";
@@ -40,15 +41,15 @@ export function FilmDetails({
       fileId: file.id,
     });
     if (response) {
-      actions.notify("Открываем плеер на телевизоре.");
+      actions.notify(t("Открываем плеер на телевизоре."));
       setFiles(null);
     }
   };
   const remove = async () => {
     if (
       await actions.confirm(
-        "Удалить фильм?",
-        "Раздача и её история просмотра будут удалены из общей медиатеки.",
+        t("Удалить фильм?"),
+        t("Раздача и её история просмотра будут удалены из общей медиатеки."),
       )
     ) {
       const response = await run("library.remove", {
@@ -67,13 +68,13 @@ export function FilmDetails({
     if (response) setChoices(response.items);
   };
   return (
-    <Sheet title={editing ? "Метаданные" : item.title} close={close}>
+    <Sheet title={editing ? t("Метаданные") : item.title} close={close}>
       {!editing ? (
         <>
           <div className="film-detail">
             <Poster metadata={item.metadata} title={item.title} />
             <div>
-              <span className="eyebrow">В ВАШЕЙ КОЛЛЕКЦИИ</span>
+              <span className="eyebrow">{t("В ВАШЕЙ КОЛЛЕКЦИИ")} </span>
               <h2>{item.title}</h2>
               <p>
                 {[
@@ -82,7 +83,7 @@ export function FilmDetails({
                     ? `★ ${item.metadata.rating.toFixed(1)}`
                     : null,
                   item.metadata?.runtime
-                    ? `${item.metadata.runtime} мин`
+                    ? t("{v0} мин", { v0: item.metadata.runtime })
                     : null,
                 ]
                   .filter(Boolean)
@@ -90,7 +91,9 @@ export function FilmDetails({
               </p>
               <small>{item.metadata?.genres}</small>
               {item.position > 0 && (
-                <p className="muted">Просмотрено {time(item.position)}</p>
+                <p className="muted">
+                  {t("Просмотрено")} {time(item.position)}
+                </p>
               )}
             </div>
           </div>
@@ -103,10 +106,12 @@ export function FilmDetails({
             onClick={() => void watch()}
           >
             <Icon name="play" />{" "}
-            {item.position > 30000 ? "Продолжить на TV" : "Смотреть на TV"}
+            {item.position > 30000
+              ? t("Продолжить на TV")
+              : t("Смотреть на TV")}
           </Button>
           {files && (
-            <Panel title="Выберите видео">
+            <Panel title={t("Выберите видео")}>
               {files.length ? (
                 files.map((file) => (
                   <button
@@ -121,7 +126,9 @@ export function FilmDetails({
                   </button>
                 ))
               ) : (
-                <p className="muted">Поддерживаемых видеофайлов не найдено.</p>
+                <p className="muted">
+                  {t("Поддерживаемых видеофайлов не найдено.")}{" "}
+                </p>
               )}
             </Panel>
           )}
@@ -129,24 +136,30 @@ export function FilmDetails({
             <Button
               disabled={disabled}
               onClick={() => {
-                actions.searchFor(
-                  item.title +
-                    (item.metadata?.year ? ` ${item.metadata.year}` : ""),
-                );
+                actions.searchFor(item.title, {
+                  filter: item.metadata?.kind === "Tv" ? "TV Shows" : "Movies",
+                  originalTitle: item.metadata?.originalTitle,
+                  year: item.metadata?.year,
+                  tmdbId:
+                    item.metadata?.provider === "TMDB" &&
+                    Number(item.metadata.id) > 0
+                      ? Number(item.metadata.id)
+                      : undefined,
+                });
                 close();
               }}
             >
               <Icon name="search" size={18} />
-              Раздачи
+              {t("Раздачи")}{" "}
             </Button>
-            <Button onClick={() => setEditing(true)}>Метаданные</Button>
+            <Button onClick={() => setEditing(true)}>{t("Метаданные")} </Button>
             <Button
               kind="danger"
               disabled={disabled}
               onClick={() => void remove()}
             >
               <Icon name="trash" size={18} />
-              Удалить
+              {t("Удалить")}{" "}
             </Button>
           </div>
         </>
@@ -154,11 +167,11 @@ export function FilmDetails({
         <>
           <button className="text-button" onClick={() => setEditing(false)}>
             <Icon name="back" size={16} />
-            Карточка фильма
+            {t("Карточка фильма")}{" "}
           </button>
-          <Panel title="Название в медиатеке">
+          <Panel title={t("Название в медиатеке")}>
             <label className="field">
-              Название
+              {t("Название")}{" "}
               <input
                 maxLength={250}
                 value={title}
@@ -170,17 +183,17 @@ export function FilmDetails({
               onClick={() =>
                 void run("metadata.rename", { hash: item.hash, title }).then(
                   (result) => {
-                    if (result) actions.notify("Название сохранено.");
+                    if (result) actions.notify(t("Название сохранено."));
                   },
                 )
               }
             >
-              Сохранить название
+              {t("Сохранить название")}{" "}
             </Button>
           </Panel>
-          <Panel title="Найти правильный фильм">
+          <Panel title={t("Найти правильный фильм")}>
             <label className="field">
-              Название для поиска
+              {t("Название для поиска")}{" "}
               <input
                 maxLength={250}
                 value={query}
@@ -190,24 +203,26 @@ export function FilmDetails({
             </label>
             <div className="field-grid">
               <label className="field">
-                Источник
+                {t("Источник")}{" "}
                 <select
                   value={provider}
                   onChange={(e) => setProvider(e.target.value)}
                 >
                   {["OMDb", "TMDB", "Kinopoisk", "AniList"].map((p) => (
-                    <option key={p} value={p}>{p === "OMDb" ? "OMDB" : p}</option>
+                    <option key={p} value={p}>
+                      {p === "OMDb" ? "OMDB" : p}
+                    </option>
                   ))}
                 </select>
               </label>
               <label className="field">
-                Тип
+                {t("Тип")}{" "}
                 <select
                   value={kind}
                   onChange={(e) => setKind(e.target.value as "Movie" | "Tv")}
                 >
-                  <option value="Movie">Фильм</option>
-                  <option value="Tv">Сериал</option>
+                  <option value="Movie">{t("Фильм")} </option>
+                  <option value="Tv">{t("Сериал")} </option>
                 </select>
               </label>
             </div>
@@ -216,10 +231,10 @@ export function FilmDetails({
               onClick={() => void lookup()}
             >
               <Icon name="search" size={18} />
-              {busy ? "Поиск…" : "Найти метаданные"}
+              {busy ? t("Поиск…") : t("Найти метаданные")}
             </Button>
             {choices?.length === 0 && (
-              <p className="muted">Совпадений не найдено.</p>
+              <p className="muted">{t("Совпадений не найдено.")} </p>
             )}
             {choices?.map((choice) => (
               <button
@@ -233,7 +248,7 @@ export function FilmDetails({
                   }).then((result) => {
                     if (result) {
                       setEditing(false);
-                      actions.notify("Метаданные обновлены.");
+                      actions.notify(t("Метаданные обновлены."));
                     }
                   })
                 }
@@ -245,17 +260,21 @@ export function FilmDetails({
                 <span>
                   <strong>{choice.metadata.title}</strong>
                   <small>
-                    {choice.metadata.year} · {choice.metadata.provider === "OMDb" ? "OMDB" : choice.metadata.provider}
+                    {choice.metadata.year} ·{" "}
+                    {choice.metadata.provider === "OMDb"
+                      ? "OMDB"
+                      : choice.metadata.provider}
                   </small>
                 </span>
                 <Icon name="check" size={18} />
               </button>
             ))}
           </Panel>
-          <Panel title="Автоматическое обновление">
+          <Panel title={t("Автоматическое обновление")}>
             <p className="muted">
-              Использует общий приоритет источников из настроек. Сброс удаляет
-              только метаданные карточки.
+              {t(
+                "Использует общий приоритет источников из настроек. Сброс удаляет только метаданные карточки.",
+              )}{" "}
             </p>
             <div className="button-row">
               <Button
@@ -267,13 +286,13 @@ export function FilmDetails({
                     if (result)
                       actions.notify(
                         result.found
-                          ? "Метаданные обновлены."
-                          : "Уверенное совпадение не найдено.",
+                          ? t("Метаданные обновлены.")
+                          : t("Уверенное совпадение не найдено."),
                       );
                   })
                 }
               >
-                Обновить
+                {t("Обновить")}{" "}
               </Button>
               <Button
                 kind="danger"
@@ -281,8 +300,10 @@ export function FilmDetails({
                 onClick={() =>
                   void actions
                     .confirm(
-                      "Сбросить метаданные?",
-                      "Постер и описание будут удалены. Фильм и история просмотра сохранятся.",
+                      t("Сбросить метаданные?"),
+                      t(
+                        "Постер и описание будут удалены. Фильм и история просмотра сохранятся.",
+                      ),
                     )
                     .then((ok) => {
                       if (ok)
@@ -293,7 +314,7 @@ export function FilmDetails({
                     })
                 }
               >
-                Сбросить
+                {t("Сбросить")}{" "}
               </Button>
             </div>
           </Panel>
@@ -302,7 +323,7 @@ export function FilmDetails({
       {busy && (
         <div className="inline-loading">
           <span className="spinner" />
-          Выполняется операция…
+          {t("Выполняется операция…")}{" "}
         </div>
       )}
     </Sheet>

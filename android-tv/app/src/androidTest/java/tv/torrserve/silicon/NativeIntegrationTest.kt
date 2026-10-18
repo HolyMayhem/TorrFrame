@@ -21,7 +21,7 @@ import tv.torrserve.silicon.features.player.*
 @androidx.annotation.OptIn(UnstableApi::class)
 class NativeIntegrationTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
-    private val app get() = instrumentation.targetContext.applicationContext as TorrServeApplication
+    private val app get() = instrumentation.targetContext.applicationContext as TorrFrameApplication
     @Test fun packagedExecutableApiPersistenceAndPlayback() = runBlocking {
         val graph = app.graph; graph.ready.await(); graph.server.requireRunning()
         assertTrue(graph.server.state.value is ServerState.Running)
@@ -82,6 +82,20 @@ class NativeIntegrationTest {
             graph.api.remove(t.hash); graph.store.remove(t.hash)
         }
         assertFalse(graph.store.list().any { it.hash == t.hash })
+    }
+    @Test fun lateCheckpointDoesNotRecreateRemovedTitle() = runBlocking {
+        val name = "player-checkpoint-test.sqlite"
+        val store = tv.torrserve.silicon.core.database.LibraryStore(app, name)
+        val hash = "d".repeat(40)
+        try {
+            store.put(Torrent(hash, "Checkpoint fixture", emptyList()))
+            store.checkpoint(hash, 1, 5000, 30000)
+            assertEquals(5000, store.progress(hash, 1))
+            store.remove(hash)
+            store.checkpoint(hash, 1, 6000, 30000)
+            assertEquals(0, store.progress(hash, 1))
+            assertTrue(store.list().isEmpty())
+        } finally { store.close(); app.deleteDatabase(name) }
     }
     @Test fun credentialsAreEncryptedAndReloadable() = runBlocking {
         val original = app.graph.settings.state.value

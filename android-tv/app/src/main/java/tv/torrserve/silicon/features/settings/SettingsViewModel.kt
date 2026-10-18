@@ -1,5 +1,6 @@
 package tv.torrserve.silicon.features.settings
 
+import tv.torrserve.silicon.core.localization.uiString
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.*
@@ -19,12 +20,13 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
         baseline = graph.settings.state.value
         mutable.update { it.copy(draft = baseline) }
         graph.settings.state.collect { s ->
-            mutable.update { it.copy(draft = tv.torrserve.silicon.core.storage.SettingsMerge.rebase(it.draft, baseline, s)) }
+            mutable.update { it.copy(draft = tv.torrserve.silicon.core.storage.SettingsMerge.rebase(it.draft, baseline, s),
+                message = if(s.uiLanguage != baseline.uiLanguage) "" else it.message) }
             baseline = s
         }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            mutable.update { it.copy(message = graph.app.getString(tv.torrserve.silicon.R.string.settings_load_failed)) }
+            mutable.update { it.copy(message = graph.app.uiString(tv.torrserve.silicon.R.string.settings_load_failed)) }
         }
     } }
     fun edit(block: (Settings) -> Settings) {
@@ -45,10 +47,17 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                mutable.update { it.copy(message = graph.app.getString(tv.torrserve.silicon.R.string.settings_operation_failed)) }
+                mutable.update { it.copy(message = graph.app.uiString(tv.torrserve.silicon.R.string.settings_operation_failed)) }
             }
         }
     }
+    val developer get() = graph.developer
+    val externalPlayers get() = graph.externalPlayers
+    val torrentProviders get() = graph.torrentSearch.providers.map { it.id to it.name }
+    fun catalogNetwork(change: (tv.torrserve.silicon.core.network.CatalogNetworkSettings) -> tv.torrserve.silicon.core.network.CatalogNetworkSettings) =
+        edit { it.copy(catalogNetwork = change(it.catalogNetwork).validated()) }
+    fun torrentSearch(change: (tv.torrserve.torrentsearch.model.TorrentSearchOptions) -> tv.torrserve.torrentsearch.model.TorrentSearchOptions) =
+        edit { it.copy(torrentSearch = change(it.torrentSearch).normalized()) }
     fun moveProvider(provider: String, direction: Int) {
         edit { it.copy(metadataOrder = tv.torrserve.silicon.core.storage.MetadataPriority.move(it.metadataOrder, provider, direction)) }
     }
@@ -68,11 +77,11 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
             catch (e: Exception) { if (e is CancellationException) throw e; mutable.update {
                 val failure = e as? tv.torrserve.silicon.core.network.ServiceFailure
                 val status = if(failure?.service == "Jackett") when(failure.status) { 401,403 -> tv.torrserve.silicon.R.string.settings_invalid_key; 408 -> tv.torrserve.silicon.R.string.server_timeout; else -> tv.torrserve.silicon.R.string.server_connection_error } else it.connection
-                it.copy(message = graph.app.getString(tv.torrserve.silicon.R.string.settings_operation_failed), connection = status)
+                it.copy(message = graph.app.uiString(tv.torrserve.silicon.R.string.settings_operation_failed), connection = status)
             } }
             finally { mutable.update { it.copy(busy = false) } }
         }
     }
-    fun test() = action { graph.jackett.test(state.value.draft); mutable.update { it.copy(connection = tv.torrserve.silicon.R.string.server_connected) }; graph.app.getString(tv.torrserve.silicon.R.string.settings_jackett_connected) }
-    fun clearCache() = action { graph.store.clearCache(); graph.app.getString(tv.torrserve.silicon.R.string.settings_metadata_cleared) }
+    fun test() = action { graph.jackett.test(state.value.draft); mutable.update { it.copy(connection = tv.torrserve.silicon.R.string.server_connected) }; graph.app.uiString(tv.torrserve.silicon.R.string.settings_jackett_connected) }
+    fun clearCache() = action { graph.store.clearCache(); graph.app.uiString(tv.torrserve.silicon.R.string.settings_metadata_cleared) }
 }

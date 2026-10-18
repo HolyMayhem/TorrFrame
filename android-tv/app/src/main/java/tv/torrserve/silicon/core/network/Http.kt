@@ -9,7 +9,7 @@ import java.io.IOException
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 
-class ServiceFailure(val service: String, val status: Int = 0, val retryAfterMillis: Long? = null) : IOException(
+class ServiceFailure(val service: String, val status: Int = 0, val retryAfterMillis: Long? = null, cause: Throwable? = null) : IOException(
     when (status) {
         401, 403 -> "$service: invalid API key or access denied."
         429 -> "$service: too many requests. Try again later."
@@ -18,22 +18,31 @@ class ServiceFailure(val service: String, val status: Int = 0, val retryAfterMil
         -2 -> "$service: invalid response."
         0 -> "$service: cannot connect or request timed out. Check address and connection."
         else -> "$service returned HTTP $status."
-    }
+    }, cause
 )
 data class HttpReply(val status: Int, val location: String?, val data: ByteArray)
-class Http(val client: OkHttpClient = OkHttpClient.Builder()
+class Http(client: OkHttpClient = OkHttpClient.Builder()
     .dispatcher(Dispatcher().apply { maxRequests = 8; maxRequestsPerHost = 4 })
     .connectTimeout(10, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS)
-    .callTimeout(60, TimeUnit.SECONDS).build()) {
+    .callTimeout(60, TimeUnit.SECONDS).build(), private val beforeRequest:(String)->Unit = {},
+    private val diagnostics: NetworkDiagnostics? = null, dnsOverride: Dns? = null, catalogRouting: Interceptor? = null) {
+    val client: OkHttpClient = if (diagnostics == null && dnsOverride == null && catalogRouting == null) client else client.newBuilder().apply {
+        diagnostics?.let { eventListenerFactory(it.listenerFactory) }
+        dnsOverride?.let { dns(it) }
+        catalogRouting?.let { addInterceptor(it) }
+    }.build()
     suspend fun bytes(request: Request, service: String, limit: Int = 4 * 1024 * 1024): ByteArray = exchange(request, service, limit).data
-    suspend fun exchange(request: Request, service: String, limit: Int = 4 * 1024 * 1024, manualRedirects: Boolean = false): HttpReply =
-        suspendCancellableCoroutine { continuation ->
+    suspend fun exchange(request: Request, service: String, limit: Int = 4 * 1024 * 1024, manualRedirects: Boolean = false): HttpReply {
+        try { beforeRequest(service) }
+        catch (e: ServiceFailure) { diagnostics?.failure(request.url.host, e, simulated = true); throw e }
+        return suspendCancellableCoroutine { continuation ->
             val call = (if(manualRedirects) client.newBuilder().followRedirects(false).build() else client).newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
+                    if (!call.isCanceled() || e is java.io.InterruptedIOException) diagnostics?.failure(request.url.host, e)
                     if (continuation.isActive) continuation.resumeWith(Result.failure(ServiceFailure(service,
-                        if(e is java.io.InterruptedIOException) 408 else 0)))
+                        if(e is java.io.InterruptedIOException) 408 else 0, cause = e)))
                 }
                 override fun onResponse(call: Call, response: Response) {
                     val result = runCatching {
@@ -53,13 +62,15 @@ class Http(val client: OkHttpClient = OkHttpClient.Builder()
                         }
                     }
                     val mapped = result.fold({ Result.success(it) }, { error ->
+                        if (!call.isCanceled() || error is java.io.InterruptedIOException) diagnostics?.failure(request.url.host, error)
                         Result.failure<HttpReply>(if (error is ServiceFailure) error else if (error is IOException)
-                            ServiceFailure(service, if (error is java.io.InterruptedIOException) 408 else 0) else error)
+                            ServiceFailure(service, if (error is java.io.InterruptedIOException) 408 else 0, cause = error) else error)
                     })
                     if (continuation.isActive) continuation.resumeWith(mapped)
                 }
             })
         }
+    }
     suspend fun get(url: HttpUrl, service: String) = bytes(Request.Builder().url(url).build(), service)
     suspend fun post(url: HttpUrl, json: JSONObject, service: String) = bytes(Request.Builder()
         .url(url).post(json.toString().toRequestBody("application/json".toMediaType())).build(), service)
