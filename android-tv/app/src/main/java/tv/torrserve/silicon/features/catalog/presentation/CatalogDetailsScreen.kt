@@ -12,6 +12,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.ColorFilter
+import tv.torrserve.silicon.R
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,18 +58,18 @@ import tv.torrserve.silicon.ui.theme.*
     torrentSearch: ((CatalogItem) -> Unit)? = null, restoreTorrentFocus: Boolean = false,
     toggleList: ((CatalogItem, CatalogUserList) -> Unit)? = null,
     openRelated: ((CatalogRef) -> Unit)? = null, retryRelated: () -> Unit = {}, moreRelated: () -> Unit = {},
-    relatedHeld: ((CatalogItem, FocusRequester) -> Unit)? = null, retry: () -> Unit) {
+    relatedHeld: ((CatalogItem, FocusRequester) -> Unit)? = null, jackettEnabled: Boolean = false, retry: () -> Unit) {
     val backFocus = remember { FocusRequester() }
     val actionFocus = remember { listOf("torrent", "jackett", "favorite", "later").associateWith { FocusRequester() } }
-    val torrentFocus = actionFocus.getValue(if(torrentSearch!=null) "torrent" else "jackett")
+    val torrentFocus = actionFocus.getValue(if(torrentSearch!=null) "torrent" else if(jackettEnabled) "jackett" else "favorite")
     var focusedAction by remember(state.selected) { mutableStateOf<String?>(null) }
     var actionsFocused by remember { mutableStateOf(false) }
     var restoreActionAfterFailure by remember { mutableStateOf<String?>(null) }
     val heroFocus = remember { FocusRequester() }
     val details = state.details.data
-    val hasActions = torrentSearch != null || toggleList != null
+    val hasActions = torrentSearch != null || toggleList != null || jackettEnabled
     val actions: (@Composable () -> Unit)? = if (details != null && hasActions) {{
-        DetailActions(details.item, state, actionFocus, backFocus, torrentSearch, toggleList,
+        DetailActions(details.item, state, actionFocus, backFocus, torrentSearch, toggleList, jackettEnabled,
             focused = { focusedAction=it }, groupFocused = { actionsFocused=it })
     }} else null
     val backdrop = details?.item?.backdrop.orEmpty()
@@ -211,7 +215,7 @@ import tv.torrserve.silicon.ui.theme.*
     // Keep the same remote target when the backdrop fails or recovers while reading the hero.
     LaunchedEffect(backdropFailed) {
         if (restoreActionAfterFailure!=null) {
-            withFrameNanos { };actionFocus.getValue(restoreActionAfterFailure!!).requestFocus();restoreActionAfterFailure=null
+            withFrameNanos { };actionFocus.getValue(if(restoreActionAfterFailure == "jackett" && !jackettEnabled) { if(torrentSearch != null) "torrent" else "favorite" } else restoreActionAfterFailure!!).requestFocus();restoreActionAfterFailure=null
         } else if (restoreHeroAfterFailure) {
             withFrameNanos { }; heroFocus.requestFocus(); restoreHeroAfterFailure = false
         }
@@ -270,7 +274,7 @@ import tv.torrserve.silicon.ui.theme.*
 
 @Composable private fun DetailActions(item: CatalogItem, state: CatalogUi, focus: Map<String,FocusRequester>,
     back: FocusRequester, torrentSearch: ((CatalogItem) -> Unit)?, toggleList: ((CatalogItem, CatalogUserList) -> Unit)?,
-    focused: (String) -> Unit, groupFocused: (Boolean) -> Unit) {
+    jackettEnabled: Boolean, focused: (String) -> Unit, groupFocused: (Boolean) -> Unit) {
     val entry = state.userEntries.firstOrNull { it.ref == item.ref }
     val favorite = entry?.favorite == true
     val later = entry?.watchLater == true
@@ -281,16 +285,17 @@ import tv.torrserve.silicon.ui.theme.*
     Row(Modifier.fillMaxWidth().onFocusChanged { groupFocused(it.hasFocus) }.focusGroup().testTag("catalog:detail:actions"), horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically) {
         DetailAction("TorrentSearch", Modifier.weight(1f).focusRequester(focus.getValue("torrent")).onFocusChanged { if(it.isFocused)focused("torrent") }.focusProperties { up=back }
-            .testTag("catalog:torrentsearch"), enabled=torrentSearch!=null) { torrentSearch?.invoke(item) }
-        DetailAction("Jackett", Modifier.weight(1f).focusRequester(focus.getValue("jackett")).onFocusChanged { if(it.isFocused)focused("jackett") }.focusProperties { up=back }.testTag("catalog:jackett")) { jackett=true }
+            .testTag("catalog:torrentsearch"), enabled=torrentSearch!=null, icon=R.drawable.ic_search) { torrentSearch?.invoke(item) }
+        if (jackettEnabled) DetailAction("Jackett", Modifier.weight(1f).focusRequester(focus.getValue("jackett")).onFocusChanged { if(it.isFocused)focused("jackett") }.focusProperties { up=back }.testTag("catalog:jackett"), icon=R.drawable.ic_search) { jackett=true }
+        Spacer(Modifier.width(8.dp))
         DetailAction(if(favorite)catalogText("Remove favorite", "Удалить из избранного") else catalogText("Add to favorites", "Добавить в избранное"),
-            Modifier.weight(1f).focusRequester(favoriteFocus).onFocusChanged { if(it.isFocused)focused("favorite") }.focusProperties { up=back }.testTag("catalog:favorite"),
-            selected=favorite, enabled=state.listsReady && !state.listBusy && toggleList!=null) {
+            Modifier.size(40.dp).focusRequester(favoriteFocus).onFocusChanged { if(it.isFocused)focused("favorite") }.focusProperties { up=back }.testTag("catalog:favorite"),
+            selected=favorite, icon=if(favorite) R.drawable.ic_favorite_filled else R.drawable.ic_favorite_outline, iconOnly=true, enabled=state.listsReady && !state.listBusy && toggleList!=null) {
             restoreList=CatalogUserList.Favorites;toggleList?.invoke(item,CatalogUserList.Favorites)
         }
         DetailAction(if(later)catalogText("Remove from watch later", "Удалить из «Смотреть позже»") else catalogText("Watch later", "Смотреть позже"),
-            Modifier.weight(1f).focusRequester(laterFocus).onFocusChanged { if(it.isFocused)focused("later") }.focusProperties { up=back }.testTag("catalog:watch-later"),
-            selected=later, enabled=state.listsReady && !state.listBusy && toggleList!=null) {
+            Modifier.size(40.dp).focusRequester(laterFocus).onFocusChanged { if(it.isFocused)focused("later") }.focusProperties { up=back }.testTag("catalog:watch-later"),
+            selected=later, icon=R.drawable.ic_watch_later, iconOnly=true, enabled=state.listsReady && !state.listBusy && toggleList!=null) {
             restoreList=CatalogUserList.WatchLater;toggleList?.invoke(item,CatalogUserList.WatchLater)
         }
     }
@@ -302,7 +307,7 @@ import tv.torrserve.silicon.ui.theme.*
             restoreList=null
         }
     }
-    if(jackett) {
+    if(jackett && jackettEnabled) {
         val close=remember { FocusRequester() }
         Dialog(onDismissRequest={jackett=false}) {
             Column(Modifier.width(360.dp).background(Surface,RoundedCornerShape(20.dp)).padding(20.dp)
@@ -317,18 +322,22 @@ import tv.torrserve.silicon.ui.theme.*
 }
 
 @Composable private fun DetailAction(label: String, modifier: Modifier, enabled: Boolean = true,
-    selected: Boolean = false, action: () -> Unit) {
-    val shape=RoundedCornerShape(10.dp)
+    selected: Boolean = false, icon: Int? = null, iconOnly: Boolean = false, action: () -> Unit) {
+    val shape=CircleShape
     val motion=rememberTvButtonMotion(enabled,container=if(selected)SurfaceSecondary else Surface,
-        outline=if(selected)Accent else Outline,shape=shape)
+        content=if(selected)AccentText else TextPrimary, outline=if(selected)Accent else Outline,shape=shape)
     Button(onClick={motion.activate();action()},enabled=enabled,
         modifier=modifier.height(40.dp).then(motion.modifier).then(motion.pointerClick(enabled,action=action))
             .semantics { this.selected=selected },
         interactionSource=motion.interactions,colors=motion.colors,border=motion.border,
-        shape=ButtonDefaults.shape(shape),contentPadding=PaddingValues(horizontal=8.dp,vertical=4.dp),
+        shape=ButtonDefaults.shape(shape),contentPadding=if(iconOnly) PaddingValues(0.dp) else PaddingValues(horizontal=16.dp,vertical=4.dp),
         scale=ButtonDefaults.scale(focusedScale=1f,pressedScale=1f)) {
-        TvText(label,modifier=motion.contentModifier,style=MaterialTheme.typography.labelLarge.copy(fontSize=13.sp,lineHeight=15.sp,textAlign=TextAlign.Center),
-            maxLines=2,overflow=TextOverflow.Ellipsis,translate=false)
+        Row(Modifier.then(motion.contentModifier), horizontalArrangement=Arrangement.spacedBy(8.dp), verticalAlignment=Alignment.CenterVertically) {
+            icon?.let { Image(painterResource(it), contentDescription=if(iconOnly) label else null,
+                colorFilter=ColorFilter.tint(androidx.tv.material3.LocalContentColor.current), modifier=Modifier.size(20.dp)) }
+            if(!iconOnly) TvText(label,style=MaterialTheme.typography.labelLarge.copy(textAlign=TextAlign.Center),
+                maxLines=1,overflow=TextOverflow.Ellipsis,translate=false)
+        }
     }
 }
 

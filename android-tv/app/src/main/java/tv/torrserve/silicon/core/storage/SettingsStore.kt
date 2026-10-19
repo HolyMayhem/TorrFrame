@@ -32,7 +32,8 @@ data class Settings(val jackettUrl: String = "", val jackettKey: String = "",
     val catalogNetwork: tv.torrserve.silicon.core.network.CatalogNetworkSettings = tv.torrserve.silicon.core.network.CatalogNetworkSettings(),
     val playerMode: tv.torrserve.silicon.features.player.PlayerMode = tv.torrserve.silicon.features.player.PlayerMode.Internal,
     val externalPlayer: String = "",
-    val builtInPlayer: tv.torrserve.silicon.features.player.PlayerPreferences = tv.torrserve.silicon.features.player.PlayerPreferences()) {
+    val builtInPlayer: tv.torrserve.silicon.features.player.PlayerPreferences = tv.torrserve.silicon.features.player.PlayerPreferences(),
+    val jackettEnabled: Boolean = false) {
     val jackettConfigured get() = jackettUrl.isNotBlank() && jackettKey.isNotBlank()
     val needsLocalService get() = useLocalServer && (lanAccess || startOnBoot)
     val serverBindAddress get() = if (lanAccess) "0.0.0.0" else "127.0.0.1"
@@ -69,6 +70,7 @@ class SettingsStore(context: Context) {
     suspend fun load() = withContext(Dispatchers.IO) { lock.withLock {
         mutable.value = Settings(
             jackettUrl = prefs.getString("jackettUrl", "").orEmpty(),
+            jackettEnabled = prefs.getBoolean("jackettEnabled", !prefs.getString("jackettUrl", "").isNullOrBlank() && !prefs.getString("jackettKey", "").isNullOrBlank()),
             jackettKey = decode(prefs.getString("jackettKey", "")),
             metadataOrder = MetadataPriority.normalized(prefs.getString("metadataOrder", "").orEmpty().split(",")),
             language = prefs.getString("language", "en-US") ?: "en-US",
@@ -116,7 +118,7 @@ class SettingsStore(context: Context) {
         val address = ServerAddress.normalize(s.torrServerUrl)
         require(!s.useLocalServer || ServerAddress.isLocal(address, s.port)) { "Адрес встроенного сервера должен соответствовать локальному порту." }
         val revision = mutableRevision.value + 1
-        val success = prefs.edit().putLong("revision", revision).putString("jackettUrl", s.jackettUrl.trim()).putString("jackettKey", encode(s.jackettKey.trim()))
+        val success = prefs.edit().putLong("revision", revision).putString("jackettUrl", s.jackettUrl.trim()).putString("jackettKey", encode(s.jackettKey.trim())).putBoolean("jackettEnabled", s.jackettEnabled)
             .putString("metadataOrder", MetadataPriority.normalized(s.metadataOrder).joinToString(","))
             .putBoolean("aniListEnabled", s.aniListEnabled)
             .putString("torrServerUrl", address).putBoolean("useLocalServer", s.useLocalServer)

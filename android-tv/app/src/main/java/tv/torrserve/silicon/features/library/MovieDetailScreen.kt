@@ -22,7 +22,7 @@ import tv.torrserve.silicon.ui.components.*
 import tv.torrserve.silicon.ui.theme.*
 
 @Composable fun MovieDetailScreen(item: LibraryItem, state: LibraryUi, vm: LibraryViewModel,
-    back: () -> Unit, torrentSearch: (() -> Unit)? = null, restoreTorrentFocus: Boolean = false, play: (String, TorrentFile) -> Unit) {
+    back: () -> Unit, torrentSearch: (() -> Unit)? = null, restoreTorrentFocus: Boolean = false, jackettEnabled: Boolean = false, play: (String, TorrentFile) -> Unit) {
     var removing by remember { mutableStateOf(false) }
     val watchFocus = remember { FocusRequester() }; val backFocus = remember { FocusRequester() }
     val torrentFocus = remember { FocusRequester() }
@@ -47,7 +47,7 @@ import tv.torrserve.silicon.ui.theme.*
     LaunchedEffect(restoreAction) {
         restoreAction?.let { action ->
             withFrameNanos { }
-            if (action == "remove") removeFocus.requestFocus() else jackettFocus.requestFocus()
+            if (action == "remove") removeFocus.requestFocus() else if (jackettEnabled) jackettFocus.requestFocus() else watchFocus.requestFocus()
             restoreAction = null
         }
     }
@@ -76,7 +76,7 @@ import tv.torrserve.silicon.ui.theme.*
                     enabled = !state.busy) { removing = true }
                 TvAction("Refresh Metadata", !state.busy, Modifier.focusProperties { up = backFocus }.testTag("movie:metadata")) { vm.metadata(item.hash) }
                 if(torrentSearch != null) TvAction("TorrentSearch", modifier = Modifier.focusRequester(torrentFocus).focusProperties { up = backFocus }.testTag("movie:torrentsearch"), action = torrentSearch)
-                TvAction("Jackett", modifier = Modifier.focusRequester(jackettFocus).focusProperties { up = backFocus }.testTag("movie:jackett"), translate = false) { jackett = true }
+                if (jackettEnabled) TvAction("Jackett", modifier = Modifier.focusRequester(jackettFocus).focusProperties { up = backFocus }.testTag("movie:jackett"), translate = false) { jackett = true }
                 }
             } }
             item("files") {
@@ -102,7 +102,7 @@ import tv.torrserve.silicon.ui.theme.*
     }
     if(removing) Confirm("Remove from library?", "The torrent and its saved playback history will be removed.",
         { removing = false; restoreAction = "remove" }) { removing = false; vm.remove(item.hash, back) }
-    if(jackett) {
+    if(jackett && jackettEnabled) {
         val close = remember { FocusRequester() }
         fun dismiss() { jackett = false; restoreAction = "jackett" }
         Dialog(onDismissRequest = ::dismiss) {

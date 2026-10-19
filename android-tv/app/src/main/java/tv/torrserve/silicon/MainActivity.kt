@@ -229,7 +229,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                 torrentSearch = { restoreTorrentFocus=false;torrentSearch.open(SearchTarget(selected.title,selected.metadata?.originalTitle.orEmpty(),selected.metadata?.year,
                     if(selected.metadata?.kind==tv.torrserve.silicon.core.models.MediaKind.Tv)MediaType.Series else MediaType.Movie,
                     selected.metadata?.takeIf { it.provider=="TMDB" }?.id?.toIntOrNull())) },
-                restoreTorrentFocus=restoreTorrentFocus,play=::play)
+                restoreTorrentFocus=restoreTorrentFocus,jackettEnabled=saved.jackettEnabled,play=::play)
             else screens.SaveableStateProvider(if (section == "Library" && libraryList != null) "LibraryList:${libraryList!!.name}" else section) {
                 when(section) {
                     "Library" -> {
@@ -246,7 +246,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                             val catalogState by catalog.state.collectAsStateWithLifecycle()
                             CatalogScreen(catalogState, catalog, contentFocus, torrentSearch = ::searchCatalogItem,
                                 restoreTorrentFocus = restoreTorrentFocus, refreshRevision = catalogReloads,
-                                initialUserList = list, closeUserList = { libraryReturnList = list; libraryList = null })
+                                jackettEnabled = saved.jackettEnabled, initialUserList = list, closeUserList = { libraryReturnList = list; libraryList = null })
                         }
                     }
                     "Search" -> {
@@ -254,7 +254,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                         val catalogState by catalog.state.collectAsStateWithLifecycle()
                         CatalogScreen(catalogState, catalog, contentFocus, torrentSearch = ::searchCatalogItem,
                             restoreTorrentFocus=restoreTorrentFocus,refreshRevision=catalogReloads,
-                            showFavorites=saved.catalogNetwork.showFavorites,showWatchLater=saved.catalogNetwork.showWatchLater)
+                            showFavorites=saved.catalogNetwork.showFavorites,showWatchLater=saved.catalogNetwork.showWatchLater,jackettEnabled=saved.jackettEnabled)
                     }
                 }
             }

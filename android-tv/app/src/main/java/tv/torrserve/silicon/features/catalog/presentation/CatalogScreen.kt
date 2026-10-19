@@ -29,7 +29,7 @@ import tv.torrserve.silicon.ui.theme.*
 @Composable fun CatalogScreen(state: CatalogUi, vm: CatalogViewModel, entryFocus: FocusRequester,
     torrentSearch: ((CatalogItem) -> Unit)? = null, restoreTorrentFocus: Boolean = false, refreshRevision:Int = 0,
     showFavorites: Boolean = true, showWatchLater: Boolean = true,
-    initialUserList: CatalogUserList? = null, closeUserList: () -> Unit = {}) {
+    initialUserList: CatalogUserList? = null, closeUserList: () -> Unit = {}, jackettEnabled: Boolean = false) {
     val vertical = rememberLazyListState()
     val detailStates = rememberSaveableStateHolder()
     val savedDetailEntries = remember { mutableSetOf<Long>() }
@@ -106,7 +106,7 @@ import tv.torrserve.silicon.ui.theme.*
     BackHandler(state.selected == null && expandedGroup != null && !editing, onBack = ::collapseCollection)
     if (state.selected != null) {
         detailStates.SaveableStateProvider(state.detailEntry) {
-            CatalogDetailsScreen(state, vm::close, torrentSearch, restoreTorrentFocus,
+            CatalogDetailsScreen(state, vm::close, torrentSearch, restoreTorrentFocus, jackettEnabled = jackettEnabled,
                 toggleList = { item, list -> vm.toggleList(item, list) {} }, openRelated = vm::openRelated,
                 retryRelated = vm::retryRelated, moreRelated = { vm.loadRelated(more = true) }, relatedHeld = held) { vm.open(state.selected, true) }
         }

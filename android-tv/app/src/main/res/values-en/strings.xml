@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">TorrFrame</string>
     <string name="settings_title">Settings</string>
-    <string name="settings_search">Search</string>
+    <string name="settings_search">Jackett</string>
     <string name="settings_torrserver">TorrServer</string>
     <string name="settings_back">Back</string>
     <string name="settings_subtitle">Connection, server, search and playback</string>
@@ -363,4 +363,5 @@
     <string name="library_torrserve_hint">Media added to TorrServe</string>
     <string name="library_favorites">Favorites</string>
     <string name="library_watch_later">Watch later</string>
+    <string name="settings_use_jackett">Use Jackett</string>
 </resources>

@@ -18,7 +18,9 @@ The implementation follows the third, minimal concept using native Compose TV:
 - matching library cards, while preserving saved theme/accent/scale/language settings;
 - a soft gradient beneath the header only after scrolling details;
 - Favorites/Watch later shortcuts in Library, returning focus to their launching buttons;
-- a small localized Library hint clarifying that its media was added to TorrServe.
+- a small localized Library hint clarifying that its media was added to TorrServe;
+- wide torrent-search actions and compact favorite/watch-later icon buttons in details;
+- a persistent Jackett enable switch, hiding its TV actions while disabled.
 
 The selected poster has its own TV focus indication. Selection underlines do not
 replace focus feedback. The genre dialog restores focus to its launcher on selection
@@ -35,8 +37,8 @@ Validation artifacts and the approved concept are in `artifacts/refreshed-interf
 
 ## Validation
 
-The latest button rounding, scale alignment and scroll-triggered header fade were
-build-checked only, as requested. The test results below belong to the prior revision.
+The latest button rounding, detail actions, Jackett switch and scroll-triggered header
+fade were build-checked only, as requested. The test results below belong to the prior revision.
 
 - 206 JVM tests passed; lint: zero errors, 35 existing warnings.
 - 40 device tests passed for this revision: catalog/detail navigation, artwork/mosaic

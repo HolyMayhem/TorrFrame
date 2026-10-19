@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">TorrFrame</string>
     <string name="settings_title">Настройки</string>
-    <string name="settings_search">Поиск</string>
+    <string name="settings_search">Jackett</string>
     <string name="settings_torrserver">TorrServer</string>
     <string name="settings_back">Назад</string>
     <string name="settings_subtitle">Подключение, сервер, поиск и воспроизведение</string>
@@ -366,4 +366,5 @@
     <string name="library_torrserve_hint">Материалы, добавленные в TorrServe</string>
     <string name="library_favorites">Избранное</string>
     <string name="library_watch_later">Смотреть позже</string>
+    <string name="settings_use_jackett">Использовать Jackett</string>
 </resources>

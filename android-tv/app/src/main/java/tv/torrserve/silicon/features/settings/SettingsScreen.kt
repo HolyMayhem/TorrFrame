@@ -141,10 +141,11 @@ enum class SettingsCategory(val title: Int) {
                                             }
                                             SettingsCategory.Search -> item {
                                                 SettingsGroup(stringResource(category!!.title)) {
+                                                    TvToggle(stringResource(R.string.settings_use_jackett), s.jackettEnabled, Modifier.testTag("jackett:enabled")) { enabled -> vm.edit { it.copy(jackettEnabled = enabled) } }
                                                     EditField(stringResource(R.string.settings_jackett_url), s.jackettUrl, keyboardType = KeyboardType.Uri, russian = true) { value -> vm.edit { it.copy(jackettUrl = value) } }
                                                     EditField(stringResource(R.string.settings_jackett_key), s.jackettKey, secret = true, russian = true) { value -> vm.edit { it.copy(jackettKey = value) } }
                                                     Text(stringResource(state.connection), color = Muted)
-                                                    TvAction(stringResource(R.string.settings_test_connection), action = vm::test)
+                                                    TvAction(stringResource(R.string.settings_test_connection), enabled = s.jackettEnabled, action = vm::test)
                                                 }
                                             }
                                             SettingsCategory.TorrentSearch -> torrentSearchSettingsItems(s.torrentSearch, vm.torrentProviders, vm::torrentSearch)

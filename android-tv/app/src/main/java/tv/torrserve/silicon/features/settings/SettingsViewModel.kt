@@ -33,7 +33,7 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
         if (block(state.value.draft) == state.value.draft) return
         mutable.update {
             val s = block(it.draft)
-            it.copy(draft = s, message = "", connection = if (s.jackettUrl != it.draft.jackettUrl || s.jackettKey != it.draft.jackettKey)
+            it.copy(draft = s, message = "", connection = if (s.jackettEnabled != it.draft.jackettEnabled || s.jackettUrl != it.draft.jackettUrl || s.jackettKey != it.draft.jackettKey)
                 tv.torrserve.silicon.R.string.settings_disconnected else it.connection)
         }
         // Preserve writes when the Activity closes; the store serializes field updates.
@@ -42,7 +42,7 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
                 graph.ready.await()
                 graph.settings.update { current ->
                     val next = block(current)
-                    if (next.jackettUrl != current.jackettUrl && next.jackettUrl.isNotBlank()) graph.jackett.endpoint(next, "caps")
+                    if (next.jackettEnabled && next.jackettUrl != current.jackettUrl && next.jackettUrl.isNotBlank() && next.jackettKey.isNotBlank()) graph.jackett.endpoint(next, "caps")
                     next
                 }
             } catch (e: Exception) {
