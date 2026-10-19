@@ -138,7 +138,7 @@ import tv.torrserve.silicon.ui.theme.*
         }
         return
     }
-    BoxWithConstraints(Modifier.fillMaxSize().testTag("catalog:details")) {
+    BoxWithConstraints(Modifier.fillMaxSize().headerEdgeFade(enabled = scroll.canScrollBackward).testTag("catalog:details")) {
         // Observe the current theme density even if physical constraints did not change.
         val density = LocalDensity.current
         val viewportWidth = with(density) { constraints.maxWidth.toDp() }

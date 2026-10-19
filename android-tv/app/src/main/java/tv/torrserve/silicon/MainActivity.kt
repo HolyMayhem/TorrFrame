@@ -192,7 +192,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     val selected = lib.items.find { it.hash == detail }
     val layout = LocalTvLayout.current
     Column(Modifier.fillMaxSize().testTag("app:screen").background(Background).padding(horizontal = layout.screenInset)
-        .padding(top = 8.dp, bottom = if (saved.showNavigationHints) layout.screenInset else 0.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        .padding(top = 16.dp, bottom = if (saved.showNavigationHints) layout.screenInset else 0.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Box(Modifier.fillMaxWidth().height(48.dp).testTag("app:header")
             .focusProperties { down = screenFocus }.focusGroup()) {
             Row(Modifier.align(androidx.compose.ui.Alignment.CenterStart).testTag("app:brand"), horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -223,7 +223,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
         if(developer.active)Text(stringResource(R.string.developer_active),color=Muted,
             style=MaterialTheme.typography.bodySmall,modifier=Modifier.testTag("developer:active"))
         // Enter the mounted screen, including whichever detail page or lazy item is visible.
-        Box(Modifier.weight(1f).testTag("app:content").focusRequester(screenFocus).focusGroup().headerEdgeFade(enabled = selected != null)) {
+        Box(Modifier.weight(1f).testTag("app:content").focusRequester(screenFocus).focusGroup()) {
             if(torrentState.target!=null)TorrentSearchScreen(torrentState,torrentSearch,contentFocus,::closeTorrentSearch)
             else if(selected != null) MovieDetailScreen(selected, lib, library, { detail = null },
                 torrentSearch = { restoreTorrentFocus=false;torrentSearch.open(SearchTarget(selected.title,selected.metadata?.originalTitle.orEmpty(),selected.metadata?.year,

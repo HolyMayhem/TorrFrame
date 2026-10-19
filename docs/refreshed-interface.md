@@ -16,7 +16,7 @@ The implementation follows the third, minimal concept using native Compose TV:
 - a compact header with a larger brand mark, a bordered server-status pill and circular icon controls;
 - a neutral graphite palette and restrained surfaces;
 - matching library cards, while preserving saved theme/accent/scale/language settings;
-- a soft gradient where detail artwork meets the fixed header;
+- a soft gradient beneath the header only after scrolling details;
 - Favorites/Watch later shortcuts in Library, returning focus to their launching buttons;
 - a small localized Library hint clarifying that its media was added to TorrServe.
 
@@ -34,6 +34,9 @@ There is no full-screen blur, animated wallpaper, additional catalog API or poll
 Validation artifacts and the approved concept are in `artifacts/refreshed-interface/`.
 
 ## Validation
+
+The latest button rounding, scale alignment and scroll-triggered header fade were
+build-checked only, as requested. The test results below belong to the prior revision.
 
 - 206 JVM tests passed; lint: zero errors, 35 existing warnings.
 - 40 device tests passed for this revision: catalog/detail navigation, artwork/mosaic

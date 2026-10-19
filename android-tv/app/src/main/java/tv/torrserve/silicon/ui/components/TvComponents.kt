@@ -53,7 +53,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
 
 @Composable fun TvAction(label: String, enabled: Boolean = true, modifier: Modifier = Modifier,
     primary: Boolean = false, selected: Boolean = false, translate: Boolean = true, action: () -> Unit) {
-    val shape = RoundedCornerShape(TvDimensions.buttonRadius)
+    val shape = CircleShape
     val motion = rememberTvButtonMotion(enabled,
         container = if(primary) Accent else if(selected) SurfaceSecondary else Surface,
         content = if(primary) OnAccent else TextPrimary,
@@ -186,7 +186,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
     }
 }
 @Composable fun TvToggle(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
-    val motion = rememberTvButtonMotion(container = SurfaceSecondary, outline = Color.Transparent)
+    val motion = rememberTvButtonMotion(container = SurfaceSecondary, outline = Color.Transparent, shape = CircleShape)
     var focused by remember { mutableStateOf(false) }
     val thumbOffset by animateDpAsState(if (checked) 18.dp else 0.dp, tween(if (LocalAnimationsEnabled.current) 180 else 0), label = "switchThumb")
     val trackColor by animateColorAsState(if (checked) Accent else Muted, tween(if (LocalAnimationsEnabled.current) 180 else 0), label = "switchTrack")
@@ -203,7 +203,7 @@ import tv.torrserve.silicon.core.models.LibraryItem
     Button(onClick = { motion.activate(); onChange(!checked) }, modifier = modifier.onFocusChanged { focused = it.isFocused }
         .then(motion.modifier).then(motion.pointerClick { onChange(!checked) }).fillMaxWidth().heightIn(min = TvDimensions.actionHeight)
         .semantics { role = Role.Switch; toggleableState = if (checked) ToggleableState.On else ToggleableState.Off },
-        shape = ButtonDefaults.shape(RoundedCornerShape(TvDimensions.buttonRadius)),
+        shape = ButtonDefaults.shape(CircleShape),
         interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
         scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {

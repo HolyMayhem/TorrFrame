@@ -105,12 +105,10 @@ import tv.torrserve.silicon.ui.theme.*
     }
     BackHandler(state.selected == null && expandedGroup != null && !editing, onBack = ::collapseCollection)
     if (state.selected != null) {
-        Box(Modifier.fillMaxSize().headerEdgeFade(enabled = state.details.data != null)) {
-            detailStates.SaveableStateProvider(state.detailEntry) {
-                CatalogDetailsScreen(state, vm::close, torrentSearch, restoreTorrentFocus,
-                    toggleList = { item, list -> vm.toggleList(item, list) {} }, openRelated = vm::openRelated,
-                    retryRelated = vm::retryRelated, moreRelated = { vm.loadRelated(more = true) }, relatedHeld = held) { vm.open(state.selected, true) }
-            }
+        detailStates.SaveableStateProvider(state.detailEntry) {
+            CatalogDetailsScreen(state, vm::close, torrentSearch, restoreTorrentFocus,
+                toggleList = { item, list -> vm.toggleList(item, list) {} }, openRelated = vm::openRelated,
+                retryRelated = vm::retryRelated, moreRelated = { vm.loadRelated(more = true) }, relatedHeld = held) { vm.open(state.selected, true) }
         }
     } else if (expandedGroup != null) {
         val group = expandedGroup!!

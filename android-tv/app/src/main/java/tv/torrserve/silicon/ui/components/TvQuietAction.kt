@@ -3,6 +3,7 @@ package tv.torrserve.silicon.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,7 +19,7 @@ import tv.torrserve.silicon.ui.theme.*
     selected: Boolean = false, underline: Boolean = false, filled: Boolean = false,
     translate: Boolean = true, centered: Boolean = false, style: TextStyle = MaterialTheme.typography.labelLarge,
     action: () -> Unit) {
-    val shape = RoundedCornerShape(8.dp)
+    val shape = CircleShape
     val motion = rememberTvButtonMotion(enabled, container = if (filled) Surface else Color.Transparent,
         content = if (selected) AccentText else Muted, outline = Color.Transparent, shape = shape,
         focusedContainer = SurfaceSecondary, focusedContent = TextPrimary, focusedOutline = TextPrimary.copy(alpha = .8f))

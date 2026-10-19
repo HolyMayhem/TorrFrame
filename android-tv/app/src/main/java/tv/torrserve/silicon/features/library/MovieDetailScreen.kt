@@ -61,7 +61,7 @@ import tv.torrserve.silicon.ui.theme.*
             if (preferred != null) play(item.hash, preferred) else focusFiles = true
         }
     }
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize().headerEdgeFade(enabled = list.canScrollBackward)) {
         val heroHeight = (maxHeight * .68f).coerceIn(280.dp, 420.dp)
         LazyColumn(Modifier.fillMaxSize().testTag("movie:content"), state = list,
             contentPadding = PaddingValues(8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

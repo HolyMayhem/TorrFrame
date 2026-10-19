@@ -26,13 +26,13 @@ import tv.torrserve.silicon.ui.theme.Muted
         TvText(stringResource(R.string.ui_scale_title), color = Muted)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             TvAction("−", enabled = percent > UiScale.MIN,
-                modifier = Modifier.focusRequester(less).testTag("scale:minus").semantics { contentDescription = decrease }) {
+                modifier = Modifier.size(44.dp).focusRequester(less).testTag("scale:minus").semantics { contentDescription = decrease }) {
                 if (percent - UiScale.STEP <= UiScale.MIN) pendingFocus = more
                 change(-1)
             }
-            TvText("$percent%", modifier = Modifier.width(52.dp).testTag("scale:value"), translate = false)
+            TvText("$percent%", modifier = Modifier.width(52.dp).wrapContentWidth(Alignment.CenterHorizontally).testTag("scale:value"), translate = false)
             TvAction("+", enabled = percent < UiScale.MAX,
-                modifier = Modifier.focusRequester(more).testTag("scale:plus").semantics { contentDescription = increase }) {
+                modifier = Modifier.size(44.dp).focusRequester(more).testTag("scale:plus").semantics { contentDescription = increase }) {
                 if (percent + UiScale.STEP >= UiScale.MAX) pendingFocus = less
                 change(1)
             }
