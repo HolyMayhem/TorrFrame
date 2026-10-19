@@ -39,7 +39,7 @@ import tv.torrserve.silicon.ui.theme.TvDimensions
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("My Library", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
-            TvAction("Refresh", !state.busy, modifier = Modifier.focusRequester(fallback), action = refresh); TvAction("Explore catalog", primary = true, action = search)
+            TvQuietAction("Refresh", enabled = !state.busy, modifier = Modifier.focusRequester(fallback), filled = true, action = refresh); TvQuietAction("Explore catalog", filled = true, action = search)
         }
         if(availability != LibraryAvailability.Ready) {
             val title=stringResource(when(availability) {
@@ -73,7 +73,11 @@ import tv.torrserve.silicon.ui.theme.TvDimensions
             }
             return@Column
         }
-        ChoiceRow(listOf("All", "Movies", "TV Shows"), filter) { filter = it }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("All", "Movies", "TV Shows").forEach { value ->
+                TvQuietAction(value, selected = value == filter, underline = true) { filter = value }
+            }
+        }
         Message(state.message)
         if (state.busy) Text("Loading…")
         if (items.isEmpty()) Text("No titles match this filter.")

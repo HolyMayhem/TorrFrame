@@ -11,6 +11,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.*
@@ -90,6 +91,19 @@ class CatalogNavigationTest {
         return repo
     }
     private fun remote(key:Int) { compose.waitForIdle();InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(key);compose.waitForIdle() }
+    private fun openGenres() {
+        compose.onNodeWithTag("catalog:genres").performSemanticsAction(SemanticsActions.RequestFocus)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNodeWithTag("catalog:genres-dialog").assertIsDisplayed()
+    }
+    private fun chooseGenre(filter: CatalogFilter) {
+        openGenres()
+        compose.onNodeWithTag("catalog:genres-list").performScrollToNode(hasTestTag("catalog:filter:${filter.name}"))
+        compose.onNodeWithTag("catalog:filter:${filter.name}").performSemanticsAction(SemanticsActions.RequestFocus)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNodeWithTag("catalog:genres-dialog").assertDoesNotExist()
+        compose.onNodeWithTag("catalog:genres").assertIsFocused()
+    }
     private fun holdOk(key:Int=KeyEvent.KEYCODE_DPAD_CENTER) {
         compose.waitForIdle()
         val now=android.os.SystemClock.uptimeMillis()
@@ -409,10 +423,7 @@ class CatalogNavigationTest {
         compose.onNodeWithTag("catalog:filter:Series").assertIsSelected()
         compose.onNodeWithTag("catalog:row:PopularTv").assertExists()
         compose.onNodeWithTag("catalog:row:TrendingMovies").assertDoesNotExist()
-        compose.onNodeWithTag("catalog:filters").performScrollToNode(hasTestTag("catalog:filter:Comedy"))
-        compose.onNodeWithTag("catalog:filter:Comedy").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
-        remote(KeyEvent.KEYCODE_DPAD_CENTER)
-        compose.onNodeWithTag("catalog:filter:Comedy").assertIsFocused().assertIsSelected()
+        chooseGenre(CatalogFilter.Comedy)
         compose.waitUntil(5000) { vm.state.value.genreFeeds.getValue(CatalogType.Movie).items.isNotEmpty() }
         val selected=compose.onNode(hasTestTag("catalog:card:movie:8") and hasAnyAncestor(hasTestTag("catalog:row:genre:movie")))
         remote(KeyEvent.KEYCODE_DPAD_DOWN);repeat(7) { remote(KeyEvent.KEYCODE_DPAD_RIGHT) };selected.assertIsFocused()
@@ -422,31 +433,34 @@ class CatalogNavigationTest {
         val after=selected.fetchSemanticsNode().boundsInRoot
         assertEquals(before.left,after.left,2f);assertEquals(calls,repo.discoveryCalls)
         assertEquals(CatalogFilter.Comedy,vm.state.value.filter)
-        remote(KeyEvent.KEYCODE_DPAD_UP);compose.onNodeWithTag("catalog:filter:Comedy").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_UP);compose.onNodeWithTag("catalog:genres").assertIsFocused()
         remote(KeyEvent.KEYCODE_DPAD_UP);compose.onNodeWithTag("catalog:search").assertIsFocused()
     }
     @Test fun genreSelectionLeavesTextSearchAndReturnsToCollection() {
         setup();compose.runOnUiThread { vm.query("Series") }
         compose.waitUntil(5000) { vm.state.value.results.items.isNotEmpty() }
-        compose.onNodeWithTag("catalog:filters").performScrollToNode(hasTestTag("catalog:filter:Horror"))
-        compose.onNodeWithTag("catalog:filter:Horror").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
-        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        chooseGenre(CatalogFilter.Horror)
         compose.waitUntil(5000) { vm.state.value.genreFeeds.getValue(CatalogType.Movie).items.isNotEmpty() }
         assertEquals("",vm.state.value.query)
         compose.onNodeWithTag("catalog:results").assertDoesNotExist()
         compose.onNodeWithTag("catalog:row:genre:movie").assertExists()
         compose.onNodeWithTag("catalog:row:genre:tv").assertDoesNotExist()
-        compose.onNodeWithTag("catalog:filter:Horror").assertIsSelected().assertIsFocused()
+        compose.onNodeWithTag("catalog:genres").assertIsFocused()
+        assertEquals(CatalogFilter.Horror,vm.state.value.filter)
     }
-    @Test fun browsingOffscreenGenreButtonsWithoutSelectingRetainsRemoteNavigation() {
-        setup()
-        compose.onNodeWithTag("catalog:filters").performScrollToNode(hasTestTag("catalog:filter:Romance"))
-        compose.onNodeWithTag("catalog:filter:Romance").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
+    @Test fun browsingGenresAndCancelingRetainsSelectionAndRemoteNavigation() {
+        setup(); openGenres()
+        compose.onNodeWithTag("catalog:genres-list").performScrollToNode(hasTestTag("catalog:filter:Romance"))
+        compose.onNodeWithTag("catalog:filter:Romance").performSemanticsAction(SemanticsActions.RequestFocus)
         assertEquals(CatalogFilter.All,vm.state.value.filter)
+        remote(KeyEvent.KEYCODE_BACK);compose.onNodeWithTag("catalog:genres").assertIsFocused()
         remote(KeyEvent.KEYCODE_DPAD_DOWN);card(1).assertIsFocused()
-        remote(KeyEvent.KEYCODE_DPAD_UP);compose.onNodeWithTag("catalog:filter:Romance").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_UP);compose.onNodeWithTag("catalog:genres").assertIsFocused()
         remote(KeyEvent.KEYCODE_DPAD_UP);compose.onNodeWithTag("catalog:search").assertIsFocused()
-        remote(KeyEvent.KEYCODE_DPAD_DOWN);compose.onNodeWithTag("catalog:filter:Romance").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_DOWN);compose.onNodeWithTag("catalog:genres").assertIsFocused()
+        chooseGenre(CatalogFilter.Romance)
+        openGenres();compose.onNodeWithTag("catalog:filter:Romance").assertIsFocused()
+        remote(KeyEvent.KEYCODE_BACK)
     }
     @Test fun actualAppearanceLanguageControlsCatalogWhileMetadataLanguageStaysSeparate() {
         val graph=(compose.activity.application as TorrFrameApplication).graph
@@ -532,6 +546,27 @@ class CatalogNavigationTest {
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.waitUntil(5000) { !vm.state.value.listBusy && vm.state.value.userEntries.isEmpty() }
         compose.onNodeWithTag("catalog:watch-later").assertIsFocused().assertIsNotSelected()
+    }
+
+    @Test fun contextualActionsReturnToSelectedPosterAndToggleTheExistingFavoritesList() {
+        setup()
+        remote(KeyEvent.KEYCODE_DPAD_DOWN);remote(KeyEvent.KEYCODE_DPAD_DOWN)
+        card(1).assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.onNodeWithTag("catalog:row-details:TrendingMovies").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        compose.onNodeWithTag("catalog:row-favorite:TrendingMovies").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.waitUntil(5000) { vm.state.value.userEntries.singleOrNull()?.favorite == true }
+        compose.onNodeWithTag("catalog:row-favorite:TrendingMovies").assertIsSelected()
+        remote(KeyEvent.KEYCODE_DPAD_UP)
+        compose.onNode(hasTestTag("catalog:card:movie:1") and hasAnyAncestor(hasTestTag("catalog:row:TrendingMovies"))).assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.onNodeWithTag("catalog:row-details:TrendingMovies").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNodeWithTag("catalog:details").assertIsDisplayed()
+        remote(KeyEvent.KEYCODE_BACK)
+        compose.onNode(hasTestTag("catalog:card:movie:1") and hasAnyAncestor(hasTestTag("catalog:row:TrendingMovies"))).assertIsFocused()
     }
 
     @Test fun personalHomeRowsAppearFirstRestoreDpadFocusAndCanBeHiddenIndependently() {

@@ -26,8 +26,8 @@ object TvDimensions {
     val sectionGap = 16.dp
     val actionHeight = 36.dp
     val gap = 12.dp
-    val cardRadius = 14.dp
-    val buttonRadius = 16.dp
+    val cardRadius = 6.dp
+    val buttonRadius = 10.dp
     val posterWidth = 128.dp
 }
 data class TvLayout(val narrow: Boolean, val short: Boolean, val libraryColumns: Int) {
@@ -43,8 +43,8 @@ fun tvLayoutFor(widthDp: Int, heightDp: Int): TvLayout {
 val LocalTvLayout = staticCompositionLocalOf { tvLayoutFor(960, 540) }
 data class TvPalette(val background: Color, val surface: Color, val muted: Color,
     val text: Color, val secondary: Color, val outline: Color)
-val DarkPalette = TvPalette(Color(0xFF101114), Color(0xFF1B1C20), Color(0xFFA4A5AD),
-    Color(0xFFF5F5F7), Color(0xFF25262B), Color(0xFF3A3B43))
+val DarkPalette = TvPalette(Color(0xFF151516), Color(0xFF222224), Color(0xFFA8A7AC),
+    Color(0xFFF3F1EC), Color(0xFF2D2D30), Color(0xFF3A3A3E))
 val LightPalette = TvPalette(Color(0xFFF5F7F5), Color.White, Color(0xFF586358),
     Color(0xFF172117), Color(0xFFEAF0EA), Color(0xFFCCD5CC))
 val LocalTvPalette = staticCompositionLocalOf { DarkPalette }

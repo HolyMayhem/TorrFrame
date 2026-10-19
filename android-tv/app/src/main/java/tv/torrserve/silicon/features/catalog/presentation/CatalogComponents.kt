@@ -2,6 +2,7 @@ package tv.torrserve.silicon.features.catalog.presentation
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,6 +14,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -58,7 +61,7 @@ val LocalCatalogImageSettings = staticCompositionLocalOf { CatalogNetworkSetting
     CatalogSection.PopularTv -> catalogText("Popular series", "Популярные сериалы")
     CatalogSection.TrendingTv -> catalogText("Trending series", "Сериалы в тренде")
 }
-@Composable internal fun CatalogImage(url: String, title: String, modifier: Modifier = Modifier) {
+@Composable internal fun CatalogImage(url: String, title: String, modifier: Modifier = Modifier, scale: ContentScale = ContentScale.Crop) {
     val painter = rememberCatalogImagePainter(url)
     val state by painter.state.collectAsStateWithLifecycle()
     Box(modifier.background(SurfaceSecondary), contentAlignment = Alignment.Center) {
@@ -66,40 +69,57 @@ val LocalCatalogImageSettings = staticCompositionLocalOf { CatalogNetworkSetting
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             TvText("◇", color = Muted, style = MaterialTheme.typography.headlineMedium, translate = false)
             TvText(title, maxLines = 3, overflow = TextOverflow.Ellipsis, translate = false, color = Muted)
-        } else Image(painter, contentDescription = title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else Image(painter, contentDescription = title, modifier = Modifier.fillMaxSize(), contentScale = scale)
     }
 }
 @Composable internal fun CatalogPosterCard(item: CatalogItem, modifier: Modifier = Modifier,
-    held: ((CatalogItem, FocusRequester) -> Unit)? = null, open: () -> Unit) {
+    held: ((CatalogItem, FocusRequester) -> Unit)? = null, landscape: Boolean = false, open: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val anchor = remember { FocusRequester() }
     val longClick: (() -> Unit)? = held?.let { { it(item, anchor) } }
-    val shape = RoundedCornerShape(10.dp)
-    val motion = rememberTvButtonMotion(shape = shape)
-    val zoom by animateFloatAsState(if (focused && LocalAnimationsEnabled.current) 1.035f else 1f,
-        tween(if (LocalAnimationsEnabled.current) 180 else 0), label = "catalogCardFocus")
+    val shape = RoundedCornerShape(6.dp)
+    val motion = rememberTvButtonMotion(container = Color.Transparent, content = TextPrimary,
+        outline = Color.Transparent, shape = shape, focusedContainer = Color.Transparent,
+        focusedContent = TextPrimary, focusedOutline = Color.Transparent)
+    val zoom by animateFloatAsState(if (focused && LocalAnimationsEnabled.current) 1.018f else 1f,
+        tween(if (LocalAnimationsEnabled.current) 150 else 0), label = "catalogCardFocus")
     Button(onClick = { motion.activate(); open() }, onLongClick = longClick, modifier = modifier.focusRequester(anchor)
-        .then(Modifier.graphicsLayer { scaleX = zoom; scaleY = zoom })
+        .graphicsLayer { scaleX = zoom; scaleY = zoom }
         .then(motion.modifier).then(motion.pointerClick(onLongClick = longClick, action = open))
         .onFocusChanged { focused = it.isFocused }.testTag("catalog:card:${item.ref.key}"),
         shape = ButtonDefaults.shape(shape), contentPadding = PaddingValues(0.dp),
         colors = motion.colors, border = motion.border, interactionSource = motion.interactions,
         scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
-        Column {
-            CatalogImage(item.poster, item.title, Modifier.fillMaxWidth().aspectRatio(2f / 3f))
-            Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                TvText(item.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.heightIn(min = 40.dp), translate = false)
-                TvText(listOfNotNull(if (item.votes > 0) "★ %.1f".format(java.util.Locale.US, item.rating) else null, item.year?.toString()).joinToString("  ·  "),
-                    style = MaterialTheme.typography.labelLarge, maxLines = 1, translate = false)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(Modifier.fillMaxWidth().aspectRatio(if (landscape) 16f / 9f else 3f / 4f)
+                .border(2.dp, if (focused) TextPrimary else Color.Transparent, shape).padding(2.dp)) {
+                CatalogImage(if (landscape) item.backdrop.ifBlank { item.poster } else item.poster, item.title,
+                    Modifier.fillMaxSize().clip(RoundedCornerShape(4.dp)),
+                    scale = if (landscape && item.backdrop.isBlank()) ContentScale.Fit else ContentScale.Crop)
+            }
+            Column(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                TvText(item.title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.heightIn(min = 18.dp), translate = false)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (item.votes > 0) {
+                        TvText("★", color = Positive, style = MaterialTheme.typography.labelMedium, translate = false)
+                        TvText("%.1f".format(java.util.Locale.US, item.rating), color = Muted,
+                            style = MaterialTheme.typography.labelMedium, translate = false)
+                    }
+                    item.year?.let { year -> TvText((if (item.votes > 0) "·  " else "") + year, color = Muted,
+                        style = MaterialTheme.typography.labelMedium, maxLines = 1, translate = false) }
+                }
             }
         }
     }
 }
 
 @Composable internal fun CatalogCollectionCard(items: List<CatalogItem>, title: String, modifier: Modifier = Modifier, open: () -> Unit) {
-    val shape = RoundedCornerShape(10.dp)
-    val motion = rememberTvButtonMotion(shape = shape)
+    val shape = RoundedCornerShape(6.dp)
+    val motion = rememberTvButtonMotion(shape = shape, container = Surface,
+        outline = Color.Transparent, focusedContainer = SurfaceSecondary,
+        focusedContent = TextPrimary, focusedOutline = TextPrimary)
     val label = catalogText("Open collection: ", "Открыть подборку: ") + title
     Button(onClick = { motion.activate(); open() }, modifier = modifier
         .then(motion.modifier).then(motion.pointerClick(action = open)).semantics { contentDescription = label },

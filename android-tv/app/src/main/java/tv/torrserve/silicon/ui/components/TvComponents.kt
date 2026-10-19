@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -70,7 +71,8 @@ import tv.torrserve.silicon.core.models.LibraryItem
     val shape = CircleShape
     val motion = rememberTvButtonMotion(enabled,
         container = if (primary) Accent else Surface, content = if (primary) OnAccent else TextPrimary,
-        outline = if (primary) Accent.copy(alpha = .6f) else Outline, shape = shape)
+        outline = Color.Transparent, shape = shape, focusedContainer = SurfaceSecondary,
+        focusedContent = TextPrimary, focusedOutline = TextPrimary.copy(alpha = .8f))
     Button(onClick = { motion.activate(); action() }, enabled = enabled,
         modifier = modifier.size(TvDimensions.actionHeight).then(motion.modifier).then(motion.pointerClick(enabled, action = action)),
         shape = ButtonDefaults.shape(shape), contentPadding = PaddingValues(0.dp),
@@ -83,7 +85,8 @@ import tv.torrserve.silicon.core.models.LibraryItem
     }
 }
 @Composable fun TvNavItem(label: String, isSelected: Boolean, modifier: Modifier = Modifier, displayLabel: String = label, action: () -> Unit) {
-    TvAction(displayLabel, modifier = modifier.testTag("nav:$label").semantics { selected = isSelected }, selected = isSelected, action = action)
+    TvQuietAction(displayLabel, modifier = modifier.testTag("nav:$label").semantics { selected = isSelected },
+        selected = isSelected, underline = true, style = MaterialTheme.typography.titleMedium, action = action)
 }
 @Composable fun TvBackAction(modifier: Modifier = Modifier, action: () -> Unit) {
     val shape = CircleShape
@@ -211,20 +214,22 @@ import tv.torrserve.silicon.core.models.LibraryItem
 @Composable fun Poster(item: LibraryItem, modifier: Modifier = Modifier, focused: () -> Unit = {}, open: () -> Unit) {
     var imageFailed by remember(item.metadata?.poster) { mutableStateOf(false) }
     val shape = RoundedCornerShape(TvDimensions.cardRadius)
-    Card(onClick = open, modifier = modifier.onFocusChanged { if(it.isFocused) focused() },
+    var hasFocus by remember { mutableStateOf(false) }
+    Card(onClick = open, modifier = modifier.onFocusChanged { hasFocus = it.isFocused; if(it.isFocused) focused() },
         shape = CardDefaults.shape(shape),
-        colors = CardDefaults.colors(containerColor = Surface, contentColor = TextPrimary,
-            focusedContainerColor = SurfaceSecondary, focusedContentColor = TextPrimary),
-        border = CardDefaults.border(focusedBorder = Border(BorderStroke(2.dp, FocusBorderColor), inset = (-3).dp, shape = shape)),
+        colors = CardDefaults.colors(containerColor = Color.Transparent, contentColor = TextPrimary,
+            focusedContainerColor = Color.Transparent, focusedContentColor = TextPrimary),
+        border = CardDefaults.border(),
         scale = CardDefaults.scale(focusedScale = if (LocalAnimationsEnabled.current) 1.03f else 1f, pressedScale = 1f)) {
         Column {
-            Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(SurfaceSecondary), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(SurfaceSecondary, shape).clip(shape)
+                .border(2.dp, if (hasFocus) TextPrimary else Color.Transparent, shape), contentAlignment = Alignment.Center) {
                 if (item.metadata?.poster?.isNotBlank() == true && !imageFailed) AsyncImage(item.metadata.poster,
                     contentDescription = item.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, onError = { imageFailed = true })
                 else Text(item.title.take(1).uppercase(), fontSize = 56.sp, color = Muted)
             }
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(item.title, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 16.sp)
+            Column(Modifier.padding(horizontal = 2.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(item.title, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
                 Text(listOfNotNull(item.metadata?.year?.toString(), item.metadata?.rating?.takeIf { it > 0 }?.let { "★ %.1f".format(it) }).joinToString(" · "), color = Muted, fontSize = 13.sp)
                 if (item.inProgress && item.duration > 0) Box(Modifier.fillMaxWidth().height(3.dp).background(Muted.copy(alpha = .25f))) {
                     Box(Modifier.fillMaxWidth((item.position.toFloat() / item.duration).coerceIn(0f,1f)).height(3.dp).background(Color.White))

@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
@@ -33,10 +35,13 @@ fun serverIndicator(local: Boolean, server: ServerState, connection: ConnectionS
     }
 }
 @Composable fun ServerStatusIndicator(local: Boolean, server: ServerState, connection: ConnectionState, open: () -> Unit) {
-    val motion = rememberTvButtonMotion(shape = CircleShape)
+    val motion = rememberTvButtonMotion(shape = CircleShape, container = Color.Transparent,
+        outline = Color.Transparent, focusedContainer = SurfaceSecondary,
+        focusedContent = TextPrimary, focusedOutline = TextPrimary.copy(alpha = .8f))
+    val compact = LocalTvLayout.current.narrow
     val status = serverIndicator(local, server, connection)
     val color = when (status) {
-        ServerIndicator.Online -> Color(0xFF008800)
+        ServerIndicator.Online -> Positive
         ServerIndicator.Offline -> Muted
         ServerIndicator.Error -> Color(0xFFD94747)
         ServerIndicator.Busy -> Color(0xFFE0AD24)
@@ -48,7 +53,8 @@ fun serverIndicator(local: Boolean, server: ServerState, connection: ConnectionS
         ServerIndicator.Busy -> if (server == ServerState.Stopping && local) R.string.server_process_stopping else R.string.server_connecting
     })
     Button(onClick = { motion.activate(); open() }, modifier = motion.modifier.then(motion.pointerClick(action = open))
-        .height(TvDimensions.actionHeight).testTag("server:indicator"),
+        .height(TvDimensions.actionHeight).then(if (compact) Modifier.width(TvDimensions.actionHeight) else Modifier)
+        .testTag("server:indicator").semantics { contentDescription = label },
         shape = ButtonDefaults.shape(CircleShape),
         interactionSource = motion.interactions, colors = motion.colors,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
@@ -56,7 +62,7 @@ fun serverIndicator(local: Boolean, server: ServerState, connection: ConnectionS
         scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.size(7.dp).background(color, CircleShape).testTag("server:indicator:${status.name}"))
-            TvText(label, modifier = motion.contentModifier, style = MaterialTheme.typography.labelLarge)
+            if (!compact) TvText(label, modifier = motion.contentModifier, style = MaterialTheme.typography.labelLarge, color = Muted)
         }
     }
 }

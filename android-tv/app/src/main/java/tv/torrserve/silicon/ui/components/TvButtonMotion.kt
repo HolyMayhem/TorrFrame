@@ -46,6 +46,9 @@ internal data class TvButtonMotion(
     content: Color = TextPrimary,
     outline: Color = Outline,
     shape: Shape = RoundedCornerShape(TvDimensions.buttonRadius),
+    focusedContainer: Color = Accent,
+    focusedContent: Color = OnAccent,
+    focusedOutline: Color = FocusBorderColor,
 ): TvButtonMotion {
     val interactions = remember { MutableInteractionSource() }
     var focused by remember { mutableStateOf(false) }
@@ -60,19 +63,19 @@ internal data class TvButtonMotion(
     }
     val pressed by interactions.collectIsPressedAsState()
     val active = enabled && focused
-    val targetContent = if (!enabled) Muted.copy(alpha = .55f) else if (active) OnAccent else content
+    val targetContent = if (!enabled) Muted.copy(alpha = .55f) else if (active) focusedContent else content
     val duration = if (animations) 200 else 0
     val pressActive = enabled && animations && (pressed || clickPulse)
     val pressScale by animateFloatAsState(if (pressActive) .94f else 1f,
         tween(if (!animations) 0 else if (pressActive) 70 else 170), label = "buttonPress")
     val contentScale by animateFloatAsState(if (animations && active) 1.06f else 1f,
         tween(duration), label = "buttonFocusContent")
-    val base = if (!enabled) Surface else if (active) Accent else container
+    val base = if (!enabled) Surface else if (active) focusedContainer else container
     val background by animateColorAsState(
         if (pressActive) lerp(base, targetContent, .18f) else base,
         tween(duration), label = "buttonBackground")
     val foreground by animateColorAsState(targetContent, tween(duration), label = "buttonContent")
-    val borderColor by animateColorAsState(if (focused) FocusBorderColor else outline,
+    val borderColor by animateColorAsState(if (focused) focusedOutline else outline,
         tween(duration), label = "buttonOutline")
     val borderWidth by animateDpAsState(if (focused) 2.dp else 1.dp,
         tween(duration), label = "buttonOutlineWidth")

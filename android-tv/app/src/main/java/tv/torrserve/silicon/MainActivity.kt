@@ -184,27 +184,33 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     val layout = LocalTvLayout.current
     Column(Modifier.fillMaxSize().testTag("app:screen").background(Background).padding(horizontal = layout.screenInset)
         .padding(top = layout.screenInset, bottom = if (saved.showNavigationHints) layout.screenInset else 0.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(Modifier.fillMaxWidth().testTag("app:header").focusProperties { down = screenFocus }.focusGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Row(Modifier.padding(end = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                BrandMark()
-                Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp, lineHeight = 17.sp), translate = false)
+        Box(Modifier.fillMaxWidth().height(52.dp).testTag("app:header")
+            .focusProperties { down = screenFocus }.focusGroup()) {
+            Row(Modifier.align(androidx.compose.ui.Alignment.CenterStart).testTag("app:brand"), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                BrandMark(Modifier)
+                Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium.copy(
+                    fontSize = if (layout.narrow) 17.sp else 20.sp, lineHeight = 25.sp), translate = false)
             }
-            listOf("Search", "Library").forEach { tab ->
-                TvNavItem(tab, section == tab && detail == null,
-                    modifier = if(tab == "Library") Modifier.focusRequester(initialFocus) else Modifier,
-                    displayLabel = if(tab == "Search") "Catalog" else tab) { torrentSearch.close();restoreTorrentFocus=false;detail = null; section = tab; library.closeFiles() }
+            Row(Modifier.align(androidx.compose.ui.Alignment.Center).testTag("app:navigation"), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Search", "Library").forEach { tab ->
+                    TvNavItem(tab, section == tab && detail == null,
+                        modifier = if(tab == "Library") Modifier.focusRequester(initialFocus) else Modifier,
+                        displayLabel = if(tab == "Search") "Catalog" else tab) {
+                        torrentSearch.close(); restoreTorrentFocus=false; detail = null; section = tab; library.closeFiles()
+                    }
+                }
             }
-            Spacer(Modifier.weight(1f))
-            if (phonePreference.enabled) tv.torrserve.silicon.phoneRemote.ui.PhoneRemoteShortcut {
-                if (graph.phoneRemote.state.value.status == tv.torrserve.silicon.phoneRemote.server.PhoneRemoteStatus.Running) phoneQr = true
-                else openSettings(SettingsCategory.PhoneRemote)
+            Row(Modifier.align(androidx.compose.ui.Alignment.CenterEnd).testTag("app:utilities"), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                if (phonePreference.enabled) tv.torrserve.silicon.phoneRemote.ui.PhoneRemoteShortcut {
+                    if (graph.phoneRemote.state.value.status == tv.torrserve.silicon.phoneRemote.server.PhoneRemoteStatus.Running) phoneQr = true
+                    else openSettings(SettingsCategory.PhoneRemote)
+                }
+                ServerStatusIndicator(saved.useLocalServer, server, connection) { openSettings(SettingsCategory.TorrServer) }
+                SettingsShortcut(Modifier.focusRequester(settingsFocus), settingsOpen) { openSettings() }
             }
-            ServerStatusIndicator(saved.useLocalServer, server, connection) {
-                openSettings(SettingsCategory.TorrServer)
-            }
-            SettingsShortcut(Modifier.focusRequester(settingsFocus), settingsOpen) { openSettings() }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Outline.copy(alpha = .55f)))
         if(developer.active)Text(stringResource(R.string.developer_active),color=Muted,
             style=MaterialTheme.typography.bodySmall,modifier=Modifier.testTag("developer:active"))
         // Enter the mounted screen, including whichever detail page or lazy item is visible.
