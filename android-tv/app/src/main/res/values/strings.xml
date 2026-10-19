@@ -3,11 +3,7 @@
     <string name="settings_title">Настройки</string>
     <string name="settings_search">Jackett</string>
     <string name="settings_torrserver">TorrServer</string>
-    <string name="settings_back">Назад</string>
-    <string name="settings_subtitle">Подключение, сервер, поиск и воспроизведение</string>
-    <string name="settings_saved">Настройки сохранены.</string>
     <string name="settings_save">Сохранить</string>
-    <string name="settings_saving">Сохранение…</string>
     <string name="dialog_done">Готово</string>
     <string name="dialog_cancel">Отмена</string>
     <string name="toggle_on">Включено</string>
@@ -71,7 +67,6 @@
     <string name="engine_title">Настройки TorrServer</string>
     <string name="engine_subtitle">Параметры Torrent-движка на выбранном сервере</string>
     <string name="engine_open">Настройки TorrServer</string>
-    <string name="engine_back">Назад</string>
     <string name="engine_reload">Загрузить с сервера</string>
     <string name="engine_save">Сохранить на сервере</string>
     <string name="engine_reset">Восстановить настройки сервера</string>
@@ -85,7 +80,6 @@
     <string name="engine_warning">Сохранение пересоздаёт Torrent-движок и сбрасывает активные раздачи. Во время просмотра изменение параметров недоступно.</string>
     <string name="engine_empty">Загрузите актуальные параметры с сервера. Показаны только поддерживаемые им поля.</string>
     <string name="engine_invalid_value">Укажите число от %1$d до %2$d в единицах, указанных в названии.</string>
-    <string name="engine_invalid_combination">Нельзя одновременно отключить TCP и uTP.</string>
     <string name="engine_not_saved">Сервер не подтвердил сохранение. Возможно, база открыта только для чтения. Загрузите актуальные значения повторно.</string>
     <string name="engine_saved">Сохранение подтверждено сервером. Torrent-движок пересоздан.</string>
     <string name="engine_reset_done">Сброс подтверждён сервером. Torrent-движок пересоздан.</string>
@@ -118,7 +112,6 @@
     <string name="engine_pex">Отключить PEX</string>
     <string name="engine_no_upload">Отключить отдачу</string>
     <string name="engine_lpd">Поиск пиров в локальной сети (LPD)</string>
-    <string name="settings_jackett">Поиск · Jackett</string>
     <string name="settings_jackett_url">Адрес Jackett</string>
     <string name="settings_jackett_key">API-ключ Jackett</string>
     <string name="settings_test_connection">Проверить подключение</string>
@@ -152,7 +145,6 @@
     <string name="ui_scale_increase">Увеличить масштаб</string>
     <string name="ui_scale_default" formatted="false">По умолчанию · 85%</string>
     <string name="ui_scale_hint" formatted="false">70–110%, шаг 5%. Изменения применяются сразу и сохраняются автоматически.</string>
-    <string name="settings_dark_theme">Тема: тёмная</string>
     <string name="settings_updates">Обновления</string>
     <string name="settings_about_text">TorrFrame %1$s\nНативное приложение Android TV\nTorrServer от YouROK · Compose for TV · Media3\nTorrServer: GPL-3.0 · Kotlin, OkHttp, Media3, Coil: Apache-2.0</string>
     <string name="settings_about">О приложении</string>

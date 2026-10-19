@@ -4,11 +4,7 @@
     <string name="settings_title">Settings</string>
     <string name="settings_search">Jackett</string>
     <string name="settings_torrserver">TorrServer</string>
-    <string name="settings_back">Back</string>
-    <string name="settings_subtitle">Connection, server, search and playback</string>
-    <string name="settings_saved">Settings saved.</string>
     <string name="settings_save">Save</string>
-    <string name="settings_saving">Saving…</string>
     <string name="dialog_done">Done</string>
     <string name="dialog_cancel">Cancel</string>
     <string name="toggle_on">On</string>
@@ -72,7 +68,6 @@
     <string name="engine_title">TorrServer settings</string>
     <string name="engine_subtitle">Torrent engine settings on the selected server</string>
     <string name="engine_open">TorrServer settings</string>
-    <string name="engine_back">Back</string>
     <string name="engine_reload">Load from server</string>
     <string name="engine_save">Save to server</string>
     <string name="engine_reset">Restore server defaults</string>
@@ -86,7 +81,6 @@
     <string name="engine_warning">Saving recreates the torrent engine and resets active torrents. Settings cannot be changed during playback.</string>
     <string name="engine_empty">Load the current server settings. Only supported fields are shown.</string>
     <string name="engine_invalid_value">Enter a number from %1$d to %2$d in the units shown in the label.</string>
-    <string name="engine_invalid_combination">TCP and uTP cannot both be disabled.</string>
     <string name="engine_not_saved">The server did not confirm saving. The database may be read-only. Reload current values.</string>
     <string name="engine_saved">Server confirmed saving. Torrent engine recreated.</string>
     <string name="engine_reset_done">Server confirmed reset. Torrent engine recreated.</string>
@@ -119,7 +113,6 @@
     <string name="engine_pex">Disable PEX</string>
     <string name="engine_no_upload">Disable uploading</string>
     <string name="engine_lpd">Local peer discovery (LPD)</string>
-    <string name="settings_jackett">Search · Jackett</string>
     <string name="settings_jackett_url">Jackett address</string>
     <string name="settings_jackett_key">Jackett API key</string>
     <string name="settings_test_connection">Test connection</string>
@@ -153,7 +146,6 @@
     <string name="ui_scale_increase">Increase scale</string>
     <string name="ui_scale_default" formatted="false">Default · 85%</string>
     <string name="ui_scale_hint" formatted="false">70–110%, in 5% steps. Changes apply immediately and are saved automatically.</string>
-    <string name="settings_dark_theme">Theme: dark</string>
     <string name="settings_updates">Updates</string>
     <string name="settings_about_text">TorrFrame %1$s\nNative Android TV app\nTorrServer by YouROK · Compose for TV · Media3\nTorrServer: GPL-3.0 · Kotlin, OkHttp, Media3, Coil: Apache-2.0</string>
     <string name="settings_about">About</string>
