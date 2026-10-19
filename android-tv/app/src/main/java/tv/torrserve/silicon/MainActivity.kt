@@ -34,6 +34,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import tv.torrserve.silicon.core.localization.uiString
 import tv.torrserve.silicon.features.catalog.presentation.*
+import tv.torrserve.silicon.features.catalog.domain.CatalogUserList
+import tv.torrserve.silicon.features.catalog.domain.CatalogItem
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.*
@@ -144,6 +146,8 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     var phoneQr by remember { mutableStateOf(false) }
     var section by rememberSaveable { mutableStateOf("Library") }
     var detail by rememberSaveable { mutableStateOf<String?>(null) }
+    var libraryList by rememberSaveable { mutableStateOf<CatalogUserList?>(null) }
+    var libraryReturnList by rememberSaveable { mutableStateOf<CatalogUserList?>(null) }
     val screens = rememberSaveableStateHolder()
     val initialFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
@@ -180,6 +184,11 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     LaunchedEffect(restoreTorrentFocus,torrentState.target) {
         if(restoreTorrentFocus && torrentState.target==null) { withFrameNanos { };withFrameNanos { };restoreTorrentFocus=false }
     }
+    fun searchCatalogItem(item: CatalogItem) {
+        restoreTorrentFocus = false
+        torrentSearch.open(SearchTarget(item.title, item.originalTitle, item.year,
+            if (item.ref.type == tv.torrserve.silicon.features.catalog.domain.CatalogType.Tv) MediaType.Series else MediaType.Movie, item.ref.id))
+    }
     val selected = lib.items.find { it.hash == detail }
     val layout = LocalTvLayout.current
     Column(Modifier.fillMaxSize().testTag("app:screen").background(Background).padding(horizontal = layout.screenInset)
@@ -214,26 +223,37 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
         if(developer.active)Text(stringResource(R.string.developer_active),color=Muted,
             style=MaterialTheme.typography.bodySmall,modifier=Modifier.testTag("developer:active"))
         // Enter the mounted screen, including whichever detail page or lazy item is visible.
-        Box(Modifier.weight(1f).testTag("app:content").focusRequester(screenFocus).focusGroup()) {
+        Box(Modifier.weight(1f).testTag("app:content").focusRequester(screenFocus).focusGroup().headerEdgeFade(enabled = selected != null)) {
             if(torrentState.target!=null)TorrentSearchScreen(torrentState,torrentSearch,contentFocus,::closeTorrentSearch)
             else if(selected != null) MovieDetailScreen(selected, lib, library, { detail = null },
                 torrentSearch = { restoreTorrentFocus=false;torrentSearch.open(SearchTarget(selected.title,selected.metadata?.originalTitle.orEmpty(),selected.metadata?.year,
                     if(selected.metadata?.kind==tv.torrserve.silicon.core.models.MediaKind.Tv)MediaType.Series else MediaType.Movie,
                     selected.metadata?.takeIf { it.provider=="TMDB" }?.id?.toIntOrNull())) },
                 restoreTorrentFocus=restoreTorrentFocus,play=::play)
-            else screens.SaveableStateProvider(section) {
+            else screens.SaveableStateProvider(if (section == "Library" && libraryList != null) "LibraryList:${libraryList!!.name}" else section) {
                 when(section) {
-                    "Library" -> LibraryScreen(lib, library::refresh, { navigateFromContent("Search") }, contentFocus,
-                        availability = libraryAvailability(saved.useLocalServer,server,connection,developer.serverUnavailable,
-                            if(lib.syncFailed)lib.syncFailure ?: 0 else null),
-                        serverSettings = { openSettings(SettingsCategory.TorrServer) }) { detail = it }
+                    "Library" -> {
+                        val list = libraryList
+                        if (list == null) LibraryScreen(lib, library::refresh, { navigateFromContent("Search") }, contentFocus,
+                            availability = libraryAvailability(saved.useLocalServer,server,connection,developer.serverUnavailable,
+                                if(lib.syncFailed)lib.syncFailure ?: 0 else null),
+                            serverSettings = { openSettings(SettingsCategory.TorrServer) },
+                            openList = { libraryList = it }, restoreListFocus = libraryReturnList,
+                            listFocusRestored = { libraryReturnList = null }) { detail = it }
+                        else {
+                            // Independent navigation, shared catalog repository/cache and saved user lists.
+                            val catalog: CatalogViewModel = viewModel(key = "library-list:${list.name}", factory = factory)
+                            val catalogState by catalog.state.collectAsStateWithLifecycle()
+                            CatalogScreen(catalogState, catalog, contentFocus, torrentSearch = ::searchCatalogItem,
+                                restoreTorrentFocus = restoreTorrentFocus, refreshRevision = catalogReloads,
+                                initialUserList = list, closeUserList = { libraryReturnList = list; libraryList = null })
+                        }
+                    }
                     "Search" -> {
                         val catalog: CatalogViewModel = viewModel(factory = factory)
                         val catalogState by catalog.state.collectAsStateWithLifecycle()
-                        CatalogScreen(catalogState, catalog, contentFocus, torrentSearch = { item ->
-                            restoreTorrentFocus=false;torrentSearch.open(SearchTarget(item.title,item.originalTitle,item.year,
-                                if(item.ref.type==tv.torrserve.silicon.features.catalog.domain.CatalogType.Tv)MediaType.Series else MediaType.Movie,item.ref.id))
-                        },restoreTorrentFocus=restoreTorrentFocus,refreshRevision=catalogReloads,
+                        CatalogScreen(catalogState, catalog, contentFocus, torrentSearch = ::searchCatalogItem,
+                            restoreTorrentFocus=restoreTorrentFocus,refreshRevision=catalogReloads,
                             showFavorites=saved.catalogNetwork.showFavorites,showWatchLater=saved.catalogNetwork.showWatchLater)
                     }
                 }

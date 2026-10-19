@@ -13,6 +13,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.testTag
 import tv.torrserve.silicon.R
+import tv.torrserve.silicon.features.catalog.domain.CatalogUserList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -24,12 +25,20 @@ import tv.torrserve.silicon.ui.components.*
 import tv.torrserve.silicon.ui.theme.TvDimensions
 
 @Composable fun LibraryScreen(state: LibraryUi, refresh: () -> Unit, search: () -> Unit, entryFocus: FocusRequester? = null,
-    availability: LibraryAvailability = LibraryAvailability.Ready, serverSettings: () -> Unit = {}, open: (String) -> Unit) {
+    availability: LibraryAvailability = LibraryAvailability.Ready, serverSettings: () -> Unit = {},
+    openList: ((CatalogUserList) -> Unit)? = null, restoreListFocus: CatalogUserList? = null,
+    listFocusRestored: () -> Unit = {}, open: (String) -> Unit) {
     var filter by rememberSaveable { mutableStateOf("All") }
     var focused by rememberSaveable { mutableStateOf<String?>(null) }
     val requester = remember { FocusRequester() }; val grid = rememberLazyGridState()
     val localFallback = remember { FocusRequester() }
     val fallback = entryFocus ?: localFallback
+    val listFocus = CatalogUserList.entries.associateWith { remember { FocusRequester() } }
+    LaunchedEffect(restoreListFocus) {
+        restoreListFocus?.let { list ->
+            withFrameNanos { }; listFocus.getValue(list).requestFocus(); listFocusRestored()
+        }
+    }
     val items = remember(state.items, filter) {
         state.items.sortedByDescending { it.addedAt }.filter {
             val kind = it.metadata?.kind ?: tv.torrserve.silicon.features.metadata.MediaNameParser.parse(it.sourceTitle).kind
@@ -38,8 +47,23 @@ import tv.torrserve.silicon.ui.theme.TvDimensions
     }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("My Library", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("My Library", style = MaterialTheme.typography.headlineMedium)
+                Text(stringResource(R.string.library_torrserve_hint), color = Muted,
+                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("library:source-hint"))
+            }
             TvQuietAction("Refresh", enabled = !state.busy, modifier = Modifier.focusRequester(fallback), filled = true, action = refresh); TvQuietAction("Explore catalog", filled = true, action = search)
+        }
+        if (state.items.isNotEmpty() || openList != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (state.items.isNotEmpty()) listOf("All", "Movies", "TV Shows").forEach { value ->
+                TvQuietAction(value, selected = value == filter, underline = true) { filter = value }
+            }
+            Spacer(Modifier.weight(1f))
+            if (openList != null) CatalogUserList.entries.forEach { list ->
+                TvQuietAction(stringResource(if (list == CatalogUserList.Favorites) R.string.library_favorites else R.string.library_watch_later),
+                    translate = false,
+                    modifier = Modifier.focusRequester(listFocus.getValue(list)).testTag("library:list:${list.name}")) { openList(list) }
+            }
         }
         if(availability != LibraryAvailability.Ready) {
             val title=stringResource(when(availability) {
@@ -73,11 +97,6 @@ import tv.torrserve.silicon.ui.theme.TvDimensions
             }
             return@Column
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("All", "Movies", "TV Shows").forEach { value ->
-                TvQuietAction(value, selected = value == filter, underline = true) { filter = value }
-            }
-        }
         Message(state.message)
         if (state.busy) Text("Loading…")
         if (items.isEmpty()) Text("No titles match this filter.")
@@ -89,7 +108,7 @@ import tv.torrserve.silicon.ui.theme.TvDimensions
                 focused = { focused = item.hash }) { open(item.hash) } }
         }
     }
-    LaunchedEffect(Unit) { if(focused != null) { withFrameNanos { }; runCatching {
+    LaunchedEffect(Unit) { if(focused != null && restoreListFocus == null) { withFrameNanos { }; runCatching {
         if(items.any { it.hash == focused }) requester.requestFocus() else fallback.requestFocus()
     }.onFailure { fallback.requestFocus() } } }
 }

@@ -360,4 +360,7 @@
     <string name="developer_startup_slow">Replay startup · slow loading</string>
     <string name="developer_startup_hint">Recreates the main screen and replays the splash. Slow loading delays UI readiness for at least 7 seconds. Data and caches are kept; the app process is not restarted.</string>
     <string name="startup_preparing">Preparing the app…</string>
+    <string name="library_torrserve_hint">Media added to TorrServe</string>
+    <string name="library_favorites">Favorites</string>
+    <string name="library_watch_later">Watch later</string>
 </resources>

@@ -363,4 +363,7 @@
     <string name="developer_startup_slow">Повторить запуск · медленная загрузка</string>
     <string name="developer_startup_hint">Повторно создаёт главный экран и проигрывает заставку. Медленная загрузка задерживает готовность интерфейса минимум на 7 секунд. Данные и кеши сохраняются; процесс приложения не перезапускается.</string>
     <string name="startup_preparing">Подготавливаем приложение…</string>
+    <string name="library_torrserve_hint">Материалы, добавленные в TorrServe</string>
+    <string name="library_favorites">Избранное</string>
+    <string name="library_watch_later">Смотреть позже</string>
 </resources>

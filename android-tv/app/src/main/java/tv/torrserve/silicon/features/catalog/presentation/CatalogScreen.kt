@@ -28,7 +28,8 @@ import tv.torrserve.silicon.ui.theme.*
 
 @Composable fun CatalogScreen(state: CatalogUi, vm: CatalogViewModel, entryFocus: FocusRequester,
     torrentSearch: ((CatalogItem) -> Unit)? = null, restoreTorrentFocus: Boolean = false, refreshRevision:Int = 0,
-    showFavorites: Boolean = true, showWatchLater: Boolean = true) {
+    showFavorites: Boolean = true, showWatchLater: Boolean = true,
+    initialUserList: CatalogUserList? = null, closeUserList: () -> Unit = {}) {
     val vertical = rememberLazyListState()
     val detailStates = rememberSaveableStateHolder()
     val savedDetailEntries = remember { mutableSetOf<Long>() }
@@ -62,7 +63,7 @@ import tv.torrserve.silicon.ui.theme.*
     val rememberedFilter = CatalogFilter.entries.firstOrNull { it.name == focusedFilterName } ?: CatalogFilter.All
     val activeFilterFocus = if (focusedFilterName == "Genres" || rememberedFilter.isGenre) genreFocus else filterFocus.getValue(rememberedFilter)
     val grid = rememberLazyGridState()
-    var expandedGroup by rememberSaveable(state.filter, state.query) { mutableStateOf<String?>(null) }
+    var expandedGroup by rememberSaveable(state.filter, state.query) { mutableStateOf(initialUserList?.let { "list:${it.name}" }) }
     var homeCollection by rememberSaveable { mutableStateOf(false) }
     val collectionGrid = key(expandedGroup) { rememberLazyGridState() }
     var restoreMore by remember { mutableStateOf(false) }
@@ -96,6 +97,7 @@ import tv.torrserve.silicon.ui.theme.*
     }
     BackHandler(state.selected != null && !editing) { vm.close() }
     fun collapseCollection() {
+        if (initialUserList != null) { closeUserList(); return }
         focusedSection = expandedGroup
         focusedKey = "more:$expandedGroup"
         expandedGroup = null
@@ -103,10 +105,12 @@ import tv.torrserve.silicon.ui.theme.*
     }
     BackHandler(state.selected == null && expandedGroup != null && !editing, onBack = ::collapseCollection)
     if (state.selected != null) {
-        detailStates.SaveableStateProvider(state.detailEntry) {
-            CatalogDetailsScreen(state, vm::close, torrentSearch, restoreTorrentFocus,
-                toggleList = { item, list -> vm.toggleList(item, list) {} }, openRelated = vm::openRelated,
-                retryRelated = vm::retryRelated, moreRelated = { vm.loadRelated(more = true) }, relatedHeld = held) { vm.open(state.selected, true) }
+        Box(Modifier.fillMaxSize().headerEdgeFade(enabled = state.details.data != null)) {
+            detailStates.SaveableStateProvider(state.detailEntry) {
+                CatalogDetailsScreen(state, vm::close, torrentSearch, restoreTorrentFocus,
+                    toggleList = { item, list -> vm.toggleList(item, list) {} }, openRelated = vm::openRelated,
+                    retryRelated = vm::retryRelated, moreRelated = { vm.loadRelated(more = true) }, relatedHeld = held) { vm.open(state.selected, true) }
+            }
         }
     } else if (expandedGroup != null) {
         val group = expandedGroup!!

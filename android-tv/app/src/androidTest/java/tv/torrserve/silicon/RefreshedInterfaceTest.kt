@@ -46,4 +46,37 @@ class RefreshedInterfaceTest {
             }
         } finally { graph.settings.save(original) }
     }
+
+    @Test fun libraryShortcutsOpenSharedCollectionsAndBackRestoresTheLaunchingButton() = runBlocking {
+        val graph = (compose.activity.application as TorrFrameApplication).graph
+        graph.ready.await()
+        compose.waitUntil(15_000) { graph.startupSplash.state.value.phase == StartupPhase.Finished }
+        val original = graph.settings.state.value
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        try {
+            for (language in listOf("ru", "en")) {
+                graph.settings.update { it.copy(uiLanguage = language) }
+                compose.waitForIdle()
+                compose.onNodeWithTag("nav:Library").performSemanticsAction(SemanticsActions.RequestFocus)
+                instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
+                compose.waitForIdle()
+                compose.onNodeWithTag("library:source-hint").assertTextContains("TorrServe", substring = true)
+                compose.onNodeWithTag("library:list:Favorites").assertTextEquals(if (language == "ru") "Избранное" else "Favorites")
+                compose.onNodeWithTag("library:list:WatchLater").assertTextEquals(if (language == "ru") "Смотреть позже" else "Watch later")
+                for (list in listOf("Favorites", "WatchLater", "Favorites")) {
+                    compose.onNodeWithTag("library:list:$list").assertIsDisplayed()
+                        .performSemanticsAction(SemanticsActions.RequestFocus)
+                    instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
+                    compose.waitForIdle()
+                    compose.onNodeWithTag("catalog:collection:back").assertIsDisplayed()
+                    compose.onNodeWithTag("catalog:screen").assertDoesNotExist()
+                    compose.onNodeWithTag("nav:Library").assertIsSelected()
+                    instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+                    compose.waitForIdle()
+                    compose.onNodeWithTag("library:list:$list").assertIsFocused()
+                }
+            }
+        } finally { graph.settings.save(original) }
+    }
+
 }
