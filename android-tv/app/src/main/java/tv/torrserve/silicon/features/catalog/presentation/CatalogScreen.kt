@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
-import tv.torrserve.silicon.R
 import tv.torrserve.silicon.features.catalog.domain.*
 import tv.torrserve.silicon.ui.components.*
 import tv.torrserve.silicon.ui.theme.*
@@ -168,11 +167,7 @@ import tv.torrserve.silicon.ui.theme.*
                     focusedKey.takeIf { focusedSection == group }, restore, retry = vm::retryUserLists,
                     more = { homeCollection = true; expandedGroup = group }, open = vm::open,
                     focused = { focusedKey = it.ref.key; focusedSection = group }, held = held,
-                    landscape = list == CatalogUserList.WatchLater,
-                    selectedItem = personalFeeds.getValue(list).items.firstOrNull { focusedSection == group && it.ref.key == focusedKey },
-                    favorite = state.userEntries.firstOrNull { it.ref.key == focusedKey }?.favorite == true,
-                    favoriteEnabled = state.listsReady && !state.listBusy,
-                    toggleFavorite = { item -> vm.toggleList(item, CatalogUserList.Favorites) {} })
+                    landscape = list == CatalogUserList.WatchLater)
             }
             if (state.filter.isGenre) items(state.filter.genreTypes, key = { "genre:${it.path}" }) { type ->
                 val group = "genre:${type.path}"
@@ -181,21 +176,13 @@ import tv.torrserve.silicon.ui.theme.*
                     if (group == firstGroup) firstPoster else null, if (group == firstGroup) activeFilterFocus else null,
                     focusedKey.takeIf { focusedSection == group }, restore, retry = { vm.retryGenre(type) },
                     more = { expandedGroup = group }, open = vm::open,
-                    focused = { focusedKey = it.ref.key; focusedSection = group }, held = held,
-                    selectedItem = state.genreFeeds.getValue(type).items.firstOrNull { focusedSection == group && it.ref.key == focusedKey },
-                    favorite = state.userEntries.firstOrNull { it.ref.key == focusedKey }?.favorite == true,
-                    favoriteEnabled = state.listsReady && !state.listBusy,
-                    toggleFavorite = { item -> vm.toggleList(item, CatalogUserList.Favorites) {} })
+                    focused = { focusedKey = it.ref.key; focusedSection = group }, held = held)
             } else items(state.filter.sections, key = { it.name }) { section ->
                 CatalogFeedRow(section.name, sectionTitle(section), state.sections.getValue(section), width, rows.getValue(section),
                     if (section.name == firstGroup) firstPoster else null, if (section.name == firstGroup) activeFilterFocus else null,
                     focusedKey.takeIf { focusedSection == section.name }, restore, retry = { vm.retrySection(section) },
                     more = { expandedGroup = section.name }, open = vm::open,
-                    focused = { focusedKey = it.ref.key; focusedSection = section.name }, held = held,
-                    selectedItem = state.sections.getValue(section).items.firstOrNull { focusedSection == section.name && it.ref.key == focusedKey },
-                    favorite = state.userEntries.firstOrNull { it.ref.key == focusedKey }?.favorite == true,
-                    favoriteEnabled = state.listsReady && !state.listBusy,
-                    toggleFavorite = { item -> vm.toggleList(item, CatalogUserList.Favorites) {} })
+                    focused = { focusedKey = it.ref.key; focusedSection = section.name }, held = held)
             }
         } else {
             TvText(catalogText("Search results", "Результаты поиска"), style = MaterialTheme.typography.headlineSmall)
@@ -296,11 +283,7 @@ import tv.torrserve.silicon.ui.theme.*
 @Composable internal fun CatalogFeedRow(group: String, title: String, feed: CatalogFeed, width: Dp,
     row: LazyListState, entryFocus: FocusRequester?, up: FocusRequester?, restoreKey: String?, restore: FocusRequester,
     retry: () -> Unit, more: () -> Unit, open: (CatalogRef) -> Unit, focused: (CatalogItem) -> Unit,
-    held: (CatalogItem, FocusRequester) -> Unit, landscape: Boolean = false,
-    selectedItem: CatalogItem? = null, favorite: Boolean = false, favoriteEnabled: Boolean = false,
-    toggleFavorite: ((CatalogItem) -> Unit)? = null) {
-    val selectedPoster = remember { FocusRequester() }
-    val detailsAction = remember { FocusRequester() }
+    held: (CatalogItem, FocusRequester) -> Unit, landscape: Boolean = false) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TvText(title, style = MaterialTheme.typography.headlineSmall)
         if (feed.error) CatalogError(retry, cached = feed.items.isNotEmpty())
@@ -314,9 +297,7 @@ import tv.torrserve.silicon.ui.theme.*
                 CatalogPosterCard(item, Modifier.width(width)
                     .then(if (entryFocus != null && isEntry) Modifier.focusRequester(entryFocus) else Modifier)
                     .then(if (item.ref.key == restoreKey) Modifier.focusRequester(restore) else Modifier)
-                    .then(if (item.ref == selectedItem?.ref) Modifier.focusRequester(selectedPoster) else Modifier)
                     .focusProperties {
-                        if (toggleFavorite != null && item.ref == selectedItem?.ref) down = detailsAction
                         if (index == 0) left = FocusRequester.Cancel
                         if (up != null) this.up = up
                     }.onFocusChanged { if (it.isFocused) {
@@ -324,26 +305,11 @@ import tv.torrserve.silicon.ui.theme.*
                     } }, held, landscape = landscape) { open(item.ref) }
             }
             if (feed.items.isNotEmpty()) item("more") {
-                CatalogCollectionCard(feed.items.take(6), title, modifier = Modifier.width(width).height(if (landscape) width * 9f / 16f + 48.dp else width * 4f / 3f + 45.dp)
+                CatalogCollectionCard(feed.items.take(6), title, modifier = Modifier.width(width).aspectRatio(if (landscape) 16f / 9f else 2f / 3f)
                     .then(if (restoreKey == "more:$group") Modifier.focusRequester(restore) else Modifier)
                     .then(if (entryFocus != null && row.firstVisibleItemIndex == feed.items.take(10).size) Modifier.focusRequester(entryFocus) else Modifier)
                     .focusProperties { if (up != null) this.up = up; right = FocusRequester.Cancel }
                     .testTag("catalog:more:$group"), open = more)
-            }
-        }
-        if (toggleFavorite != null && feed.items.isNotEmpty()) Box(Modifier.fillMaxWidth().height(36.dp)) {
-            selectedItem?.let { item ->
-                val favoriteLabel = if (favorite) catalogText("Remove from favorites", "Удалить из избранного")
-                    else catalogText("Add to favorites", "Добавить в избранное")
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TvQuietAction(catalogText("Details", "Подробнее"), filled = true,
-                        modifier = Modifier.focusRequester(detailsAction).focusProperties { this.up = selectedPoster }
-                            .testTag("catalog:row-details:$group")) { open(item.ref) }
-                    TvIconAction(if (favorite) R.drawable.ic_favorite_filled else R.drawable.ic_favorite_outline,
-                        favoriteLabel, enabled = favoriteEnabled,
-                        modifier = Modifier.focusProperties { this.up = selectedPoster }.testTag("catalog:row-favorite:$group")
-                            .semantics { selected = favorite }) { toggleFavorite(item) }
-                }
             }
         }
     }

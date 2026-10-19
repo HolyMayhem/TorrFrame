@@ -548,25 +548,44 @@ class CatalogNavigationTest {
         compose.onNodeWithTag("catalog:watch-later").assertIsFocused().assertIsNotSelected()
     }
 
-    @Test fun contextualActionsReturnToSelectedPosterAndToggleTheExistingFavoritesList() {
+    @Test fun shelfNavigationSkipsRemovedActionsAndMovieStillOpensWithOk() {
         setup()
         remote(KeyEvent.KEYCODE_DPAD_DOWN);remote(KeyEvent.KEYCODE_DPAD_DOWN)
         card(1).assertIsFocused()
+        compose.onNodeWithTag("catalog:row-details:TrendingMovies").assertDoesNotExist()
+        compose.onNodeWithTag("catalog:row-favorite:TrendingMovies").assertDoesNotExist()
         remote(KeyEvent.KEYCODE_DPAD_DOWN)
-        compose.onNodeWithTag("catalog:row-details:TrendingMovies").assertIsFocused()
-        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
-        compose.onNodeWithTag("catalog:row-favorite:TrendingMovies").assertIsFocused()
-        remote(KeyEvent.KEYCODE_DPAD_CENTER)
-        compose.waitUntil(5000) { vm.state.value.userEntries.singleOrNull()?.favorite == true }
-        compose.onNodeWithTag("catalog:row-favorite:TrendingMovies").assertIsSelected()
+        compose.onNode(isFocused() and hasAnyAncestor(hasTestTag("catalog:row:NewMovies"))).assertExists()
         remote(KeyEvent.KEYCODE_DPAD_UP)
-        compose.onNode(hasTestTag("catalog:card:movie:1") and hasAnyAncestor(hasTestTag("catalog:row:TrendingMovies"))).assertIsFocused()
-        remote(KeyEvent.KEYCODE_DPAD_DOWN)
-        compose.onNodeWithTag("catalog:row-details:TrendingMovies").assertIsFocused()
+        card(1).assertIsFocused()
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.onNodeWithTag("catalog:details").assertIsDisplayed()
         remote(KeyEvent.KEYCODE_BACK)
-        compose.onNode(hasTestTag("catalog:card:movie:1") and hasAnyAncestor(hasTestTag("catalog:row:TrendingMovies"))).assertIsFocused()
+        card(1).assertIsFocused()
+    }
+
+    @Test fun collectionTileMatchesArtworkSizeInPortraitAndLandscape() {
+        for (landscape in listOf(false, true)) {
+            compose.runOnUiThread { compose.activity.setContent {
+                TorrFrameTheme(animationsEnabled = false) {
+                    val row = androidx.compose.foundation.lazy.rememberLazyListState()
+                    val restore = remember { FocusRequester() }
+                    CatalogFeedRow("geometry", "Collection", CatalogFeed(items = listOf(
+                        CatalogItem(CatalogRef(1, CatalogType.Movie), "No poster"))),
+                        androidx.compose.ui.unit.Dp(150f), row, null, null, null, restore,
+                        retry = {}, more = {}, open = {}, focused = {}, held = { _, _ -> }, landscape = landscape)
+                }
+            } }
+            val artwork = compose.onNodeWithTag("catalog:art:movie:1", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val collection = compose.onNodeWithTag("catalog:more:geometry").fetchSemanticsNode().boundsInRoot
+            assertEquals(artwork.width, collection.width, 1f)
+            assertEquals(artwork.height, collection.height, 1f)
+            assertEquals(if (landscape) 16f / 9f else 2f / 3f, artwork.width / artwork.height, .01f)
+            val mark = compose.onNode(hasTestTag("catalog:placeholder:mark") and
+                hasAnyAncestor(hasTestTag("catalog:art:movie:1")), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            assertTrue("Placeholder must remain small", mark.width < artwork.width / 3)
+            compose.onAllNodesWithText("◇", useUnmergedTree = true).assertCountEquals(0)
+        }
     }
 
     @Test fun personalHomeRowsAppearFirstRestoreDpadFocusAndCanBeHiddenIndependently() {

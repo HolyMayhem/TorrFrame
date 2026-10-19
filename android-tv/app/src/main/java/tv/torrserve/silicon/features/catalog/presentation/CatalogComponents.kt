@@ -15,6 +15,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
+import tv.torrserve.silicon.R
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -67,7 +70,7 @@ val LocalCatalogImageSettings = staticCompositionLocalOf { CatalogNetworkSetting
     Box(modifier.background(SurfaceSecondary), contentAlignment = Alignment.Center) {
         if (url.isBlank() || state is AsyncImagePainter.State.Error) Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            TvText("◇", color = Muted, style = MaterialTheme.typography.headlineMedium, translate = false)
+            CatalogPlaceholderMark(Modifier.size(32.dp))
             TvText(title, maxLines = 3, overflow = TextOverflow.Ellipsis, translate = false, color = Muted)
         } else Image(painter, contentDescription = title, modifier = Modifier.fillMaxSize(), contentScale = scale)
     }
@@ -91,11 +94,12 @@ val LocalCatalogImageSettings = staticCompositionLocalOf { CatalogNetworkSetting
         colors = motion.colors, border = motion.border, interactionSource = motion.interactions,
         scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(Modifier.fillMaxWidth().aspectRatio(if (landscape) 16f / 9f else 3f / 4f)
+            Box(Modifier.fillMaxWidth().aspectRatio(if (landscape) 16f / 9f else 2f / 3f)
+                .testTag("catalog:art:${item.ref.key}")
                 .border(2.dp, if (focused) TextPrimary else Color.Transparent, shape).padding(2.dp)) {
                 CatalogImage(if (landscape) item.backdrop.ifBlank { item.poster } else item.poster, item.title,
                     Modifier.fillMaxSize().clip(RoundedCornerShape(4.dp)),
-                    scale = if (landscape && item.backdrop.isBlank()) ContentScale.Fit else ContentScale.Crop)
+                    scale = if (!landscape || item.backdrop.isBlank()) ContentScale.Fit else ContentScale.Crop)
             }
             Column(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 TvText(item.title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp, lineHeight = 18.sp),
@@ -145,10 +149,16 @@ val LocalCatalogImageSettings = staticCompositionLocalOf { CatalogNetworkSetting
     val painter = rememberCatalogImagePainter(url)
     val state by painter.state.collectAsStateWithLifecycle()
     Box(modifier.background(SurfaceSecondary), contentAlignment = Alignment.Center) {
-        if (url.isBlank() || state is AsyncImagePainter.State.Error) TvText("◇", color = Muted, translate = false)
+        if (url.isBlank() || state is AsyncImagePainter.State.Error) CatalogPlaceholderMark(Modifier.size(18.dp))
         else Image(painter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
 }
+@Composable private fun CatalogPlaceholderMark(modifier: Modifier) {
+    Image(painterResource(R.drawable.brand_mark), contentDescription = null,
+        colorFilter = ColorFilter.tint(Muted.copy(alpha = .55f)),
+        modifier = modifier.testTag("catalog:placeholder:mark"))
+}
+
 @Composable internal fun CatalogSkeleton(modifier: Modifier = Modifier) {
     Box(modifier.aspectRatio(2f / 3f).background(SurfaceSecondary, RoundedCornerShape(10.dp)))
 }

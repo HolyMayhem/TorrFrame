@@ -107,8 +107,8 @@ import tv.torrserve.silicon.core.models.LibraryItem
     TvIconAction(R.drawable.ic_settings, stringResource(R.string.settings_title),
         modifier = modifier.testTag("nav:Settings").semantics { selected = isOpen }, action = open)
 }
-@Composable fun BrandMark(modifier: Modifier = Modifier) {
-    Image(painterResource(R.drawable.brand_mark), contentDescription = null, modifier = modifier.size(24.dp))
+@Composable fun BrandMark(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 24.dp) {
+    Image(painterResource(R.drawable.brand_mark), contentDescription = null, modifier = modifier.size(size))
 }
 @Composable fun SectionHeading(title: String, subtitle: String? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

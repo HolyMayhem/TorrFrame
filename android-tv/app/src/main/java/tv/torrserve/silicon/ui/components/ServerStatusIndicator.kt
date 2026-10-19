@@ -35,8 +35,8 @@ fun serverIndicator(local: Boolean, server: ServerState, connection: ConnectionS
     }
 }
 @Composable fun ServerStatusIndicator(local: Boolean, server: ServerState, connection: ConnectionState, open: () -> Unit) {
-    val motion = rememberTvButtonMotion(shape = CircleShape, container = Color.Transparent,
-        outline = Color.Transparent, focusedContainer = SurfaceSecondary,
+    val motion = rememberTvButtonMotion(shape = CircleShape, container = Surface,
+        outline = Outline, focusedContainer = SurfaceSecondary,
         focusedContent = TextPrimary, focusedOutline = TextPrimary.copy(alpha = .8f))
     val compact = LocalTvLayout.current.narrow
     val status = serverIndicator(local, server, connection)

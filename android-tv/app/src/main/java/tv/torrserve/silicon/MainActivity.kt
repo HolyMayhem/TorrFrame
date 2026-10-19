@@ -183,14 +183,14 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     val selected = lib.items.find { it.hash == detail }
     val layout = LocalTvLayout.current
     Column(Modifier.fillMaxSize().testTag("app:screen").background(Background).padding(horizontal = layout.screenInset)
-        .padding(top = layout.screenInset, bottom = if (saved.showNavigationHints) layout.screenInset else 0.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(Modifier.fillMaxWidth().height(52.dp).testTag("app:header")
+        .padding(top = 8.dp, bottom = if (saved.showNavigationHints) layout.screenInset else 0.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(Modifier.fillMaxWidth().height(48.dp).testTag("app:header")
             .focusProperties { down = screenFocus }.focusGroup()) {
             Row(Modifier.align(androidx.compose.ui.Alignment.CenterStart).testTag("app:brand"), horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                BrandMark(Modifier)
+                BrandMark(size = 30.dp)
                 Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = if (layout.narrow) 17.sp else 20.sp, lineHeight = 25.sp), translate = false)
+                    fontSize = if (layout.narrow) 19.sp else 22.sp, lineHeight = 27.sp), translate = false)
             }
             Row(Modifier.align(androidx.compose.ui.Alignment.Center).testTag("app:navigation"), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Search", "Library").forEach { tab ->

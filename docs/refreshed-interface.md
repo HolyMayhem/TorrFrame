@@ -9,10 +9,12 @@ The implementation follows the third, minimal concept using native Compose TV:
 - centered Catalog/Library tabs with an understated selection underline;
 - a quiet search field, three type filters and a separate scrollable genre picker;
 - persistent favorites/watch-later shortcuts with real counts;
-- larger, frameless 3:4 catalog artwork with a high-contrast focus ring;
+- larger, frameless 2:3 catalog artwork with a high-contrast focus ring;
 - a horizontal watch-later shelf, with complete poster fallback when no backdrop exists;
-- contextual Details and Favorites actions using the existing user-list storage;
-- a neutral graphite palette, restrained surfaces and consistent circular header controls;
+- collection mosaics matching the artwork dimensions, without extra shelf action buttons;
+- small, muted brand marks for unavailable catalog artwork;
+- a compact header with a larger brand mark, a bordered server-status pill and circular icon controls;
+- a neutral graphite palette and restrained surfaces;
 - matching library cards, while preserving saved theme/accent/scale/language settings.
 
 The selected poster has its own TV focus indication. Selection underlines do not
@@ -31,10 +33,10 @@ Validation artifacts and the approved concept are in `artifacts/refreshed-interf
 ## Validation
 
 - 206 JVM tests passed; lint: zero errors, 35 existing warnings.
-- 33 catalog/detail navigation tests passed, including contextual favorites actions,
-  genre selection/cancellation, list removal, collection paging and image recovery.
-- Two settings/localization tests passed; the new header test covers Russian/English
-  at the supported 70%, 85% and 110% UI scales, light/dark, and D-pad settings return.
+- 35 device tests passed for this revision: catalog/detail navigation, artwork/mosaic
+  geometry, direct shelf navigation, genre selection/cancellation, list removal,
+  collection paging, image recovery, and the header in Russian/English at the
+  supported 70%, 85% and 110% UI scales, light/dark, with D-pad settings return.
 - Debug and optimized Release previews build and have matching signing certificates.
 - Both packaged variants retain the original MP4 and ARMv7/ARM64 TorrServer libraries.
 - The final Debug APK is installed on the emulator. Live catalog/genre screenshots are
