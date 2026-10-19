@@ -11,7 +11,16 @@ data class DeveloperState(val missingKeys:Set<String> = emptySet(), val metadata
     val active get()=missingKeys.isNotEmpty() || metadataOffline || bypassCache || serverUnavailable
     fun bypassMetadata(provider:String)=bypassCache || metadataOffline || provider in missingKeys
 }
+data class StartupPreviewRequest(val sequence: Int, val readyDelayMs: Long)
+
 class DeveloperControls(val enabled:Boolean) {
+    private val startupSequence = java.util.concurrent.atomic.AtomicInteger()
+    private val startup = MutableStateFlow<StartupPreviewRequest?>(null)
+    val startupPreviews = startup.asStateFlow()
+    fun previewStartup(slow: Boolean) {
+        if (enabled) startup.value = StartupPreviewRequest(startupSequence.incrementAndGet(), if (slow) 7_000L else 0L)
+    }
+    fun takeStartupPreview(): StartupPreviewRequest? = startup.value.also { startup.value = null }
     private val overlay = MutableStateFlow(false)
     val diagnosticsVisible = overlay.asStateFlow()
     fun showDiagnostics(value: Boolean) { if (enabled) overlay.value = value }

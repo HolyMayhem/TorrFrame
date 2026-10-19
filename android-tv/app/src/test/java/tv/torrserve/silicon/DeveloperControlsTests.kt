@@ -17,6 +17,18 @@ import tv.torrserve.silicon.features.library.*
 import tv.torrserve.silicon.features.metadata.*
 
 class DeveloperControlsTests {
+    @Test fun startupPreviewsAreOneShotAndUnavailableInRelease() {
+        val release = DeveloperControls(false)
+        release.previewStartup(true); assertNull(release.takeStartupPreview())
+        val debug = DeveloperControls(true)
+        debug.previewStartup(true)
+        val slow = requireNotNull(debug.takeStartupPreview())
+        assertEquals(7_000L, slow.readyDelayMs); assertNull(debug.takeStartupPreview())
+        debug.previewStartup(false)
+        val fast = requireNotNull(debug.takeStartupPreview())
+        assertEquals(0L, fast.readyDelayMs); assertTrue(fast.sequence > slow.sequence)
+        assertEquals(DeveloperState(), debug.state.value)
+    }
     @Test fun releaseControlsAreInertAndNewSessionHasNoOverrides() {
         val release=DeveloperControls(false)
         release.update { DeveloperState(setOf("TMDB"),true,true,true) }

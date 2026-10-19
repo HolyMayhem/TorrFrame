@@ -37,6 +37,7 @@ class StartupSplashIntegrationTest {
         compose.onNodeWithTag("startup:cover").assertDoesNotExist()
         compose.onNodeWithTag("app:screen").assertIsDisplayed()
         compose.onNodeWithTag("nav:Settings").assertIsDisplayed()
+        compose.onNodeWithTag("startup:preparing").assertDoesNotExist()
         assertTrue(graph.ready.isCompleted)
         val frame = splash.state.value
         if (!frame.videoFailed) {
@@ -63,6 +64,60 @@ class StartupSplashIntegrationTest {
         compose.onNodeWithTag("startup:cover").assertDoesNotExist()
         val revealed = compose.onRoot().captureToImage().toPixelMap()[10, 10]
         assertEquals(1f, revealed.red, .001f)
+    }
+    @Test fun dVideoFrameHoldsWithoutChangingSurfaceOrPixelsThenContinuesTheClip() {
+        val splash = StartupSplashState(SystemClock::elapsedRealtime)
+        val ready = mutableStateOf(false)
+        compose.activity.setContent {
+            StartupSplash(splash, ready.value, close = {}, revealed = {}) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+            }
+        }
+        compose.waitUntil(6_000) { splash.state.value.renderedVideo || splash.state.value.videoFailed }
+        assertFalse("Hardware clip failed", splash.state.value.videoFailed)
+        lateinit var originalTexture: TextureView
+        compose.runOnUiThread { originalTexture = compose.activity.findViewById(R.id.startup_video_texture) }
+        compose.waitUntil(6_000) { splash.state.value.phase == StartupPhase.Frozen || splash.state.value.videoFailed }
+        assertFalse("Hardware clip failed during hold", splash.state.value.videoFailed)
+        compose.onNodeWithTag("startup:freeze").assertIsDisplayed()
+        val decoder = splash.state.value.decoder
+        compose.onNodeWithTag("startup:preparing").assertDoesNotExist()
+        // Let the seek to exactly 2 s settle before comparing the actual decoded surface.
+        SystemClock.sleep(300)
+        lateinit var held: android.graphics.Bitmap
+        compose.runOnUiThread {
+            assertSame(originalTexture, compose.activity.findViewById(R.id.startup_video_texture))
+            held = requireNotNull(originalTexture.bitmap)
+        }
+        val pixels = IntArray(held.width * held.height)
+        held.getPixels(pixels, 0, held.width, 0, 0, held.width, held.height)
+        assertTrue("Frozen video surface is empty", pixels.any { android.graphics.Color.red(it) > 100 })
+        SystemClock.sleep(6_200)
+        compose.runOnUiThread {
+            assertSame(originalTexture, compose.activity.findViewById(R.id.startup_video_texture))
+            val later = requireNotNull(originalTexture.bitmap)
+            try { assertTrue("Frozen pixels or brightness changed", held.sameAs(later)) }
+            finally { held.recycle(); later.recycle() }
+        }
+        assertEquals(StartupPhase.Frozen, splash.state.value.phase)
+        compose.onNodeWithTag("startup:freeze").assertIsDisplayed()
+        // Wall-clock sleep above exercises the real player. Advance Compose's coroutine
+        // test clock too, so its delayed hint can observe the elapsed monotonic deadline.
+        compose.mainClock.advanceTimeBy(StartupSplashState.LOADING_HINT_DELAY_MS)
+        compose.onNodeWithTag("startup:preparing").assertIsDisplayed()
+        compose.onNodeWithTag("startup:preparing").assertTextEquals(
+            if (graph.settings.state.value.uiLanguage == "ru") "Подготавливаем приложение…" else "Preparing the app…")
+        compose.runOnUiThread {
+            ready.value = true
+            assertSame(originalTexture, compose.activity.findViewById(R.id.startup_video_texture))
+        }
+        compose.waitUntil(2_000) { splash.state.value.phase != StartupPhase.Frozen }
+        compose.onNodeWithTag("startup:freeze").assertDoesNotExist()
+        compose.onNodeWithTag("startup:preparing").assertDoesNotExist()
+        compose.waitUntil(6_000) { splash.state.value.phase == StartupPhase.Finished }
+        assertEquals(decoder, splash.state.value.decoder)
+        assertFalse(splash.state.value.videoFailed)
+        compose.onNodeWithTag("startup:video").assertDoesNotExist()
     }
     @Test fun cMissingClipFailsOpenAndDetachesItsVideoSurface() {
         val splash = StartupSplashState(SystemClock::elapsedRealtime).apply { begin() }

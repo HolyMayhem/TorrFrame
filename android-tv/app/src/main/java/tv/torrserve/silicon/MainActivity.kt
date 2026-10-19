@@ -52,13 +52,20 @@ import tv.torrserve.silicon.ui.theme.*
 class MainActivity : ComponentActivity() {
     private var frameMonitor: tv.torrserve.silicon.core.performance.FrameMonitor? = null
     override fun onCreate(savedInstanceState: Bundle?) {
-        val began = SystemClock.elapsedRealtime(); super.onCreate(savedInstanceState)
+        val began = SystemClock.elapsedRealtime()
+        val graph = (application as TorrFrameApplication).graph
+        val preview = if (BuildConfig.DEBUG) graph.developer.takeStartupPreview() else null
+        super.onCreate(if (preview != null) null else savedInstanceState)
+        if (preview != null) graph.startupSplash.restartForPreview(preview.readyDelayMs)
         tv.torrserve.silicon.features.startup.StartupWindow.install(this)
         @Suppress("DEPRECATION") val refresh = windowManager.defaultDisplay.refreshRate.coerceAtLeast(30f)
         frameMonitor = tv.torrserve.silicon.core.performance.FrameMonitor(window,(1_000_000_000 / refresh).toLong())
-        val graph = (application as TorrFrameApplication).graph
         setContent {
             val settings by graph.settings.state.collectAsStateWithLifecycle()
+            if (BuildConfig.DEBUG) {
+                val previewRequest by graph.developer.startupPreviews.collectAsStateWithLifecycle()
+                LaunchedEffect(previewRequest) { if (previewRequest != null) recreate() }
+            }
             var mainReady by remember { mutableStateOf(false) }
             tv.torrserve.silicon.features.startup.StartupSplash(graph.startupSplash, mainReady, close = ::finish, revealed = {
                 reportFullyDrawn()

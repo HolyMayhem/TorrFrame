@@ -16,6 +16,9 @@ import tv.torrserve.silicon.ui.theme.Muted
     Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
         TvToggle(stringResource(R.string.developer_diagnostics), diagnostics, Modifier.testTag("developer:diagnostics-toggle"), controls::showDiagnostics)
         TvText(stringResource(R.string.developer_diagnostics_hint), color=Muted)
+        TvAction(stringResource(R.string.developer_startup_preview), modifier=Modifier.testTag("developer:startup-preview")) { controls.previewStartup(slow=false) }
+        TvAction(stringResource(R.string.developer_startup_slow), modifier=Modifier.testTag("developer:startup-slow")) { controls.previewStartup(slow=true) }
+        TvText(stringResource(R.string.developer_startup_hint), color=Muted)
         TvText(stringResource(R.string.developer_hint),color=Muted)
         for(provider in DeveloperControls.keyedServices) {
             TvToggle(stringResource(R.string.developer_missing_key,provider),provider in state.missingKeys,

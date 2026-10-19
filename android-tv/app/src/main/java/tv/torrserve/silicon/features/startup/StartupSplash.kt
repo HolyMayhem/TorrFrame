@@ -6,10 +6,18 @@ import android.view.LayoutInflater
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import tv.torrserve.silicon.core.localization.uiString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
@@ -35,6 +43,13 @@ import tv.torrserve.silicon.R
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val activity = LocalActivity.current
     val onRevealed by rememberUpdatedState(revealed)
+    var loadingHintVisible by remember(state, frame.phase) { mutableStateOf(false) }
+    LaunchedEffect(state, frame.phase) {
+        if (frame.phase == StartupPhase.Frozen) {
+            awaitDeadline(state::loadingHintRemainingMs)
+            loadingHintVisible = true
+        }
+    }
     LaunchedEffect(Unit) { state.begin() }
     DisposableEffect(lifecycle, state) {
         val observer = LifecycleEventObserver { _, event ->
@@ -43,12 +58,19 @@ import tv.torrserve.silicon.R
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(frame.phase, ready) {
-        if (BuildConfig.DEBUG) Log.i("TorrFrameStartup", "phase=${frame.phase} ready=$ready at_ms=${SystemClock.elapsedRealtime()}")
+    LaunchedEffect(state, ready) {
+        state.setUiReady(false)
+        if (ready) {
+            awaitDeadline(state::readyDelayRemainingMs)
+            state.setUiReady(true)
+        }
+    }
+    LaunchedEffect(frame.phase, frame.uiReady) {
+        if (BuildConfig.DEBUG) Log.i("TorrFrameStartup", "phase=${frame.phase} ready=${frame.uiReady} prepared=$ready at_ms=${SystemClock.elapsedRealtime()}")
         when (frame.phase) {
             StartupPhase.Video -> { awaitDeadline(state::videoRemainingMs); state.videoEnded(failed = true) }
-            StartupPhase.Black -> state.fadeWhenReady(ready)
-            StartupPhase.Finished -> if (ready) { withFrameNanos { }; onRevealed() }
+            StartupPhase.Black -> state.fadeWhenReady(frame.uiReady)
+            StartupPhase.Finished -> if (frame.uiReady) { withFrameNanos { }; onRevealed() }
             else -> Unit
         }
     }
@@ -73,7 +95,14 @@ import tv.torrserve.silicon.R
                 .background(Color.Black).testTag("startup:cover").pointerInput(Unit) {
                     awaitPointerEventScope { while (true) { awaitPointerEvent().changes.forEach { it.consume() } } }
                 }) {
-                if (frame.phase == StartupPhase.Video) StartupVideo(state)
+                if (frame.phase == StartupPhase.Video || frame.phase == StartupPhase.Frozen) StartupVideo(state, frame.phase)
+                // The phase guard removes this in the very same composition that resumes the clip.
+                if (frame.phase == StartupPhase.Frozen && loadingHintVisible) {
+                    BasicText(LocalContext.current.uiString(R.string.startup_preparing),
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 32.dp, vertical = 32.dp)
+                            .testTag("startup:preparing"),
+                        style = TextStyle(color = Color(0xFFB0B0B0), fontSize = 14.sp, textAlign = TextAlign.Center))
+                }
             }
         }
     }
@@ -92,9 +121,10 @@ private suspend fun awaitDeadline(remaining: () -> Long) {
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @android.annotation.SuppressLint("InflateParams") // AndroidView owns measurement; there is no XML parent to attach to.
-@Composable private fun StartupVideo(state: StartupSplashState) {
+@Composable private fun StartupVideo(state: StartupSplashState, phase: StartupPhase) {
     val owner = LocalLifecycleOwner.current
     val player = remember(state) { StartupVideoPlayer(state) }
+    SideEffect { if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) player.play() }
     DisposableEffect(owner, player) {
         val observer = LifecycleEventObserver { _, event -> when (event) {
             Lifecycle.Event.ON_START -> player.play()
@@ -104,9 +134,13 @@ private suspend fun awaitDeadline(remaining: () -> Long) {
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer); player.release(); state.videoEnded() }
     }
-    AndroidView(modifier = Modifier.fillMaxSize().testTag("startup:video"), factory = { context ->
-        LayoutInflater.from(context).inflate(R.layout.startup_video, null).apply {
-            player.prepare(context, this, owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
-        }
-    }, onRelease = { player.release() })
+    // The TextureView stays mounted during the hold. No image decoder, profile conversion,
+    // overlay or surface replacement can alter the frozen video's brightness.
+    Box(Modifier.fillMaxSize().then(if (phase == StartupPhase.Frozen) Modifier.testTag("startup:freeze") else Modifier)) {
+        AndroidView(modifier = Modifier.fillMaxSize().testTag("startup:video"), factory = { context ->
+            LayoutInflater.from(context).inflate(R.layout.startup_video, null).apply {
+                player.prepare(context, this, owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+            }
+        }, onRelease = { player.release() })
+    }
 }

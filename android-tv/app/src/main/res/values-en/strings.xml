@@ -356,4 +356,8 @@
     <string name="catalog_show_watch_later">Show Watch later at the top of the catalog</string>
     <string name="catalog_advanced_show">Advanced connection settings</string>
     <string name="catalog_advanced_hide">Hide advanced settings</string>
+    <string name="developer_startup_preview">Replay startup with splash</string>
+    <string name="developer_startup_slow">Replay startup · slow loading</string>
+    <string name="developer_startup_hint">Recreates the main screen and replays the splash. Slow loading delays UI readiness for at least 7 seconds. Data and caches are kept; the app process is not restarted.</string>
+    <string name="startup_preparing">Preparing the app…</string>
 </resources>

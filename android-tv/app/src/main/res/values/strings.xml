@@ -359,4 +359,8 @@
     <string name="catalog_show_watch_later">Показывать «Смотреть позже» в начале каталога</string>
     <string name="catalog_advanced_show">Дополнительные настройки подключения</string>
     <string name="catalog_advanced_hide">Скрыть дополнительные настройки</string>
+    <string name="developer_startup_preview">Повторить запуск с заставкой</string>
+    <string name="developer_startup_slow">Повторить запуск · медленная загрузка</string>
+    <string name="developer_startup_hint">Повторно создаёт главный экран и проигрывает заставку. Медленная загрузка задерживает готовность интерфейса минимум на 7 секунд. Данные и кеши сохраняются; процесс приложения не перезапускается.</string>
+    <string name="startup_preparing">Подготавливаем приложение…</string>
 </resources>

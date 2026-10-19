@@ -2,6 +2,7 @@ package tv.torrserve.silicon.features.startup
 
 import android.content.Context
 import android.net.Uri
+import android.os.Looper
 import android.util.Log
 import android.view.TextureView
 import android.view.View
@@ -65,11 +66,20 @@ internal class StartupVideoPlayer(private val state: StartupSplashState, private
             // No audio focus, media session, playback service, or movie preferences are involved.
             p.setVideoTextureView(requireNotNull(texture))
             p.setMediaItem(MediaItem.fromUri(mediaUri ?: "android.resource://${context.packageName}/${R.raw.welcome_clip}".toUri()))
+            p.createMessage { _, _ -> if (!released) state.checkReadinessAt1900ms() }
+                .setLooper(Looper.getMainLooper()).setPosition(StartupSplashState.READINESS_CHECK_MS).send()
+            p.createMessage { _, _ ->
+                if (!released && state.freezeAt2000ms()) {
+                    p.pause()
+                    // Hold the video itself at two seconds, including on a busy UI thread.
+                    p.seekTo(StartupSplashState.FREEZE_POSITION_MS)
+                }
+            }.setLooper(Looper.getMainLooper()).setPosition(StartupSplashState.FREEZE_POSITION_MS).send()
             p.prepare()
             p.playWhenReady = play
         } catch (_: Exception) { complete(true) }
     }
-    fun play() { if (!released) runCatching { player?.play() }.onFailure { complete(true) } }
+    fun play() { if (!released) runCatching { if (state.state.value.phase == StartupPhase.Frozen) player?.pause() else player?.play() }.onFailure { complete(true) } }
     private fun complete(failed: Boolean) { release(); state.videoEnded(failed) }
     fun release() {
         if (released) return

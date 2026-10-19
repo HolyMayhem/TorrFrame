@@ -55,6 +55,28 @@ class DeveloperMenuNavigationTest {
         compose.onNodeWithTag("settings:detail:Developer").performScrollToNode(hasTestTag(tag));click(tag)
         compose.onNodeWithTag(tag).assertIsFocused()
     }
+    @Test fun bothStartupButtonsRecreateUiAndSlowPreviewHoldsTheStillWithoutChangingSettings() {
+        compose.waitUntil(15_000) { graph.startupSplash.state.value.phase == tv.torrserve.silicon.features.startup.StartupPhase.Finished }
+        val originalSettings = graph.settings.state.value
+        open()
+        compose.onNodeWithTag("settings:detail:Developer").performScrollToNode(hasTestTag("developer:startup-slow"))
+        val oldActivity = compose.activity
+        click("developer:startup-slow")
+        compose.waitUntil(7_000) { graph.startupSplash.state.value.phase == tv.torrserve.silicon.features.startup.StartupPhase.Frozen }
+        assertTrue(oldActivity.isDestroyed)
+        compose.onNodeWithTag("startup:freeze").assertIsDisplayed()
+        compose.waitUntil(12_000) { graph.startupSplash.state.value.phase == tv.torrserve.silicon.features.startup.StartupPhase.Finished }
+        compose.onNodeWithTag("app:screen").assertIsDisplayed()
+        compose.onNodeWithTag("settings:overlay").assertDoesNotExist()
+        assertEquals(originalSettings, graph.settings.state.value)
+        open()
+        compose.onNodeWithTag("settings:detail:Developer").performScrollToNode(hasTestTag("developer:startup-preview"))
+        click("developer:startup-preview")
+        compose.waitUntil(7_000) { graph.startupSplash.state.value.phase == tv.torrserve.silicon.features.startup.StartupPhase.Finished }
+        assertFalse(graph.startupSplash.state.value.videoFailed)
+        compose.onNodeWithTag("startup:freeze").assertDoesNotExist()
+        assertEquals(originalSettings, graph.settings.state.value)
+    }
     @Test fun diagnosticsToggleShowsLiveMetricsAndDnsWithoutTakingDpadFocus() {
         compose.onNodeWithTag("developer:diagnostics").assertDoesNotExist()
         open();choose("developer:diagnostics-toggle")
