@@ -1,116 +1,116 @@
 <p align="center">
-  <img src="icons/TorrFrame%20square%20icon%20ver2.png" width="128" height="128" alt="TorrFrame app icon">
+  <img src="docs/assets/torrframe-icon-rounded.png" width="128" height="128" alt="Иконка приложения TorrFrame">
 </p>
 
 <h1 align="center">TorrFrame</h1>
 
 <p align="center">
-  <strong>Movies, series, and torrents on Android TV</strong><br>
-  Browse the catalog, find a torrent, and watch — with your TV remote or phone.
+  <strong>Фильмы, сериалы и торренты на Android TV</strong><br>
+  Выбирайте фильм, находите раздачу и смотрите — с пульта телевизора или телефона.
 </p>
 
 <p align="center">
-  <a href="https://github.com/HolyMayhem/TorrFrame/releases">Download APK</a>
+  <a href="https://github.com/HolyMayhem/TorrFrame/releases">Скачать APK</a>
   &nbsp;·&nbsp;
-  <a href="#installation">Installation</a>
+  <a href="#установка">Установка</a>
   &nbsp;·&nbsp;
   <a href="#phone-remote">Phone Remote</a>
   &nbsp;·&nbsp;
-  <strong>English</strong> · <a href="README.ru.md">Русский</a>
+  <strong>Русский</strong> · <a href="README.en.md">English</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Android_TV-8.0%2B-3DDC84?style=flat-square" alt="Android TV 8.0 or later">
-  <img src="https://img.shields.io/badge/Architecture-ARM64_%7C_ARMv7-77B900?style=flat-square" alt="ARM64 and ARMv7">
-  <img src="https://img.shields.io/badge/TorrServer-included-77B900?style=flat-square" alt="TorrServer included">
-  <img src="https://img.shields.io/badge/Languages-EN_%7C_RU-4388CC?style=flat-square" alt="English and Russian">
+  <img src="https://img.shields.io/badge/Android_TV-8.0%2B-3DDC84?style=flat-square" alt="Android TV 8.0 или новее">
+  <img src="https://img.shields.io/badge/Architecture-ARM64_%7C_ARMv7-77B900?style=flat-square" alt="ARM64 и ARMv7">
+  <img src="https://img.shields.io/badge/TorrServer-included-77B900?style=flat-square" alt="TorrServer встроен">
+  <img src="https://img.shields.io/badge/Languages-EN_%7C_RU-4388CC?style=flat-square" alt="Русский и английский языки">
 </p>
 
 ---
 
-Choose a movie or series, find a torrent, and start watching in the built-in player. TorrFrame brings the catalog, torrent search, saved titles, and your media library together on the big screen.
+Выберите фильм или сериал, найдите раздачу и запустите просмотр во встроенном плеере. TorrFrame объединяет каталог, поиск торрентов, сохранённые фильмы и вашу медиатеку на большом экране.
 
-**TorrServer is already built in.** It starts automatically; no computer or separate server installation is needed. You can also connect your own TorrServer.
+**TorrServer уже встроен.** Он запускается автоматически — компьютер и отдельная установка сервера не нужны. При желании можно подключить свой TorrServer.
 
-## Features
+## Возможности
 
-| | What you can do |
+| | Что можно делать |
 | --- | --- |
-| **Movie and TV catalog** | Explore titles with posters, descriptions, ratings, genres, and similar films. |
-| **Torrent search** | Search with TorrentSearch, or connect your own Jackett for additional sources. |
-| **Favorites and Watch later** | Save titles and optionally display these collections on the catalog home page. |
-| **Your media library** | Browse torrents added to TorrServer and choose the movie or episode to play. |
-| **Built-in player** | Seek, switch audio tracks and subtitles, adjust playback speed, and resume where you left off. An installed external player can also be used. |
-| **Phone Remote** | Browse, search, add magnet links, and control playback from your phone’s browser. |
-| **First-time setup** | Choose your language, appearance, phone remote, and server in four short steps. |
-| **Personal appearance** | English and Russian, light and dark themes, accent colors, interface size, animations, and optional sounds. |
+| **Каталог фильмов и сериалов** | Выбирать фильмы по обложкам, описаниям, рейтингам, жанрам и похожим названиям. |
+| **Поиск раздач** | Искать через TorrentSearch или подключить свой Jackett для дополнительных источников. |
+| **Избранное и «Смотреть позже»** | Сохранять интересные фильмы и при желании выводить эти подборки на главную страницу каталога. |
+| **Ваша медиатека** | Открывать добавленные в TorrServer раздачи и выбирать нужный фильм или серию. |
+| **Встроенный плеер** | Перематывать, переключать дорожки и субтитры, менять скорость и продолжать с места остановки. Можно выбрать установленный внешний плеер. |
+| **Phone Remote** | Листать каталог, искать фильмы, добавлять magnet-ссылки и управлять просмотром из браузера телефона. |
+| **Мастер первого запуска** | Выбрать язык, оформление, управление с телефона и сервер за четыре коротких шага. |
+| **Оформление на ваш вкус** | Русский и английский языки, светлая и тёмная темы, акцентные цвета, масштаб, анимации и отключаемые звуки. |
 
-## Installation
+## Установка
 
-**Requires Android TV 8.0 or later, an ARM64 or ARMv7 device, and an internet connection.** Use a remote with directional buttons, OK, and Back.
+**Нужны Android TV 8.0 или новее, устройство ARM64 или ARMv7 и интернет.** Для управления подойдёт пульт со стрелками, кнопками OK и «Назад».
 
-1. Download the **TorrFrame APK** from [Releases](https://github.com/HolyMayhem/TorrFrame/releases).
-2. Transfer it to your TV over your local network or on a USB drive.
-3. Open the APK with a file manager on the TV and install it.
-4. Launch **TorrFrame** from your apps list.
+1. Скачайте **APK-файл TorrFrame** из раздела [Releases](https://github.com/HolyMayhem/TorrFrame/releases).
+2. Перенесите его на телевизор или приставку по локальной сети либо на флешке.
+3. Откройте APK через файловый менеджер на приставке и установите приложение.
+4. Запустите **TorrFrame** из списка приложений.
 
 > [!NOTE]
-> If Android asks, allow the file manager to install apps from this source.
+> Если Android попросит, разрешите файловому менеджеру установку приложений из этого источника.
 
-To update TorrFrame, install the new APK over the existing app without uninstalling it first. A regular update keeps your settings and library. The built-in TorrServer is updated with the app.
+Для обновления TorrFrame установите новый APK поверх существующего приложения, не удаляя его заранее. При обычном обновлении настройки и медиатека сохраняются. Встроенный TorrServer обновляется вместе с приложением.
 
-## First launch
+## Первый запуск
 
-The setup wizard helps you choose a language and appearance, connect your phone, and select a TorrServer. You can skip it and start using the app immediately.
+Мастер настройки поможет выбрать язык и оформление, подключить телефон и указать TorrServer. Его можно пропустить и сразу перейти к приложению.
 
-The defaults are **Russian**, **Phone Remote on**, and **navigation hints off**. You can change them later. To repeat setup, open **Settings → About → First-time setup**.
+По умолчанию выбраны **русский язык**, **включённый Phone Remote** и **отключённые подсказки по навигации**. Всё это можно изменить позже. Повторно открыть мастер можно в **«Настройки → О приложении → Мастер первоначальной настройки»**.
 
-## Start watching
+## Как начать смотреть
 
-**Catalog → choose a title → TorrentSearch → choose a torrent → watch.**
+**Каталог → выберите фильм → TorrentSearch → выберите раздачу → смотрите.**
 
-If a torrent contains several video files, select the movie or episode you want. Added torrents appear in **Library** — this is the content added to your TorrServer, not a list of everything in the catalog. A torrent does not need to be fully downloaded before playback can begin.
+Если в раздаче несколько видеофайлов, выберите нужный фильм или серию. Добавленные раздачи появятся в **«Медиатеке»** — это материалы, добавленные в ваш TorrServer, а не все фильмы из каталога. Для начала просмотра не нужно ждать полной загрузки торрента.
 
-Use the heart on a title’s page for **Favorites**, or the clock for **Watch later**. Both lists are available from Catalog and Library. Their catalog home page rows can be hidden under **Settings → Catalog**.
+Сердечко в карточке добавляет фильм в **«Избранное»**, а значок часов — в **«Смотреть позже»**. Оба списка доступны из каталога и медиатеки. Их полки на главной странице можно скрыть в **«Настройки → Каталог»**.
 
-| Remote button | Action |
+| Кнопка пульта | Действие |
 | --- | --- |
-| **Directional buttons** | Move between items. |
-| **OK** | Select or open an item. |
-| **Back** | Return to the previous screen. |
-| **Hold OK on a catalog poster** | Open the title’s action menu. |
-| **Hold OK on the Catalog tab** | Return to the catalog home page. |
+| **Стрелки** | Перемещение между элементами. |
+| **OK** | Выбор или открытие элемента. |
+| **Назад** | Возврат на предыдущий экран. |
+| **Удержание OK на обложке каталога** | Меню действий с фильмом. |
+| **Удержание OK на вкладке «Каталог»** | Возврат на главную страницу каталога. |
 
 ## Phone Remote
 
-Type on your phone instead of entering each letter with the TV remote. Find films, paste magnet links, manage your library, and control the built-in player. **No phone app is required.**
+Печатайте на телефоне вместо ввода каждой буквы телевизионным пультом. Ищите фильмы, вставляйте magnet-ссылки, управляйте медиатекой и встроенным плеером. **Устанавливать приложение на телефон не нужно.**
 
-1. Connect your phone and TV to the **same home network**.
-2. Open the phone icon in the TV’s top bar, or go to **Settings → Phone Remote**.
-3. Scan the QR code. You can also open the displayed address in your browser and enter the on-screen pairing code.
+1. Подключите телефон и приставку к **одной домашней сети**.
+2. Нажмите значок телефона в шапке приложения или откройте **«Настройки → Phone Remote»**.
+3. Отсканируйте QR-код. Также можно открыть указанный адрес в браузере и ввести код подключения с экрана.
 
-The phone interface has four tabs: **Search**, **Library**, **Remote**, and **Settings**. Your library, Favorites, and Watch later are shared with the TV. The phone interface language can be changed independently.
+На телефоне четыре вкладки: **«Поиск»**, **«Медиатека»**, **«Пульт»** и **«Настройки»**. Медиатека, избранное и просмотр позже общие с телевизором. Язык телефонного интерфейса переключается отдельно.
 
-Playback controls work with TorrFrame’s built-in player. External player features depend on the app you choose.
+Управление воспроизведением работает со встроенным плеером TorrFrame. Возможности внешнего плеера зависят от выбранного приложения.
 
-## Catalog and search
+## Каталог и поиск
 
-**TMDB** is selected by default. Under **Settings → Catalog**, you can choose **CUB** or **automatic mode**. Automatic mode tries TMDB first and uses CUB if loading collections or search fails. A CUB account is not required.
+По умолчанию выбран **TMDB**. В **«Настройки → Каталог»** можно выбрать **CUB** или **автоматический режим**. Автоматический режим сначала использует TMDB, а при ошибке загрузки подборок или поиска пробует CUB. Аккаунт CUB не нужен.
 
-Full title details and similar films use TMDB in every mode. Images have separate fallback addresses. Catalog and image availability depend on access to these services from your network.
+Полные карточки и похожие фильмы при любом выборе источника используют TMDB. Для изображений предусмотрены отдельные запасные адреса. Доступность каталога и обложек зависит от доступа к этим сервисам из вашей сети.
 
-To use your own [Jackett](https://github.com/Jackett/Jackett), enable it under **Settings → Jackett** and enter its address and API key. Its search button then appears on title pages. Jackett is optional; TorrentSearch works independently.
+Чтобы пользоваться своим [Jackett](https://github.com/Jackett/Jackett), включите его в **«Настройки → Jackett»** и укажите адрес и API-ключ. После этого в карточках фильмов появится его кнопка поиска. Jackett подключать необязательно: TorrentSearch работает самостоятельно.
 
-Torrent availability and playback speed depend on the search sources, your connection, and the peers sharing the file.
+Наличие раздач и скорость просмотра зависят от источников поиска, вашего подключения и участников, раздающих файл.
 
-## Appearance and sounds
+## Оформление и звуки
 
-Open **Settings → Appearance** to change the language, theme, accent color, interface size, and animations.
+В **«Настройки → Оформление»** можно изменить язык, тему, акцентный цвет, масштаб интерфейса и анимации.
 
-Quiet interface sounds and the startup sound can be turned off with **Interface sounds**. Movie and TV audio is controlled separately.
+Тихие звуки интерфейса и сопровождение заставки отключаются переключателем **«Звуки интерфейса»**. Звук фильмов и сериалов регулируется отдельно.
 
-## Acknowledgements
+## Благодарности
 
-TorrFrame is an independent app using [TorrServer](https://github.com/YouROK/TorrServer), data from [TMDB](https://www.themoviedb.org/), the public [CUB](https://tmdb.cub.best/) catalog, and work from [TorrentSearch](https://github.com/prajwalch/TorrentSearch).
+TorrFrame — независимое приложение, использующее [TorrServer](https://github.com/YouROK/TorrServer), данные [TMDB](https://www.themoviedb.org/), публичный каталог [CUB](https://tmdb.cub.best/) и наработки [TorrentSearch](https://github.com/prajwalch/TorrentSearch).
 
-Thank you to their authors and contributors. These projects and services are distributed under their own terms and licenses. Third-party licenses are available in **Settings → About**.
+Спасибо авторам и участникам этих проектов. У проектов и сервисов собственные условия использования и лицензии. Лицензии сторонних компонентов доступны в **«Настройки → О приложении»**.
