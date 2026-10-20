@@ -41,7 +41,7 @@ import java.util.Locale
             TvBackAction(Modifier.focusRequester(entryFocus).focusProperties { if(state.snapshot.results.isNotEmpty()) down=listFocus }
                 .testTag("torrentsearch:back"),back)
             Column(Modifier.weight(1f)) {
-                TvText("TorrentSearch",style=MaterialTheme.typography.headlineSmall,translate=false)
+                TvText(if(state.source == TorrentSearchSource.Jackett) "Jackett" else "TorrentSearch",style=MaterialTheme.typography.headlineSmall,translate=false)
                 TvText(state.target?.title.orEmpty(),color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,translate=false)
             }
             TvAction(torrentText("Retry","Повторить"),enabled=state.adding==null,

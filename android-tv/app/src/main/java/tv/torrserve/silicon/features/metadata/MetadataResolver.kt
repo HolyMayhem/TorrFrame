@@ -15,27 +15,34 @@ import tv.torrserve.silicon.core.storage.MetadataPriority
 class MetadataResolver(private val providers: MetadataSource, private val store: MetadataCache,
     private val bypassCache:(String)->Boolean = { false }) {
     private val permits = Semaphore(2)
-    private val lock = Mutex()
-    suspend fun resolve(sources: List<String>, s: Settings, forceRefresh: Boolean = false): Metadata? = withContext(Dispatchers.IO) { permits.withPermit {
+    private class WorkLock(val mutex: Mutex = Mutex(), var users: Int = 0)
+    private val locks = mutableMapOf<String, WorkLock>()
+    private suspend fun <T> withKeyLock(key: String, block: suspend () -> T): T {
+        val lock = synchronized(locks) { locks.getOrPut(key) { WorkLock() }.also { it.users++ } }
+        try { return lock.mutex.withLock { block() } }
+        finally { synchronized(locks) { if (--lock.users == 0) locks.remove(key) } }
+    }
+    suspend fun resolve(sources: List<String>, s: Settings, forceRefresh: Boolean = false): Metadata? = withContext(Dispatchers.IO) {
         val order = (if (s.aniListEnabled) listOf("AniList") else emptyList()) + MetadataPriority.normalized(s.metadataOrder)
         // Check higher-priority providers even when a lower-priority result is cached.
         for (provider in order) {
             val result = resolveProvider(sources, s, provider, forceRefresh)
-            if (result != null) return@withPermit result
+            if (result != null) return@withContext result
         }
         null
-    } }
+    }
     private suspend fun resolveProvider(sources: List<String>, s: Settings, provider: String, forceRefresh: Boolean): Metadata? {
         val candidates = MediaNameParser.candidates(sources, provider, s.language)
         val key = "v4|$provider|${s.language}|" + candidates.joinToString("|") { "${MediaNameParser.normalized(it.parsed.title)}:${it.parsed.year}:${it.parsed.kind}" }
-        // Serialize resolver work to deduplicate simultaneous additions and cache writes.
-        return lock.withLock {
+        // Identical lookups share their cache work; unrelated titles do not wait on their network calls.
+        return withKeyLock(key) {
             val bypass = bypassCache(provider)
             if(!bypass) {
                 if(forceRefresh) store.removeCache(key)
-                val cached=store.cached(key); if(cached.present)return@withLock cached.value
+                val cached=store.cached(key); if(cached.present)return@withKeyLock cached.value
             }
-            try {
+            // Waiters for the same key do not consume another network slot.
+            permits.withPermit { try {
                 data class Ranked(val match: MetadataMatch, val title: Double, val year: Int, val confidence: Int)
                 var best: Ranked? = null
                 val queries = if(provider == "AniList") candidates.take(2) else candidates.take(4) + candidates.take(2).map {
@@ -58,7 +65,7 @@ class MetadataResolver(private val providers: MetadataSource, private val store:
                 val metadata = best?.let { providers.details(it.match, s) }
                 if(!bypass && !bypassCache(provider))store.cache(key, metadata)
                 metadata
-            } catch (e: Exception) { if (e is CancellationException) throw e; null }
+            } catch (e: Exception) { if (e is CancellationException) throw e; null } }
         }
     }
 }

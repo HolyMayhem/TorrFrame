@@ -71,7 +71,7 @@ class RemoteCommands(private val graph: AppGraph) {
             }
             "library.add" -> {
                 val hash = when (val row = get(torrents, session, value(args, "handle"))) {
-                    is TorrentHandle.Legacy -> graph.library.add(row.value)
+                    is TorrentHandle.Legacy -> { require(graph.settings.state.value.jackettEnabled) { "Jackett is disabled." }; graph.library.add(row.value) }
                     is TorrentHandle.Shared -> AppTorrentSearchActions(graph).add(row.value)
                 }
                 JSONObject().put("hash", hash)
@@ -106,7 +106,7 @@ class RemoteCommands(private val graph: AppGraph) {
             }
             "metadata.select" -> { graph.metadataEditor.select(hash(args), get(matches, session, value(args, "handle"))); JSONObject() }
             "settings.update" -> { updateSettings(args); JSONObject() }
-            "settings.testJackett" -> { graph.jackett.test(graph.settings.state.value); JSONObject() }
+            "settings.testJackett" -> { require(graph.settings.state.value.jackettEnabled) { "Jackett is disabled." }; graph.jackett.test(graph.settings.state.value); JSONObject() }
             "settings.clearMetadataCache" -> { confirmed(args); graph.store.clearCache(); JSONObject() }
             "server.connect" -> {
                 val local = args.getBoolean("local"); val port = args.optInt("port", graph.settings.state.value.port)
@@ -164,7 +164,7 @@ class RemoteCommands(private val graph: AppGraph) {
             next.torrentSearch.enabledProviders?.let { ids -> require(ids.all { id -> graph.torrentSearch.providers.any { it.id == id } }) }
             if (available != null && next.playerMode == tv.torrserve.silicon.features.player.PlayerMode.External)
                 require(available.any { it.component == next.externalPlayer })
-            if (next.jackettUrl.isNotBlank() && next.jackettKey.isNotBlank()) graph.jackett.endpoint(next, "caps")
+            if (next.jackettEnabled && next.jackettUrl.isNotBlank() && next.jackettKey.isNotBlank()) graph.jackett.endpoint(next, "caps")
             next
         }
     }

@@ -29,7 +29,9 @@ import tv.torrserve.silicon.ui.theme.*
 @Composable fun CatalogScreen(state: CatalogUi, vm: CatalogViewModel, entryFocus: FocusRequester,
     torrentSearch: ((CatalogItem) -> Unit)? = null, restoreTorrentFocus: Boolean = false, refreshRevision:Int = 0,
     showFavorites: Boolean = true, showWatchLater: Boolean = true,
-    initialUserList: CatalogUserList? = null, closeUserList: () -> Unit = {}, jackettEnabled: Boolean = false) {
+    initialUserList: CatalogUserList? = null, closeUserList: () -> Unit = {}, jackettEnabled: Boolean = false,
+    jackettSearch: ((CatalogItem) -> Unit)? = null, restoreJackettFocus: Boolean = false,
+    homeRequest: Int = 0, homeHandled: () -> Unit = {}) {
     val vertical = rememberLazyListState()
     val detailStates = rememberSaveableStateHolder()
     val savedDetailEntries = remember { mutableSetOf<Long>() }
@@ -85,6 +87,18 @@ import tv.torrserve.silicon.ui.theme.*
     }?.name
     val hasPosters = if (state.query.isBlank()) firstGroup != null else state.results.items.isNotEmpty()
     LaunchedEffect(Unit) { vm.onVisible() }
+    LaunchedEffect(homeRequest) {
+        if (homeRequest > 0) {
+            vm.home()
+            expandedGroup = null; homeCollection = false; genrePicker = false; editing = false
+            menuItem = null; restoreMenuFocus = false; restoreGenreFocus = false; restoreMore = false
+            focusedKey = null; focusedSection = null; focusedFilterName = CatalogFilter.All.name; wasDetail = false
+            vertical.requestScrollToItem(0); grid.requestScrollToItem(0)
+            rows.values.forEach { it.requestScrollToItem(0) }
+            personalRows.values.forEach { it.requestScrollToItem(0) }
+            homeHandled()
+        }
+    }
     LaunchedEffect(refreshRevision,state.language) {
         if(refreshRevision>0 && state.language.isNotBlank())vm.refresh(refreshRevision)
     }
@@ -106,7 +120,7 @@ import tv.torrserve.silicon.ui.theme.*
     BackHandler(state.selected == null && expandedGroup != null && !editing, onBack = ::collapseCollection)
     if (state.selected != null) {
         detailStates.SaveableStateProvider(state.detailEntry) {
-            CatalogDetailsScreen(state, vm::close, torrentSearch, restoreTorrentFocus, jackettEnabled = jackettEnabled,
+            CatalogDetailsScreen(state, vm::close, torrentSearch, restoreTorrentFocus, jackettEnabled = jackettEnabled, jackettSearch = jackettSearch, restoreJackettFocus = restoreJackettFocus,
                 toggleList = { item, list -> vm.toggleList(item, list) {} }, openRelated = vm::openRelated,
                 retryRelated = vm::retryRelated, moreRelated = { vm.loadRelated(more = true) }, relatedHeld = held) { vm.open(state.selected, true) }
         }
@@ -159,32 +173,32 @@ import tv.torrserve.silicon.ui.theme.*
                 }
             }
         }
-        if (state.query.isBlank()) LazyColumn(state = vertical, modifier = Modifier.weight(1f).scrollEdgeFade(vertical, vertical = true).testTag("catalog:sections"),
+        if (state.query.isBlank()) LazyColumn(state = vertical, modifier = Modifier.weight(1f).scrollEdgeFade(vertical, vertical = true).focusRequester(firstPoster).focusGroup().testTag("catalog:sections"),
             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             items(homeLists, key = { "list:${it.name}" }) { list ->
                 val group = "list:${list.name}"
                 CatalogFeedRow(group, userListTitle(list), personalFeeds.getValue(list),
                     if (list == CatalogUserList.WatchLater) laterWidth else width, personalRows.getValue(list),
-                    if (group == firstGroup) firstPoster else null, if (group == firstGroup) activeFilterFocus else null,
+                    null, if (group == firstGroup) activeFilterFocus else null,
                     focusedKey.takeIf { focusedSection == group }, restore, retry = vm::retryUserLists,
                     more = { homeCollection = true; expandedGroup = group }, open = vm::open,
                     focused = { focusedKey = it.ref.key; focusedSection = group }, held = held,
-                    landscape = list == CatalogUserList.WatchLater)
+                    landscape = list == CatalogUserList.WatchLater, emptyFocus = activeFilterFocus)
             }
             if (state.filter.isGenre) items(state.filter.genreTypes, key = { "genre:${it.path}" }) { type ->
                 val group = "genre:${type.path}"
                 CatalogFeedRow(group, genreTitle(type, state.filter),
                     state.genreFeeds.getValue(type), width, genreRows.getValue(type),
-                    if (group == firstGroup) firstPoster else null, if (group == firstGroup) activeFilterFocus else null,
+                    null, if (group == firstGroup) activeFilterFocus else null,
                     focusedKey.takeIf { focusedSection == group }, restore, retry = { vm.retryGenre(type) },
                     more = { expandedGroup = group }, open = vm::open,
-                    focused = { focusedKey = it.ref.key; focusedSection = group }, held = held)
+                    focused = { focusedKey = it.ref.key; focusedSection = group }, held = held, emptyFocus = activeFilterFocus)
             } else items(state.filter.sections, key = { it.name }) { section ->
                 CatalogFeedRow(section.name, sectionTitle(section), state.sections.getValue(section), width, rows.getValue(section),
-                    if (section.name == firstGroup) firstPoster else null, if (section.name == firstGroup) activeFilterFocus else null,
+                    null, if (section.name == firstGroup) activeFilterFocus else null,
                     focusedKey.takeIf { focusedSection == section.name }, restore, retry = { vm.retrySection(section) },
                     more = { expandedGroup = section.name }, open = vm::open,
-                    focused = { focusedKey = it.ref.key; focusedSection = section.name }, held = held)
+                    focused = { focusedKey = it.ref.key; focusedSection = section.name }, held = held, emptyFocus = activeFilterFocus)
             }
         } else {
             TvText(catalogText("Search results", "Результаты поиска"), style = MaterialTheme.typography.headlineSmall)
@@ -192,15 +206,13 @@ import tv.torrserve.silicon.ui.theme.*
             if (feed.loading && feed.items.isEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 repeat(5) { CatalogSkeleton(Modifier.width(width)) }
             }
-            if (feed.error) CatalogError(vm::retryResults, cached = feed.items.isNotEmpty())
+            CatalogFeedError(feed, vm::retryResults, firstPoster, activeFilterFocus, "catalog:retry:results")
             if (!feed.loading && !feed.error && feed.items.isEmpty()) TvText(catalogText("Nothing found. Try another title.", "Ничего не найдено. Попробуйте другое название."), color = Muted, modifier = Modifier.testTag("catalog:empty"))
             if (!feed.loading && !feed.error && feed.items.isEmpty() && feed.page < feed.totalPages) TvAction(catalogText("More results", "Ещё результаты"), action = vm::moreSearch)
-            LazyVerticalGrid(columns = GridCells.Adaptive(width), state = grid, modifier = Modifier.weight(1f).scrollEdgeFade(grid, vertical = true).testTag("catalog:results"),
+            LazyVerticalGrid(columns = GridCells.Adaptive(width), state = grid, modifier = Modifier.weight(1f).scrollEdgeFade(grid, vertical = true).focusRequester(firstPoster).focusGroup().testTag("catalog:results"),
                 contentPadding = PaddingValues(6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 itemsIndexed(feed.items, key = { _, item -> item.ref.key }) { index, item ->
-                    val isEntry by remember(grid, index) { derivedStateOf { index == grid.firstVisibleItemIndex } }
                     CatalogPosterCard(item, Modifier
-                        .then(if (isEntry) Modifier.focusRequester(firstPoster) else Modifier)
                         .then(if (item.ref.key == focusedKey && focusedSection == "results") Modifier.focusRequester(restore) else Modifier)
                         .onFocusChanged { if (it.isFocused) {
                             focusedKey = item.ref.key; focusedSection = "results"
@@ -285,19 +297,19 @@ import tv.torrserve.silicon.ui.theme.*
 @Composable internal fun CatalogFeedRow(group: String, title: String, feed: CatalogFeed, width: Dp,
     row: LazyListState, entryFocus: FocusRequester?, up: FocusRequester?, restoreKey: String?, restore: FocusRequester,
     retry: () -> Unit, more: () -> Unit, open: (CatalogRef) -> Unit, focused: (CatalogItem) -> Unit,
-    held: (CatalogItem, FocusRequester) -> Unit, landscape: Boolean = false) {
+    held: (CatalogItem, FocusRequester) -> Unit, landscape: Boolean = false, emptyFocus: FocusRequester? = up) {
+    val rowFocus = remember { FocusRequester() }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TvText(title, style = MaterialTheme.typography.headlineSmall)
-        if (feed.error) CatalogError(retry, cached = feed.items.isNotEmpty())
+        CatalogFeedError(feed, retry, rowFocus, emptyFocus, "catalog:retry:$group")
         if (feed.loading && feed.items.isEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             repeat(5) { CatalogSkeleton(Modifier.width(width)) }
         } else if (feed.items.isEmpty() && !feed.error) TvText(catalogText("No titles in this collection.", "В подборке пока нет фильмов."), color = Muted)
-        LazyRow(state = row, modifier = Modifier.fillMaxWidth().scrollEdgeFade(row).focusGroup().testTag("catalog:row:$group"),
+        LazyRow(state = row, modifier = Modifier.fillMaxWidth().scrollEdgeFade(row).focusRequester(rowFocus)
+            .then(if (entryFocus != null) Modifier.focusRequester(entryFocus) else Modifier).focusGroup().testTag("catalog:row:$group"),
             horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(6.dp)) {
             itemsIndexed(feed.items.take(10), key = { _, item -> item.ref.key }) { index, item ->
-                val isEntry by remember(row, index) { derivedStateOf { index == row.firstVisibleItemIndex } }
                 CatalogPosterCard(item, Modifier.width(width)
-                    .then(if (entryFocus != null && isEntry) Modifier.focusRequester(entryFocus) else Modifier)
                     .then(if (item.ref.key == restoreKey) Modifier.focusRequester(restore) else Modifier)
                     .focusProperties {
                         if (index == 0) left = FocusRequester.Cancel
@@ -309,7 +321,6 @@ import tv.torrserve.silicon.ui.theme.*
             if (feed.items.isNotEmpty()) item("more") {
                 CatalogCollectionCard(feed.items.take(6), title, modifier = Modifier.width(width).aspectRatio(if (landscape) 16f / 9f else 2f / 3f)
                     .then(if (restoreKey == "more:$group") Modifier.focusRequester(restore) else Modifier)
-                    .then(if (entryFocus != null && row.firstVisibleItemIndex == feed.items.take(10).size) Modifier.focusRequester(entryFocus) else Modifier)
                     .focusProperties { if (up != null) this.up = up; right = FocusRequester.Cancel }
                     .testTag("catalog:more:$group"), open = more)
             }

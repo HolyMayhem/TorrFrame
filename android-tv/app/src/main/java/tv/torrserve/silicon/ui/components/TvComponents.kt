@@ -84,13 +84,14 @@ import tv.torrserve.silicon.core.models.LibraryItem
         }
     }
 }
-@Composable fun TvNavItem(label: String, isSelected: Boolean, modifier: Modifier = Modifier, displayLabel: String = label, action: () -> Unit) {
+@Composable fun TvNavItem(label: String, isSelected: Boolean, modifier: Modifier = Modifier, displayLabel: String = label,
+    onLongClick: (() -> Unit)? = null, action: () -> Unit) {
     val shape = CircleShape
     val motion = rememberTvButtonMotion(shape = shape, container = Surface,
         content = if (isSelected) AccentText else Muted, outline = if (isSelected) AccentText else Outline,
         focusedContainer = SurfaceSecondary, focusedContent = TextPrimary, focusedOutline = TextPrimary.copy(alpha = .8f))
-    Button(onClick = { motion.activate(); action() }, modifier = modifier.height(TvDimensions.actionHeight)
-        .then(motion.modifier).then(motion.pointerClick(action = action))
+    Button(onClick = { motion.activate(); action() }, onLongClick = onLongClick, modifier = modifier.height(TvDimensions.actionHeight)
+        .then(motion.modifier).then(motion.pointerClick(onLongClick = onLongClick, action = action))
         .testTag("nav:$label").semantics { selected = isSelected },
         shape = ButtonDefaults.shape(shape), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
         interactionSource = motion.interactions, colors = motion.colors, border = motion.border,

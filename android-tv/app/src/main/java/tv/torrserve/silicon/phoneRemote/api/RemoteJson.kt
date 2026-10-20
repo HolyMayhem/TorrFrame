@@ -14,7 +14,7 @@ import tv.torrserve.silicon.features.player.PlaybackSnapshot
 
 object RemoteJson {
     fun settings(value: Settings, revision: Long) = JSONObject().put("revision", revision)
-        .put("jackettUrl", value.jackettUrl).put("jackettKeyConfigured", value.jackettKey.isNotBlank())
+        .put("jackettEnabled", value.jackettEnabled).put("jackettUrl", value.jackettUrl).put("jackettKeyConfigured", value.jackettKey.isNotBlank())
         .put("metadataOrder", JSONArray(value.metadataOrder)).put("aniListEnabled", value.aniListEnabled)
         .put("language", value.language).put("resume", value.resume).put("audioLanguage", value.audioLanguage)
         .put("subtitleLanguage", value.subtitleLanguage).put("uiLanguage", value.uiLanguage)

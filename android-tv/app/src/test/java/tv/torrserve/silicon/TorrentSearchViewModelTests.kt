@@ -84,4 +84,21 @@ class TorrentSearchViewModelTests {
         assertTrue(queries.isEmpty());assertEquals(previous,prepared);assertFalse(vm.state.value.searching)
     }
 
+
+    @Test fun jackettBackendSurvivesRetryAndRecreationAndDoesNotStartBuiltinSources()=runTest {
+        var builtins=0;var jackett=0
+        fun engine(id:String,call:()->Unit)=TorrentSearchEngine(listOf(object:SearchProvider {
+            override val id=id;override val name=id
+            override suspend fun search(query:String,type:MediaType):List<TorrentResult>{call();return listOf(row.copy(providerId=id))}
+        }),dispatcher=dispatcher)
+        val builtin=engine("builtin"){builtins++};val jackettEngine=engine("jackett"){jackett++};val saved=SavedStateHandle()
+        val vm=TorrentSearchViewModel(builtin,Actions(),saved,options={TorrentSearchOptions(enabledProviders=emptySet())},jackettEngine=jackettEngine)
+        models.put("jackett",vm);vm.open(SearchTarget("Film"),TorrentSearchSource.Jackett);runCurrent()
+        assertEquals(TorrentSearchSource.Jackett,vm.state.value.source);assertEquals(1,vm.state.value.snapshot.results.size)
+        vm.retry();runCurrent();assertEquals(2,jackett);assertEquals(0,builtins)
+        val restored=TorrentSearchViewModel(builtin,Actions(),saved,jackettEngine=jackettEngine);models.put("restored",restored);runCurrent()
+        assertEquals(TorrentSearchSource.Jackett,restored.state.value.source);assertEquals(3,jackett)
+        restored.close();assertNull(restored.state.value.target);assertNull(saved.get<String>("torrentTitle"))
+    }
+
 }

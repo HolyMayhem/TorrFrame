@@ -86,6 +86,28 @@ class PhoneRemoteIntegrationTest {
             assertEquals(original.resume, backend.snapshot(session).getJSONObject("settings").getBoolean("resume"))
         } finally { backend.close(); scope.cancel(); graph.settings.save(original) }
     }
+    @Test fun jackettSwitchIsSharedBetweenPhoneAndTvAndDisabledSearchIsRejected() = runBlocking {
+        val graph=app.graph;graph.ready.await()
+        val original=graph.settings.state.value
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Default)
+        val sessions=SessionManager(Memory());val session=sessions.create("Jackett settings test").session
+        val backend=StateSyncManager(graph,scope,sessions);val commands=RemoteCommands(graph)
+        try {
+            // The phone changes the same persisted settings observed by TV.
+            commands.execute(session,"settings.update",JSONObject().put("revision",graph.settings.revision.value)
+                .put("edits",JSONObject().put("jackettEnabled",false)))
+            assertFalse(graph.settings.state.value.jackettEnabled)
+            assertFalse(backend.snapshot(session).getJSONObject("settings").getBoolean("jackettEnabled"))
+            for(command in listOf("search","settings.testJackett")) try {
+                commands.execute(session,command,JSONObject().put("query","Film").put("source","jackett").put("filter","Movies"))
+                fail("Disabled Jackett accepted: $command")
+            } catch(_:IllegalArgumentException) { }
+            // A TV-side change is immediately reflected in the phone snapshot.
+            graph.settings.update { it.copy(jackettEnabled=true) }
+            val json=backend.snapshot(session).getJSONObject("settings")
+            assertTrue(json.getBoolean("jackettEnabled"));assertFalse(json.has("jackettKey"))
+        } finally { backend.close();scope.cancel();graph.settings.save(original) }
+    }
     @Test fun metadataSelectionIsOneSourceAndStaleAutomaticWritesCannotWin() = runBlocking {
         val name = "phone-remote-metadata-test.sqlite"
         val store = LibraryStore(app, name)

@@ -30,6 +30,7 @@ class JackettClient(private val http: Http) {
     }
     suspend fun test(s: Settings) = withContext(Dispatchers.Default) { TorznabParser.caps(http.get(endpoint(s, "caps"), "Jackett").toString(Charsets.UTF_8)) }
     suspend fun search(s: Settings, query: String, filter: String): SearchPage = withContext(Dispatchers.Default) {
+        require(s.jackettEnabled) { "Jackett is disabled." }
         val category = when(filter) { "Movies" -> "2000"; "TV Shows" -> "5000"; else -> null }
         TorznabParser.results(http.get(endpoint(s, "search", query, category), "Jackett").toString(Charsets.UTF_8))
     }

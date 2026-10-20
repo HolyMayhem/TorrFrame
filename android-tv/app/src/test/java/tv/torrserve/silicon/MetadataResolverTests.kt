@@ -1,7 +1,8 @@
 package tv.torrserve.silicon
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
+import java.util.Collections
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.*
 import org.junit.Test
 import tv.torrserve.silicon.core.database.LibraryStore
@@ -12,7 +13,7 @@ import tv.torrserve.silicon.features.metadata.*
 
 class MetadataResolverTests {
     private class Cache : MetadataCache {
-        val entries = mutableMapOf<String, Metadata?>()
+        val entries = Collections.synchronizedMap(mutableMapOf<String, Metadata?>())
         override suspend fun cached(key: String) = LibraryStore.Cached(entries.containsKey(key), entries[key])
         override suspend fun cache(key: String, value: Metadata?) { entries[key] = value }
         override suspend fun removeCache(key: String) { entries.remove(key) }
@@ -98,5 +99,68 @@ class MetadataResolverTests {
         assertEquals(listOf("TMDB", "OMDb", "Kinopoisk"), MetadataPriority.move(MetadataPriority.defaultOrder, "TMDB", -1))
         assertEquals(MetadataPriority.defaultOrder, MetadataPriority.move(MetadataPriority.defaultOrder, "OMDb", -1))
         assertEquals(MetadataPriority.defaultOrder, MetadataPriority.move(MetadataPriority.defaultOrder, "invalid", 1))
+    }
+
+    @Test fun unrelatedTitleFinishesWhileDuplicateWaitsForTheSameSlowLookup() = runBlocking {
+        val entered=CompletableDeferred<Unit>();val release=CompletableDeferred<Unit>()
+        val slowCalls=AtomicInteger();val fastCalls=AtomicInteger()
+        val source=object:MetadataSource {
+            override suspend fun search(p:ParsedName,s:Settings,provider:String):List<MetadataMatch> {
+                if(p.title=="Interstellar") { slowCalls.incrementAndGet();entered.complete(Unit);release.await() }
+                else fastCalls.incrementAndGet()
+                return listOf(MetadataMatch(Metadata(provider,p.title,p.title,p.title,p.year,p.kind)))
+            }
+            override suspend fun details(match:MetadataMatch,s:Settings)=match.value
+        }
+        val resolver=MetadataResolver(source,Cache())
+        try {
+            val first=async { resolver.resolve(title,Settings()) }
+            withTimeout(3000) { entered.await() }
+            val duplicate=async(start=CoroutineStart.UNDISPATCHED) { resolver.resolve(title,Settings()) }
+            val fast=async { resolver.resolve(listOf("Arrival.2016.mkv"),Settings()) }
+            assertEquals("Arrival",withTimeout(3000) { fast.await() }?.title)
+            assertFalse(first.isCompleted);assertEquals(1,fastCalls.get())
+            release.complete(Unit)
+            assertEquals(first.await(),duplicate.await());assertEquals(1,slowCalls.get())
+        } finally { release.complete(Unit) }
+    }
+    @Test fun independentLookupsStillLimitNetworkConcurrencyToTwo() = runBlocking {
+        val release=CompletableDeferred<Unit>();val twoStarted=CompletableDeferred<Unit>()
+        val active=AtomicInteger();val peak=AtomicInteger();val started=AtomicInteger()
+        val source=object:MetadataSource {
+            override suspend fun search(p:ParsedName,s:Settings,provider:String):List<MetadataMatch> {
+                val count=active.incrementAndGet();peak.updateAndGet { maxOf(it,count) }
+                if(started.incrementAndGet()==2)twoStarted.complete(Unit)
+                try { release.await();return listOf(MetadataMatch(Metadata(provider,p.title,p.title,p.title,p.year,p.kind))) }
+                finally { active.decrementAndGet() }
+            }
+            override suspend fun details(match:MetadataMatch,s:Settings)=match.value
+        }
+        val resolver=MetadataResolver(source,Cache())
+        try {
+            val calls=listOf("Interstellar.2014.mkv","Arrival.2016.mkv","Dune.2021.mkv").map { async { resolver.resolve(listOf(it),Settings()) } }
+            withTimeout(3000) { twoStarted.await() }
+            assertEquals(2,active.get());assertEquals(2,started.get())
+            release.complete(Unit);assertTrue(calls.awaitAll().all { it!=null })
+            assertEquals(2,peak.get());assertEquals(3,started.get())
+        } finally { release.complete(Unit) }
+    }
+    @Test fun cancelledOwnerDoesNotLeaveItsDuplicateLockedOrCacheAFailedResult() = runBlocking {
+        val entered=CompletableDeferred<Unit>();val calls=AtomicInteger();val cache=Cache()
+        val source=object:MetadataSource {
+            override suspend fun search(p:ParsedName,s:Settings,provider:String):List<MetadataMatch> {
+                if(calls.incrementAndGet()==1) { entered.complete(Unit);awaitCancellation() }
+                return listOf(MetadataMatch(Metadata(provider,p.title,p.title,p.title,p.year,p.kind)))
+            }
+            override suspend fun details(match:MetadataMatch,s:Settings)=match.value
+        }
+        val resolver=MetadataResolver(source,cache)
+        val first=async { resolver.resolve(title,Settings()) }
+        withTimeout(3000) { entered.await() }
+        val duplicate=async(start=CoroutineStart.UNDISPATCHED) { resolver.resolve(title,Settings()) }
+        first.cancelAndJoin()
+        assertEquals("Interstellar",withTimeout(3000) { duplicate.await() }?.title)
+        assertEquals(2,calls.get());assertEquals(1,cache.entries.size)
+        assertEquals("Interstellar",resolver.resolve(title,Settings())?.title);assertEquals(2,calls.get())
     }
 }

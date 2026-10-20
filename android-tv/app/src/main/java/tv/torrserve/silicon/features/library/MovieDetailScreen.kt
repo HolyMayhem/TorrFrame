@@ -11,10 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.*
 import tv.torrserve.silicon.ui.components.TvText as Text
 import tv.torrserve.silicon.core.models.*
@@ -22,15 +22,19 @@ import tv.torrserve.silicon.ui.components.*
 import tv.torrserve.silicon.ui.theme.*
 
 @Composable fun MovieDetailScreen(item: LibraryItem, state: LibraryUi, vm: LibraryViewModel,
-    back: () -> Unit, torrentSearch: (() -> Unit)? = null, restoreTorrentFocus: Boolean = false, jackettEnabled: Boolean = false, play: (String, TorrentFile) -> Unit) {
+    back: () -> Unit, torrentSearch: (() -> Unit)? = null, restoreTorrentFocus: Boolean = false, jackettEnabled: Boolean = false, jackettSearch: (() -> Unit)? = null, restoreJackettFocus: Boolean = false, play: (String, TorrentFile) -> Unit) {
     var removing by remember { mutableStateOf(false) }
     val watchFocus = remember { FocusRequester() }; val backFocus = remember { FocusRequester() }
     val torrentFocus = remember { FocusRequester() }
     val removeFocus = remember { FocusRequester() }; val jackettFocus = remember { FocusRequester() }
+    var jackettFocused by remember { mutableStateOf(false) }
+    val removedFocusedJackett = !jackettEnabled && jackettFocused
+    LaunchedEffect(jackettEnabled) {
+        if (removedFocusedJackett) { withFrameNanos { }; (if(torrentSearch != null) torrentFocus else watchFocus).requestFocus() }
+    }
     val fileFocus = remember { FocusRequester() }; val list = rememberLazyListState()
     var filesRequested by remember(item.hash) { mutableStateOf(false) }
     var focusFiles by remember(item.hash) { mutableStateOf(false) }
-    var jackett by remember { mutableStateOf(false) }
     var restoreAction by remember { mutableStateOf<String?>(null) }
     val files = (if (state.fileHash == item.hash) state.files else item.files).filter { it.isVideo }
     // Cached torrent files are shown immediately. Fetch once only when this card
@@ -47,11 +51,11 @@ import tv.torrserve.silicon.ui.theme.*
     LaunchedEffect(restoreAction) {
         restoreAction?.let { action ->
             withFrameNanos { }
-            if (action == "remove") removeFocus.requestFocus() else if (jackettEnabled) jackettFocus.requestFocus() else watchFocus.requestFocus()
+            if (action == "remove") removeFocus.requestFocus()
             restoreAction = null
         }
     }
-    LaunchedEffect(item.hash) { withFrameNanos { };if(restoreTorrentFocus && torrentSearch!=null)torrentFocus.requestFocus()else backFocus.requestFocus() }
+    LaunchedEffect(item.hash) { withFrameNanos { };if(restoreTorrentFocus && torrentSearch!=null)(if(restoreJackettFocus && jackettEnabled)jackettFocus else torrentFocus).requestFocus()else backFocus.requestFocus() }
     fun watch() {
         if (files.size > 1 && tv.torrserve.silicon.features.player.preferredVideo(item, files) == null) {
             focusFiles = true; return
@@ -76,7 +80,7 @@ import tv.torrserve.silicon.ui.theme.*
                     enabled = !state.busy) { removing = true }
                 TvAction("Refresh Metadata", !state.busy, Modifier.focusProperties { up = backFocus }.testTag("movie:metadata")) { vm.metadata(item.hash) }
                 if(torrentSearch != null) TvAction("TorrentSearch", modifier = Modifier.focusRequester(torrentFocus).focusProperties { up = backFocus }.testTag("movie:torrentsearch"), action = torrentSearch)
-                if (jackettEnabled) TvAction("Jackett", modifier = Modifier.focusRequester(jackettFocus).focusProperties { up = backFocus }.testTag("movie:jackett"), translate = false) { jackett = true }
+                if (jackettEnabled) TvAction("Jackett", enabled = jackettSearch != null, modifier = Modifier.focusRequester(jackettFocus).onFocusChanged { jackettFocused=it.isFocused }.focusProperties { up = backFocus }.testTag("movie:jackett"), translate = false) { jackettSearch?.invoke() }
                 }
             } }
             item("files") {
@@ -102,15 +106,5 @@ import tv.torrserve.silicon.ui.theme.*
     }
     if(removing) Confirm("Remove from library?", "The torrent and its saved playback history will be removed.",
         { removing = false; restoreAction = "remove" }) { removing = false; vm.remove(item.hash, back) }
-    if(jackett && jackettEnabled) {
-        val close = remember { FocusRequester() }
-        fun dismiss() { jackett = false; restoreAction = "jackett" }
-        Dialog(onDismissRequest = ::dismiss) {
-            InfoPanel("Jackett", stringResource(R.string.library_jackett_placeholder),
-                Modifier.width(360.dp).testTag("movie:jackett:placeholder")) {
-                TvBackAction(Modifier.focusRequester(close), action = ::dismiss)
-            }
-            LaunchedEffect(Unit) { withFrameNanos { }; close.requestFocus() }
-        }
-    }
+
 }

@@ -19,16 +19,35 @@ class CubCatalogApi(
     private val slots = Semaphore(2)
     // CUB's catalog service is distinct from its account/bookmark API (/api/).
     private val base = CatalogNetworkSettings.endpoint(config.effectiveCubUrl)
+    private val publicTransport = base.host == CatalogNetworkSettings.endpoint(CatalogNetworkSettings.PUBLIC_CUB_URL).host
     private val client = Http(http.client.newBuilder().followRedirects(false).followSslRedirects(false)
-        .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS).readTimeout(12, java.util.concurrent.TimeUnit.SECONDS)
-        .callTimeout(18, java.util.concurrent.TimeUnit.SECONDS).build())
+        .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS).readTimeout(14, java.util.concurrent.TimeUnit.SECONDS)
+        .callTimeout(18, java.util.concurrent.TimeUnit.SECONDS).apply {
+            // Reused public CUB connections stall on some TV networks after an initial response.
+            // A separate HTTP/1.1 connection per request also avoids sharing that failure across HTTP/2 streams.
+            if (publicTransport) {
+                protocols(listOf(okhttp3.Protocol.HTTP_1_1))
+                connectionPool(okhttp3.ConnectionPool(0, 1, java.util.concurrent.TimeUnit.SECONDS))
+            }
+        }.build())
+    private suspend fun bytes(request: Request): ByteArray = try {
+        client.bytes(request, "CUB", limit = 1024 * 1024)
+    } catch (e: ServiceFailure) {
+        val causes = generateSequence<Throwable>(e) { it.cause }.take(12).toList()
+        val status = causes.filterIsInstance<ServiceFailure>().firstOrNull { it.status != 0 }?.status ?: 0
+        // One bounded recovery attempt for transient transport/server failures, never access denial or bad JSON.
+        if (status !in setOf(0, 408, 502, 503, 504) || causes.any { it is javax.net.ssl.SSLException }) throw e
+        kotlinx.coroutines.delay(200)
+        client.bytes(request, "CUB", limit = 1024 * 1024)
+    }
     private suspend fun get(path: String, parameters: Map<String, String>): JSONObject = slots.withPermit {
         require(config.cubConfigured)
         val url = base.newBuilder().encodedPath(base.encodedPath.trimEnd('/') + "/" + path)
         parameters.forEach { (key, value) -> url.addQueryParameter(key, value) }
         val request = Request.Builder().url(url.build()).header("Accept", "application/json")
+            .apply { if (publicTransport) header("Connection", "close") }
             .apply { if (config.cubToken.isNotBlank()) header("token", config.cubToken) }.build()
-        val json = try { JSONObject(client.bytes(request, "CUB", limit = 1024 * 1024).toString(Charsets.UTF_8)) }
+        val json = try { JSONObject(bytes(request).toString(Charsets.UTF_8)) }
             catch (e: org.json.JSONException) { throw ServiceFailure("CUB", -2, cause = e) }
         if (json.optBoolean("success", true).not() || json.optBoolean("secuses", true).not() ||
             json.has("error") || json.optInt("status_code") > 0) throw ServiceFailure("CUB", -2)

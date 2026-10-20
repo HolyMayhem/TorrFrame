@@ -4,10 +4,13 @@ import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
+import java.util.concurrent.TimeUnit
+import org.json.JSONObject
 
 /** Routing is restricted to public TMDB GETs. TorrServer, trackers and CUB are never rewritten. */
 class CatalogRouteInterceptor(private val settings: () -> CatalogNetworkSettings,
-    private val now: () -> Long = { System.nanoTime() / 1_000_000 }) : Interceptor {
+    private val now: () -> Long = { System.nanoTime() / 1_000_000 },
+    private val apiConnectTimeoutMs: Int = 5_000, private val apiReadTimeoutMs: Int = 8_000) : Interceptor {
     private val unavailableUntil = linkedMapOf<String, Long>()
     private fun key(url: HttpUrl) = "${url.host}:${url.port}"
     @Synchronized private fun available(routes: List<HttpUrl>): List<HttpUrl> {
@@ -30,15 +33,24 @@ class CatalogRouteInterceptor(private val settings: () -> CatalogNetworkSettings
             if (chain.call().isCanceled()) throw IOException("Catalog request cancelled.")
             val request = if (url == original.url) original else original.newBuilder().url(url)
                 .removeHeader("Authorization").removeHeader("Proxy-Authorization").removeHeader("Cookie").removeHeader("token").build()
+            var response: Response? = null
             try {
-                val response = chain.proceed(request)
-                val blockedImage = original.url.host == "image.tmdb.org" && response.code == 403
-                if (!retryable(response.code) && !blockedImage) { if (response.isSuccessful) recovered(url); return response }
+                val api = original.url.host == "api.themoviedb.org"
+                val attempt = if (api) chain.withConnectTimeout(apiConnectTimeoutMs, TimeUnit.MILLISECONDS)
+                    .withReadTimeout(apiReadTimeoutMs, TimeUnit.MILLISECONDS) else chain
+                response = attempt.proceed(request)
+                // Buffer the bounded API body here so a stalled body also leaves time for the proxy.
+                val invalidJson = if (api && response.isSuccessful) try {
+                    JSONObject(response.peekBody(4L * 1024 * 1024 + 1).string()); false
+                } catch (_: org.json.JSONException) { true } else false
+                val blocked = response.code == 403
+                if (!retryable(response.code) && !blocked && !invalidJson) { if (response.isSuccessful) recovered(url); return response }
                 failed(url)
                 if (index == destinations.lastIndex) return response
                 // Release each failed response before advancing to another route.
                 response.close()
             } catch (error: IOException) {
+                response?.close()
                 if (chain.call().isCanceled()) throw error
                 failed(url)
                 if (index == destinations.lastIndex) throw error

@@ -31,8 +31,12 @@ class CatalogImagesLiveTest {
             val loader = SingletonImageLoader.get(app)
             for ((index, url) in urls.withIndex()) {
                 val request = ImageRequest.Builder(app).data(url).size(1280, 1280).build()
-                val first = loader.execute(request)
+                // Force a real transfer even when an earlier run already populated the cache.
+                val first = loader.execute(request.newBuilder()
+                    .memoryCachePolicy(coil3.request.CachePolicy.WRITE_ONLY)
+                    .diskCachePolicy(coil3.request.CachePolicy.WRITE_ONLY).build())
                 assertTrue("Image $index failed: ${(first as? coil3.request.ErrorResult)?.throwable?.javaClass?.simpleName}", first is SuccessResult)
+                assertEquals(coil3.decode.DataSource.NETWORK, (first as SuccessResult).dataSource)
                 val second = loader.execute(request)
                 assertTrue(second is SuccessResult)
                 assertTrue("Image $index should be cached", (second as SuccessResult).dataSource != coil3.decode.DataSource.NETWORK)

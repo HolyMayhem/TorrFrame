@@ -5,6 +5,8 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.content.ContentValues
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,17 +59,33 @@ class LibraryStore(context: Context, databaseName: String = "library.sqlite") : 
     suspend fun put(t: Torrent, sourceTitle: String = t.title) = withContext(Dispatchers.IO) {
         val db = writableDatabase; db.beginTransaction()
         try {
-            db.insertWithOnConflict("library", null, ContentValues().apply {
-                put("hash", t.hash); put("source_title", sourceTitle); put("added_at", System.currentTimeMillis())
-            }, SQLiteDatabase.CONFLICT_IGNORE)
-            if (t.files.isNotEmpty()) db.update("library", ContentValues().apply {
-                put("files", JSONArray(t.files.map { it.json() }).toString())
-            }, "hash=?", arrayOf(t.hash))
-            if(sourceTitle.isNotBlank() && sourceTitle != "Torrent") db.update("library", ContentValues().apply {
-                put("source_title",sourceTitle)
-            }, "hash=? AND (source_title='' OR source_title='Torrent')", arrayOf(t.hash))
+            put(db, t, sourceTitle)
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }; changed()
+    }
+    /** A server snapshot is one atomic update and one invalidation of the library projection. */
+    suspend fun putAll(torrents: List<Torrent>) = withContext(Dispatchers.IO) {
+        if (torrents.isEmpty()) return@withContext
+        val db = writableDatabase; db.beginTransaction()
+        try {
+            for (torrent in torrents) {
+                currentCoroutineContext().ensureActive()
+                put(db, torrent, torrent.title)
+            }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        changed()
+    }
+    private fun put(db: SQLiteDatabase, t: Torrent, sourceTitle: String) {
+        db.insertWithOnConflict("library", null, ContentValues().apply {
+            put("hash", t.hash); put("source_title", sourceTitle); put("added_at", System.currentTimeMillis())
+        }, SQLiteDatabase.CONFLICT_IGNORE)
+        if (t.files.isNotEmpty()) db.update("library", ContentValues().apply {
+            put("files", JSONArray(t.files.map { it.json() }).toString())
+        }, "hash=?", arrayOf(t.hash))
+        if(sourceTitle.isNotBlank() && sourceTitle != "Torrent") db.update("library", ContentValues().apply {
+            put("source_title",sourceTitle)
+        }, "hash=? AND (source_title='' OR source_title='Torrent')", arrayOf(t.hash))
     }
     private fun exists(hash: String) = readableDatabase.rawQuery("SELECT 1 FROM library WHERE hash=?", arrayOf(hash)).use { it.moveToFirst() }
     suspend fun metadataTicket(hash: String, automatic: Boolean = false): Long? = withContext(Dispatchers.IO) { metadataLock.withLock {

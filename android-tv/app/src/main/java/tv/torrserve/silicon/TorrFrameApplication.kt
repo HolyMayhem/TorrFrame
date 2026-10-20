@@ -45,6 +45,8 @@ class AppGraph(val app: Application) {
     val connection = ServerConnection(api, settings.state, scope)
     val server = ServerController(app, localApi, scope, settings)
     val jackett = JackettClient(http)
+    val jackettSearch = tv.torrserve.torrentsearch.engine.TorrentSearchEngine(listOf(
+        tv.torrserve.silicon.features.search.JackettSearchProvider(jackett) { settings.state.value }))
     val torrentSearchNetwork = tv.torrserve.silicon.features.torrentsearch.data.TorrentSearchNetwork(http)
     val torrentSearch = tv.torrserve.torrentsearch.engine.TorrentSearchEngine(tv.torrserve.torrentsearch.provider.builtinProviders(torrentSearchNetwork))
     val tmdb = tv.torrserve.silicon.core.network.TmdbClient(http)

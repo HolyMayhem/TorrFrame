@@ -102,6 +102,40 @@ class CubCatalogTests {
         assertTrue(requests.all { it.url.host == "tmdb.cub.best" && it.header("token") == null &&
             it.url.queryParameter("api_key") == null && it.url.queryParameter("language") == null })
     }
+    @Test fun publicCubClosesEachTransportWhileCustomCatalogAndTmdbKeepTheirDefaults() = runBlocking {
+        val requests=CopyOnWriteArrayList<Request>()
+        val transport=Http(OkHttpClient.Builder().addInterceptor { chain ->
+            requests+=chain.request()
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                .body(page("Title").toString().toResponseBody()).build()
+        }.build())
+        val public=CubCatalogApi(transport,CatalogNetworkSettings(source=CatalogSource.Cub)) { "test-key" }
+        for(section in CatalogSection.entries) public.section(section,"en-US",1)
+        public.search("Title","en-US",1)
+        assertEquals(8,requests.size)
+        assertTrue(requests.all { it.header("Connection")=="close" })
+        CubCatalogApi(transport,config).section(CatalogSection.PopularMovies,"en-US",1)
+        public.related(CatalogRef(42,CatalogType.Movie),CatalogRelatedSource.Similar,"en-US",1)
+        assertTrue(requests.takeLast(2).all { it.header("Connection")==null })
+        assertTrue(Protocol.HTTP_2 in transport.client.protocols)
+    }
+    @Test fun cubRetriesTransientFailuresOnceButDoesNotRetryAccessDenialOrRateLimit() = runBlocking {
+        for (status in listOf(408,502,503,504,403,429)) {
+            val requests=CopyOnWriteArrayList<Request>()
+            val api=CubCatalogApi(http(requests) { if (requests.size == 1) status to "failure" else 200 to page("Recovered").toString() },config)
+            if (status in setOf(403,429)) {
+                try { api.section(CatalogSection.PopularMovies,"en-US",1);fail() } catch(_:ServiceFailure) { }
+                assertEquals(1,requests.size)
+            } else {
+                assertEquals("Recovered",CatalogParser.page(api.section(CatalogSection.PopularMovies,"en-US",1),CatalogType.Movie).items.single().title)
+                assertEquals(2,requests.size)
+            }
+        }
+        val requests=CopyOnWriteArrayList<Request>()
+        val api=CubCatalogApi(http(requests) { 503 to "still unavailable" },config)
+        try { api.section(CatalogSection.PopularMovies,"en-US",1);fail() } catch(_:ServiceFailure) { }
+        assertEquals(2,requests.size)
+    }
     @Test fun automaticFallbackPinsPaginationThenAllowsTmdbRecoveryOnRefresh() = runBlocking { kotlinx.coroutines.supervisorScope {
         var failing = true
         val requests = CopyOnWriteArrayList<Request>()
@@ -147,11 +181,99 @@ class CubCatalogTests {
         failing = true
         val last = repository.section(CatalogSection.PopularMovies, "en-US", force = true).toList().last()
         assertTrue(last.error); assertTrue(last.stale); assertEquals("Saved", last.data!!.items.single().title)
+        assertEquals(CatalogOrigin.Tmdb, last.source)
+        assertEquals(CatalogOrigin.Cub, last.failure!!.provider)
+    } }
+    @Test fun cubBrowsePreservesBasicCardDuringTmdbOutageAndFullDetailsRecover() = runBlocking { kotlinx.coroutines.supervisorScope {
+        var failing = true
+        val requests = CopyOnWriteArrayList<Request>()
+        val transport = http(requests) { r ->
+            when {
+                r.url.host == "catalog.example" -> 200 to page("Saved CUB title").toString()
+                failing -> 503 to "unavailable"
+                else -> 200 to item("Full TMDB title").put("credits", JSONObject()
+                    .put("cast", JSONArray().put(JSONObject().put("name", "Actor")))).toString()
+            }
+        }
+        val repository = ConfiguredCatalogRepository({ config }, transport, TmdbClient(transport, { "test-key" }), emptyCache(), this)
+        val selected = repository.section(CatalogSection.PopularMovies, "en-US").toList().last().data!!.items.single()
+        val loads = repository.details(selected.ref, "en-US").toList()
+        assertTrue(loads.first().loading); assertEquals(selected, loads.first().data!!.item)
+        val failed = loads.last()
+        assertTrue(failed.error); assertTrue(failed.stale); assertEquals(selected, failed.data!!.item)
+        assertEquals(CatalogOrigin.Cub, failed.source)
+        assertEquals(CatalogOrigin.Tmdb, failed.failure!!.provider)
+        assertEquals("", failed.data.overview); assertTrue(failed.data.cast.isEmpty())
+        // Never label a saved English item as Russian data.
+        assertNull(repository.details(selected.ref, "ru-RU").toList().last().data)
+        failing = false
+        val recovered = repository.details(selected.ref, "en-US", force = true).toList().last()
+        assertFalse(recovered.error); assertFalse(recovered.stale)
+        assertEquals(CatalogOrigin.Cub, recovered.source)
+        assertEquals("Full TMDB title", recovered.data!!.item.title)
+        assertEquals("Overview", recovered.data.overview); assertEquals(listOf("Actor"), recovered.data.cast)
+    } }
+    @Test fun configuredProxyServesFullDetailsAndRelatedForCubWithoutLeakingCubToken() = runBlocking { kotlinx.coroutines.supervisorScope {
+        val requests = CopyOnWriteArrayList<Request>()
+        val settings = config.copy(route = CatalogRoute.Auto, apiProxy = "https://gateway.example/3/")
+        val client = OkHttpClient.Builder().addInterceptor(CatalogRouteInterceptor({ settings })).addInterceptor { chain ->
+            val request = chain.request(); requests += request
+            if (request.url.host == "api.themoviedb.org") throw java.io.IOException("Direct route blocked")
+            val body = if (request.url.encodedPath.endsWith("/similar")) page("Related").apply { getJSONArray("results").getJSONObject(0).put("id",43) }.toString()
+                else item("Full details").put("credits", JSONObject().put("cast", JSONArray().put(JSONObject().put("name", "Actor")))).toString()
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture").body(body.toResponseBody()).build()
+        }.build()
+        val transport = Http(client)
+        val repository = ConfiguredCatalogRepository({ settings }, transport, TmdbClient(transport, { "test-key" }), emptyCache(), this)
+        val ref = CatalogRef(42, CatalogType.Movie)
+        val details = repository.details(ref, "en-US").toList().last()
+        val related = repository.related(ref, CatalogRelatedSource.Similar, "en-US").toList().last()
+        assertFalse(details.error); assertEquals(listOf("Actor"), details.data!!.cast)
+        assertFalse(related.error); assertEquals("Related", related.data!!.items.single().title)
+        assertTrue(requests.any { it.url.host == "gateway.example" })
+        assertTrue(requests.all { it.header("token") == null && it.url.queryParameter("api_key") == "test-key" })
     } }
     private fun emptyCache() = object : CatalogCache {
         override suspend fun read(key: String): CatalogCache.Entry? = null
         override suspend fun write(key: String, payload: String, ttl: Long, retention: Long) = Unit
         override suspend fun remove(key: String) = Unit
     }
+
+    @Test fun cubFailuresKeepTheirActualReasonAndProvider() = runBlocking { kotlinx.coroutines.supervisorScope {
+        val cases = listOf(
+            java.net.UnknownHostException("secret.example?token=hidden") to CatalogFailureKind.Dns,
+            java.net.SocketTimeoutException("hidden") to CatalogFailureKind.Timeout,
+            javax.net.ssl.SSLHandshakeException("hidden") to CatalogFailureKind.Tls,
+            ServiceFailure("CUB", 403) to CatalogFailureKind.Denied,
+            ServiceFailure("CUB", 429) to CatalogFailureKind.RateLimited,
+            ServiceFailure("CUB", 503) to CatalogFailureKind.Http,
+            ServiceFailure("CUB", -2) to CatalogFailureKind.InvalidResponse,
+        )
+        for ((error, kind) in cases) {
+            val transport = Http(OkHttpClient.Builder().addInterceptor { throw error }.build())
+            val repository = ConfiguredCatalogRepository({ config }, transport, TmdbClient(transport, { "test" }), emptyCache(), this)
+            val load = repository.section(CatalogSection.PopularMovies, "ru-RU").toList().last()
+            assertTrue(load.error); assertEquals(CatalogOrigin.Cub, load.source)
+            assertEquals(CatalogOrigin.Cub, load.failure!!.provider); assertEquals(kind, load.failure.kind)
+            if (error is ServiceFailure && error.status > 0) assertEquals(error.status, load.failure.status)
+            assertFalse(load.failure.toString().contains("hidden"))
+        }
+    } }
+
+    @Test fun automaticFallbackRemembersCubOriginForDetailsEvenWhenTmdbRecovers() = runBlocking { kotlinx.coroutines.supervisorScope {
+        val requests = CopyOnWriteArrayList<Request>()
+        val transport = http(requests) { r -> when {
+            r.url.encodedPath == "/3/movie/popular" -> 503 to "offline"
+            r.url.host == "tmdb.cub.best" -> 200 to page("CUB title").toString()
+            else -> 200 to item("TMDB details").toString()
+        } }
+        val repository = ConfiguredCatalogRepository({ CatalogNetworkSettings(source = CatalogSource.Auto) }, transport,
+            TmdbClient(transport, { "test" }), emptyCache(), this)
+        val page = repository.section(CatalogSection.PopularMovies, "en-US").toList().last()
+        assertEquals(CatalogOrigin.Cub, page.source)
+        val detail = repository.details(page.data!!.items.single().ref, "en-US").toList().last()
+        assertEquals(CatalogOrigin.Cub, detail.source); assertFalse(detail.error)
+        assertEquals("TMDB details", detail.data!!.item.title)
+    } }
 
 }

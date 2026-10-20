@@ -1,7 +1,7 @@
 # TMDB catalog
 
 Configurable proxy/image routes and the prepared CUB adapter are documented in
-[Catalog connection](catalog-network.md). CUB live verification requires issued access.
+[Catalog connection](catalog-network.md). Public CUB browse/search is keyless; independent full detail access is unavailable (see that document).
 
 Implemented in `codex/tmdb-catalog` inside the existing `app` module.
 
@@ -248,7 +248,7 @@ Results are recorded in `artifacts/catalog-localization/verification.txt`.
 
 ## Detail card actions
 
-Movie and TV detail cards keep the poster on the left and aligned rating/credits on the right, including the no-backdrop layout. A compact row of four equally sized buttons under the title contains TorrentSearch, a Jackett placeholder, Favorites and Watch later. List buttons call the existing `CatalogViewModel.toggleList` and persistent user-list store, reflect membership, and remove the item on a second press. Back navigation, full synopsis, focus restoration after search and existing catalog loading remain in place.
+Movie and TV detail cards keep the poster on the left and aligned rating/credits on the right, including the no-backdrop layout. The action row under the title contains wide TorrentSearch and optional Jackett search buttons, followed by circular Favorites and Watch later icons. Jackett uses the shared results screen and import/playback actions; disabling it in shared settings hides its action. List buttons call the existing `CatalogViewModel.toggleList` and persistent user-list store, reflect membership, and remove the item on a second press. Back navigation, full synopsis, focus restoration after search and existing catalog loading remain in place.
 
 ## Similar movies and series
 

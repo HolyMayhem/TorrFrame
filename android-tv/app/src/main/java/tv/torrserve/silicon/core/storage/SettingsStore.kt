@@ -43,6 +43,7 @@ class SettingsStore(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
     private val mutable = MutableStateFlow(Settings())
     private val lock = Mutex()
+    private var persisted: Settings? = null
     val state = mutable.asStateFlow()
     private val mutableRevision = MutableStateFlow(0L)
     val revision = mutableRevision.asStateFlow()
@@ -68,6 +69,7 @@ class SettingsStore(context: Context) {
         return c.doFinal(bytes.copyOfRange(12, bytes.size)).toString(Charsets.UTF_8)
     }
     suspend fun load() = withContext(Dispatchers.IO) { lock.withLock {
+        persisted = null
         mutable.value = Settings(
             jackettUrl = prefs.getString("jackettUrl", "").orEmpty(),
             jackettEnabled = prefs.getBoolean("jackettEnabled", !prefs.getString("jackettUrl", "").isNullOrBlank() && !prefs.getString("jackettKey", "").isNullOrBlank()),
@@ -99,15 +101,16 @@ class SettingsStore(context: Context) {
             .putString("metadataOrder", mutable.value.metadataOrder.joinToString(",")).remove("provider")
         prefs.all.keys.filter { it.startsWith("metadataKey_") }.forEach { migration.remove(it) }
         check(migration.commit()) { "Could not migrate metadata settings." }
+        persisted = mutable.value
     } }
 
-    suspend fun save(s: Settings) = withContext(Dispatchers.IO) { lock.withLock { persist(s) } }
+    suspend fun save(s: Settings) = withContext(Dispatchers.IO) { lock.withLock { persist(s, full = true) } }
     suspend fun update(expectedRevision: Long? = null, block: (Settings) -> Settings) = withContext(Dispatchers.IO) { lock.withLock {
         if (expectedRevision != null && expectedRevision != mutableRevision.value) throw SettingsConflict()
         persist(block(mutable.value))
     } }
     suspend fun snapshot(): Pair<Long, Settings> = lock.withLock { mutableRevision.value to mutable.value }
-    private fun persist(s: Settings) {
+    private fun persist(s: Settings, full: Boolean = false) {
         require(s.port in 1024..65535 && s.cacheMb in 16..4096) { "Некорректный порт или размер кеша." }
         require(s.uiScalePercent == UiScale.normalized(s.uiScalePercent)) { "Некорректный масштаб интерфейса." }
         require(s.uiTheme in setOf("dark", "light"))
@@ -118,22 +121,44 @@ class SettingsStore(context: Context) {
         val address = ServerAddress.normalize(s.torrServerUrl)
         require(!s.useLocalServer || ServerAddress.isLocal(address, s.port)) { "Адрес встроенного сервера должен соответствовать локальному порту." }
         val revision = mutableRevision.value + 1
-        val success = prefs.edit().putLong("revision", revision).putString("jackettUrl", s.jackettUrl.trim()).putString("jackettKey", encode(s.jackettKey.trim())).putBoolean("jackettEnabled", s.jackettEnabled)
-            .putString("metadataOrder", MetadataPriority.normalized(s.metadataOrder).joinToString(","))
-            .putBoolean("aniListEnabled", s.aniListEnabled)
-            .putString("torrServerUrl", address).putBoolean("useLocalServer", s.useLocalServer)
-            .putBoolean("startOnBoot", s.startOnBoot).putBoolean("engineSettingsInitialized", s.engineSettingsInitialized)
-            .putBoolean("lanAccess", s.lanAccess)
-            .putInt("uiScalePercent", s.uiScalePercent)
-            .putString("uiTheme", s.uiTheme).putBoolean("showNavigationHints", s.showNavigationHints)
-            .putString("uiAccent", s.uiAccent).putBoolean("animationsEnabled", s.animationsEnabled)
-            .putString("torrentSearch", TorrentSearchSettingsCodec.encode(s.torrentSearch))
-            .putString("catalogNetwork", s.catalogNetwork.encode()).putString("cubToken", encode(s.catalogNetwork.cubToken))
-            .putString("language", s.language).putInt("port", s.port).putInt("cacheMb", s.cacheMb)
-            .putBoolean("resume", s.resume).putString("audio", s.audioLanguage).putString("subtitles", s.subtitleLanguage)
-            .putString("builtInPlayer", s.builtInPlayer.encode())
-            .putString("playerMode", s.playerMode.name).putString("externalPlayer", s.externalPlayer)
-            .putString("updates", s.updateRepository.trim()).putString("uiLanguage", s.uiLanguage).commit()
-        check(success) { "Не удалось сохранить настройки." }; mutableRevision.value = revision; mutable.value = s.copy(torrServerUrl = address, metadataOrder = MetadataPriority.normalized(s.metadataOrder))
+        val next = s.copy(torrServerUrl = address, metadataOrder = MetadataPriority.normalized(s.metadataOrder))
+        val previous = persisted.takeUnless { full || prefs.getLong("revision", 0) != mutableRevision.value }
+        val editor = prefs.edit()
+        editor.putLong("revision", revision)
+        fun <T> write(old: T?, value: T, put: () -> Unit) { if (previous == null || old != value) put() }
+        write(previous?.jackettUrl?.trim(), next.jackettUrl.trim()) { editor.putString("jackettUrl", next.jackettUrl.trim()) }
+        write(previous?.jackettKey?.trim(), next.jackettKey.trim()) { editor.putString("jackettKey", encode(next.jackettKey.trim())) }
+        write(previous?.jackettEnabled, next.jackettEnabled) { editor.putBoolean("jackettEnabled", next.jackettEnabled) }
+        write(previous?.metadataOrder, next.metadataOrder) { editor.putString("metadataOrder", next.metadataOrder.joinToString(",")) }
+        write(previous?.aniListEnabled, next.aniListEnabled) { editor.putBoolean("aniListEnabled", next.aniListEnabled) }
+        write(previous?.torrServerUrl, address) { editor.putString("torrServerUrl", address) }
+        write(previous?.useLocalServer, next.useLocalServer) { editor.putBoolean("useLocalServer", next.useLocalServer) }
+        write(previous?.startOnBoot, next.startOnBoot) { editor.putBoolean("startOnBoot", next.startOnBoot) }
+        write(previous?.engineSettingsInitialized, next.engineSettingsInitialized) { editor.putBoolean("engineSettingsInitialized", next.engineSettingsInitialized) }
+        write(previous?.lanAccess, next.lanAccess) { editor.putBoolean("lanAccess", next.lanAccess) }
+        write(previous?.uiScalePercent, next.uiScalePercent) { editor.putInt("uiScalePercent", next.uiScalePercent) }
+        write(previous?.uiTheme, next.uiTheme) { editor.putString("uiTheme", next.uiTheme) }
+        write(previous?.showNavigationHints, next.showNavigationHints) { editor.putBoolean("showNavigationHints", next.showNavigationHints) }
+        write(previous?.uiAccent, next.uiAccent) { editor.putString("uiAccent", next.uiAccent) }
+        write(previous?.animationsEnabled, next.animationsEnabled) { editor.putBoolean("animationsEnabled", next.animationsEnabled) }
+        write(previous?.torrentSearch, next.torrentSearch) { editor.putString("torrentSearch", TorrentSearchSettingsCodec.encode(next.torrentSearch)) }
+        write(previous?.catalogNetwork?.copy(cubToken = ""), next.catalogNetwork.copy(cubToken = "")) { editor.putString("catalogNetwork", next.catalogNetwork.encode()) }
+        write(previous?.catalogNetwork?.cubToken, next.catalogNetwork.cubToken) { editor.putString("cubToken", encode(next.catalogNetwork.cubToken)) }
+        write(previous?.language, next.language) { editor.putString("language", next.language) }
+        write(previous?.port, next.port) { editor.putInt("port", next.port) }
+        write(previous?.cacheMb, next.cacheMb) { editor.putInt("cacheMb", next.cacheMb) }
+        write(previous?.resume, next.resume) { editor.putBoolean("resume", next.resume) }
+        write(previous?.audioLanguage, next.audioLanguage) { editor.putString("audio", next.audioLanguage) }
+        write(previous?.subtitleLanguage, next.subtitleLanguage) { editor.putString("subtitles", next.subtitleLanguage) }
+        write(previous?.builtInPlayer, next.builtInPlayer) { editor.putString("builtInPlayer", next.builtInPlayer.encode()) }
+        write(previous?.playerMode, next.playerMode) { editor.putString("playerMode", next.playerMode.name) }
+        write(previous?.externalPlayer, next.externalPlayer) { editor.putString("externalPlayer", next.externalPlayer) }
+        write(previous?.updateRepository?.trim(), next.updateRepository.trim()) { editor.putString("updates", next.updateRepository.trim()) }
+        write(previous?.uiLanguage, next.uiLanguage) { editor.putString("uiLanguage", next.uiLanguage) }
+        // A failed commit may have changed SharedPreferences' memory image. Rebuild it on the next write.
+        persisted = null
+        check(editor.commit()) { "Не удалось сохранить настройки." }
+        persisted = next
+        mutableRevision.value = revision; mutable.value = next
     }
 }

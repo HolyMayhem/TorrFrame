@@ -24,6 +24,8 @@ class LibraryDetailNavigationTest {
     private val models = ViewModelStore()
     private var played: TorrentFile? = null
     private var searched = false
+    private var jackettSearched = false
+    private val jackettEnabled = mutableStateOf(true)
     private val item = LibraryItem("f".repeat(40), "TV fixture", 0,
         files = listOf(TorrentFile(1, "TV.Fixture.S01E01.mkv", 1000), TorrentFile(2, "TV.Fixture.S01E02.mkv", 1000), TorrentFile(3, "info.nfo", 10)))
     private val displayedItem = mutableStateOf(item)
@@ -37,7 +39,8 @@ class LibraryDetailNavigationTest {
         val vm = LibraryViewModel(graph); models.put("detail", vm)
         compose.activity.setContent {
             TorrFrameTheme(light = light.value, uiScalePercent = scale.intValue) { AppLanguage(language.value) {
-                MovieDetailScreen(displayedItem.value, LibraryUi(), vm, {}, torrentSearch = { searched = true }) { hash, file ->
+                MovieDetailScreen(displayedItem.value, LibraryUi(), vm, {}, torrentSearch = { searched = true },
+                    jackettEnabled = jackettEnabled.value, jackettSearch = { jackettSearched = true }) { hash, file ->
                     assertEquals(item.hash, hash); played = file
                 }
             } }
@@ -58,13 +61,21 @@ class LibraryDetailNavigationTest {
         compose.onNodeWithText("Files").assertHasNoClickAction()
         focus("movie:watch")
         tags.drop(1).forEach { tag -> remote(KeyEvent.KEYCODE_DPAD_RIGHT); compose.onNodeWithTag(tag).assertIsFocused() }
-        // The placeholder is deliberate and returns focus to its invoking action.
+        // Jackett invokes the real search entry point without opening a placeholder.
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
-        compose.onNodeWithTag("movie:jackett:placeholder").assertExists()
-        remote(KeyEvent.KEYCODE_BACK)
+        assertTrue(jackettSearched)
+        compose.onNodeWithTag("movie:jackett:placeholder").assertDoesNotExist()
         compose.onNodeWithTag("movie:jackett").assertIsFocused()
         remote(KeyEvent.KEYCODE_DPAD_LEFT); remote(KeyEvent.KEYCODE_DPAD_CENTER)
         assertTrue(searched)
+    }
+    @Test fun disabledJackettIsAbsentWithoutBreakingSearchFocus() {
+        focus("movie:jackett")
+        compose.runOnIdle { jackettEnabled.value = false }
+        compose.onNodeWithTag("movie:jackett").assertDoesNotExist()
+        compose.onNodeWithTag("movie:torrentsearch").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        assertTrue(searched); assertFalse(jackettSearched)
     }
     @Test fun playWithMultipleVideosFocusesInlineListAndSelectingFileStartsIt() {
         focus("movie:watch"); remote(KeyEvent.KEYCODE_DPAD_CENTER)

@@ -30,7 +30,7 @@ import tv.torrserve.silicon.ui.theme.Muted
                 .testTag("catalog:collection:back"), action = back)
             TvText(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
         }
-        if (feed.error) CatalogError(retry, cached = feed.items.isNotEmpty())
+        CatalogFeedError(feed, retry, gridFocus, backFocus, "catalog:retry:collection")
         if (feed.loading && feed.items.isEmpty()) TvText(catalogText("Loading…", "Загрузка…"), color = Muted)
         if (!feed.loading && !feed.error && feed.items.isEmpty())
             TvText(catalogText("No titles in this collection.", "В подборке пока нет фильмов."), color = Muted)

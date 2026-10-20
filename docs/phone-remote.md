@@ -284,3 +284,12 @@ Chromium проверен на ширинах 360, 390, 430, 768, 1440 CSS px: �
 
 Проверка на физическом Mi Box, Android TV и iOS Safari остаётся обязательной
 перед выпуском. Приведённые результаты не заменяют приёмку на устройствах.
+
+
+## Shared Jackett switch
+
+TV and Phone Remote use the same persisted `jackettEnabled` setting. The phone
+Jackett panel exposes the enable switch without returning the saved API key.
+Disabled Jackett is omitted from the phone source picker and TV detail actions;
+server-side search, connection tests and imports from old Jackett handles also
+reject disabled access. Switching sources invalidates in-flight phone results.

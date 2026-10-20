@@ -33,7 +33,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -58,18 +57,23 @@ import tv.torrserve.silicon.ui.theme.*
     torrentSearch: ((CatalogItem) -> Unit)? = null, restoreTorrentFocus: Boolean = false,
     toggleList: ((CatalogItem, CatalogUserList) -> Unit)? = null,
     openRelated: ((CatalogRef) -> Unit)? = null, retryRelated: () -> Unit = {}, moreRelated: () -> Unit = {},
-    relatedHeld: ((CatalogItem, FocusRequester) -> Unit)? = null, jackettEnabled: Boolean = false, retry: () -> Unit) {
+    relatedHeld: ((CatalogItem, FocusRequester) -> Unit)? = null, jackettEnabled: Boolean = false, jackettSearch: ((CatalogItem) -> Unit)? = null,
+    restoreJackettFocus: Boolean = false, retry: () -> Unit) {
     val backFocus = remember { FocusRequester() }
     val actionFocus = remember { listOf("torrent", "jackett", "favorite", "later").associateWith { FocusRequester() } }
     val torrentFocus = actionFocus.getValue(if(torrentSearch!=null) "torrent" else if(jackettEnabled) "jackett" else "favorite")
     var focusedAction by remember(state.selected) { mutableStateOf<String?>(null) }
     var actionsFocused by remember { mutableStateOf(false) }
     var restoreActionAfterFailure by remember { mutableStateOf<String?>(null) }
+    val removedFocusedJackett = !jackettEnabled && focusedAction == "jackett" && actionsFocused
+    LaunchedEffect(jackettEnabled) {
+        if (removedFocusedJackett) { withFrameNanos { }; torrentFocus.requestFocus() }
+    }
     val heroFocus = remember { FocusRequester() }
     val details = state.details.data
     val hasActions = torrentSearch != null || toggleList != null || jackettEnabled
     val actions: (@Composable () -> Unit)? = if (details != null && hasActions) {{
-        DetailActions(details.item, state, actionFocus, backFocus, torrentSearch, toggleList, jackettEnabled,
+        DetailActions(details.item, state, actionFocus, backFocus, torrentSearch, toggleList, jackettEnabled, jackettSearch,
             focused = { focusedAction=it }, groupFocused = { actionsFocused=it })
     }} else null
     val backdrop = details?.item?.backdrop.orEmpty()
@@ -173,7 +177,7 @@ import tv.torrserve.silicon.ui.theme.*
                         .testTag("catalog:back"), action = back)
                 }
             }
-            if (state.details.error) item("error") { CatalogError(retry, cached = details != null) }
+            if (state.details.error) item("error") { CatalogError(retry, cached = details != null, failure = state.details.failure) }
             if (details != null) {
                 item("overview") { DetailSynopsis(details, Modifier.fillMaxWidth()) }
                 item("credits") { DetailCredits(details) }
@@ -184,7 +188,11 @@ import tv.torrserve.silicon.ui.theme.*
                         open = ::relatedSelected, focused = { relatedRowKey = it.ref.key }, held = relatedHeld ?: { _, _ -> })
                 }
                 item("source") {
-                    TvText(catalogText("Movie information and images from TMDB", "Информация и изображения предоставлены TMDB"),
+                    TvText(when (state.details.source) {
+                        CatalogOrigin.Cub -> catalogText("Catalog: CUB · Details and images: TMDB", "Каталог: CUB · Информация и изображения: TMDB")
+                        CatalogOrigin.Tmdb -> catalogText("Catalog, details and images: TMDB", "Каталог, информация и изображения: TMDB")
+                        CatalogOrigin.Unspecified -> catalogText("Details and images: TMDB", "Информация и изображения: TMDB")
+                    },
                         color = Muted, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(8.dp))
                 }
             }
@@ -192,7 +200,7 @@ import tv.torrserve.silicon.ui.theme.*
     }
     LaunchedEffect(state.selected) {
         withFrameNanos { }
-        if (restoreTorrentFocus && torrentSearch!=null && details!=null) { restoreRelatedRow = false; torrentFocus.requestFocus() }
+        if (restoreTorrentFocus && torrentSearch!=null && details!=null) { restoreRelatedRow = false; (if(restoreJackettFocus && jackettEnabled) actionFocus.getValue("jackett") else torrentFocus).requestFocus() }
         else if (!restoreRelatedRow) backFocus.requestFocus()
     }
     LaunchedEffect(restoreRelatedRow, state.related.loading, state.related.items, details != null) {
@@ -274,19 +282,18 @@ import tv.torrserve.silicon.ui.theme.*
 
 @Composable private fun DetailActions(item: CatalogItem, state: CatalogUi, focus: Map<String,FocusRequester>,
     back: FocusRequester, torrentSearch: ((CatalogItem) -> Unit)?, toggleList: ((CatalogItem, CatalogUserList) -> Unit)?,
-    jackettEnabled: Boolean, focused: (String) -> Unit, groupFocused: (Boolean) -> Unit) {
+    jackettEnabled: Boolean, jackettSearch: ((CatalogItem) -> Unit)?, focused: (String) -> Unit, groupFocused: (Boolean) -> Unit) {
     val entry = state.userEntries.firstOrNull { it.ref == item.ref }
     val favorite = entry?.favorite == true
     val later = entry?.watchLater == true
     val favoriteFocus = focus.getValue("favorite")
     val laterFocus = focus.getValue("later")
     var restoreList by remember { mutableStateOf<CatalogUserList?>(null) }
-    var jackett by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().onFocusChanged { groupFocused(it.hasFocus) }.focusGroup().testTag("catalog:detail:actions"), horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically) {
         DetailAction("TorrentSearch", Modifier.weight(1f).focusRequester(focus.getValue("torrent")).onFocusChanged { if(it.isFocused)focused("torrent") }.focusProperties { up=back }
             .testTag("catalog:torrentsearch"), enabled=torrentSearch!=null, icon=R.drawable.ic_search) { torrentSearch?.invoke(item) }
-        if (jackettEnabled) DetailAction("Jackett", Modifier.weight(1f).focusRequester(focus.getValue("jackett")).onFocusChanged { if(it.isFocused)focused("jackett") }.focusProperties { up=back }.testTag("catalog:jackett"), icon=R.drawable.ic_search) { jackett=true }
+        if (jackettEnabled) DetailAction("Jackett", Modifier.weight(1f).focusRequester(focus.getValue("jackett")).onFocusChanged { if(it.isFocused)focused("jackett") }.focusProperties { up=back }.testTag("catalog:jackett"), icon=R.drawable.ic_search, enabled=jackettSearch!=null) { jackettSearch?.invoke(item) }
         Spacer(Modifier.width(8.dp))
         DetailAction(if(favorite)catalogText("Remove favorite", "Удалить из избранного") else catalogText("Add to favorites", "Добавить в избранное"),
             Modifier.size(40.dp).focusRequester(favoriteFocus).onFocusChanged { if(it.isFocused)focused("favorite") }.focusProperties { up=back }.testTag("catalog:favorite"),
@@ -307,18 +314,7 @@ import tv.torrserve.silicon.ui.theme.*
             restoreList=null
         }
     }
-    if(jackett && jackettEnabled) {
-        val close=remember { FocusRequester() }
-        Dialog(onDismissRequest={jackett=false}) {
-            Column(Modifier.width(360.dp).background(Surface,RoundedCornerShape(20.dp)).padding(20.dp)
-                .testTag("catalog:jackett:placeholder"),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-                TvText("Jackett",style=MaterialTheme.typography.titleLarge,translate=false)
-                TvText(catalogText("Jackett search will be available here later.", "Поиск через Jackett появится здесь позже."))
-                TvBackAction(Modifier.focusRequester(close)) { jackett=false }
-            }
-            LaunchedEffect(Unit) { withFrameNanos { };close.requestFocus() }
-        }
-    }
+
 }
 
 @Composable private fun DetailAction(label: String, modifier: Modifier, enabled: Boolean = true,

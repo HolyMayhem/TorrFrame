@@ -15,7 +15,8 @@ internal class RemoteCatalog(private val repository: CatalogRepository, private 
     suspend fun execute(type: String, args: JSONObject): JSONObject {
         val language = language(args)
         val page = args.optInt("page", 1).also { require(it in 1..500) }
-        suspend fun details() = requireNotNull(repository.details(ref(args), language).first { !it.loading }.data)
+        suspend fun detailLoad() = repository.details(ref(args), language).first { !it.loading }
+        suspend fun details() = requireNotNull(detailLoad().data)
         return when (type) {
             "catalog.browse" -> {
                 val query = args.optString("query").trim().also { require(it.length <= 250) }
@@ -35,7 +36,7 @@ internal class RemoteCatalog(private val repository: CatalogRepository, private 
                 JSONObject().put("items", JSONArray(data.items.map(::item))).put("page", data.page).put("totalPages", data.totalPages)
                     .put("stale", load.stale).put("partial", load.error)
             }
-            "catalog.details" -> details().let { value -> item(value.item).put("overview", value.overview)
+            "catalog.details" -> detailLoad().let { load -> val value = requireNotNull(load.data); item(value.item).put("partial", load.error).put("stale", load.stale).put("overview", value.overview)
                 .put("genres", JSONArray(value.genres)).put("runtime", value.runtime ?: JSONObject.NULL)
                 .put("cast", JSONArray(value.cast)).put("directors", JSONArray(value.directors))
                 .put("seasons", value.seasons ?: JSONObject.NULL).put("episodes", value.episodes ?: JSONObject.NULL).put("status", value.status) }

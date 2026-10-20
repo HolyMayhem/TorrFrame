@@ -10,7 +10,8 @@ import kotlinx.coroutines.sync.withPermit
 import tv.torrserve.silicon.features.catalog.domain.*
 
 data class CatalogFeed(val items: List<CatalogItem> = emptyList(), val page: Int = 0, val totalPages: Int = 1,
-    val loading: Boolean = true, val loadingMore: Boolean = false, val stale: Boolean = false, val error: Boolean = false, val failedPage: Int? = null)
+    val loading: Boolean = true, val loadingMore: Boolean = false, val stale: Boolean = false, val error: Boolean = false, val failedPage: Int? = null,
+    val failure: CatalogFailure? = null, val source: CatalogOrigin = CatalogOrigin.Tmdb)
 data class CatalogUi(val query: String = "", val language: String = "", val sections: Map<CatalogSection, CatalogFeed> = CatalogSection.entries.associateWith { CatalogFeed() },
     val results: CatalogFeed = CatalogFeed(loading = false), val selected: CatalogRef? = null,
     val details: CatalogLoad<CatalogDetails> = CatalogLoad(), val filter: CatalogFilter = CatalogFilter.All,
@@ -220,7 +221,8 @@ class CatalogViewModel(private val repository: CatalogRepository, languages: Flo
         return CatalogFeed(
             items = if (page == null) before.items else if (more) (before.items + page.items).distinctBy { it.ref.key } else page.items,
             page = page?.page ?: before.page, totalPages = page?.totalPages ?: before.totalPages,
-            loading = load.loading && !more, loadingMore = load.loading && more, stale = load.stale, error = load.error)
+            loading = load.loading && !more, loadingMore = load.loading && more, stale = load.stale, error = load.error,
+            failure = load.failure, source = load.source)
     }
     fun open(ref: CatalogRef, force: Boolean = false) {
         if (state.value.selected != ref) {
@@ -302,6 +304,18 @@ class CatalogViewModel(private val repository: CatalogRepository, languages: Flo
         }
     }
     private fun saveTrail() { saved["catalogDetailTrail"] = ArrayList(visits.map { "${it.entry}|${it.ref.key}" }) }
+    /** A long press on the catalog tab leaves the entire detail/search/filter history. */
+    fun home() {
+        detailRevision++; revision++; filterRevision++
+        detailsJob?.cancel(); relatedJob?.cancel(); searchJob?.cancel()
+        genreJobs.values.forEach(Job::cancel); genreJobs.clear(); genreLoadedAt.clear()
+        visits.clear(); saveTrail()
+        saved["catalogSelected"] = null; saved["catalogQuery"] = ""; saved["catalogFilter"] = CatalogFilter.All.name
+        mutable.update { it.copy(selected = null, query = "", filter = CatalogFilter.All,
+            details = CatalogLoad(), related = CatalogFeed(loading = false), detailTrail = emptyList(),
+            results = CatalogFeed(loading = false)) }
+        loadBrowse()
+    }
     fun close() {
         detailRevision++; detailsJob?.cancel(); relatedJob?.cancel()
         val parent = visits.removeLastOrNull()

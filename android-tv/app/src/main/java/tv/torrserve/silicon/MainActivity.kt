@@ -103,7 +103,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
             configurationChanges = flow { graph.ready.await(); emitAll(graph.settings.state.map { it.catalogNetwork.connection() }) }) as T
         else if(modelClass == TorrentSearchViewModel::class.java) TorrentSearchViewModel(graph.torrentSearch,AppTorrentSearchActions(graph),extras.createSavedStateHandle(),
             options = { tv.torrserve.silicon.features.torrentsearch.data.TorrentSearchConfiguration(graph).options() },
-            prepare = { target, options -> tv.torrserve.silicon.features.torrentsearch.data.TorrentSearchConfiguration(graph).prepare(target,options) }) as T
+            prepare = { target, options -> tv.torrserve.silicon.features.torrentsearch.data.TorrentSearchConfiguration(graph).prepare(target,options) }, jackettEngine = graph.jackettSearch) as T
         else create(modelClass)
     @Suppress("UNCHECKED_CAST") override fun <T: ViewModel> create(modelClass: Class<T>): T = when(modelClass) {
         LibraryViewModel::class.java -> LibraryViewModel(graph)
@@ -130,6 +130,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     val torrentSearch: TorrentSearchViewModel = viewModel(factory = factory)
     val torrentState by torrentSearch.state.collectAsStateWithLifecycle()
     var restoreTorrentFocus by rememberSaveable { mutableStateOf(false) }
+    var restoreJackettFocus by rememberSaveable { mutableStateOf(false) }
     val lib by library.state.collectAsStateWithLifecycle()
     val set by settings.state.collectAsStateWithLifecycle()
     val update by updates.state.collectAsStateWithLifecycle()
@@ -145,6 +146,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     LaunchedEffect(libraryServer) { if(libraryServer == LibraryAvailability.Ready)library.refresh() }
     var phoneQr by remember { mutableStateOf(false) }
     var section by rememberSaveable { mutableStateOf("Library") }
+    var catalogHomeRequest by rememberSaveable { mutableIntStateOf(0) }
     var detail by rememberSaveable { mutableStateOf<String?>(null) }
     var libraryList by rememberSaveable { mutableStateOf<CatalogUserList?>(null) }
     var libraryReturnList by rememberSaveable { mutableStateOf<CatalogUserList?>(null) }
@@ -177,17 +179,19 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
             }
         }
     }
-    fun closeTorrentSearch() { torrentSearch.close();restoreTorrentFocus=true }
+    fun closeTorrentSearch() { restoreJackettFocus = torrentState.source == TorrentSearchSource.Jackett; torrentSearch.close();restoreTorrentFocus=true }
+    LaunchedEffect(saved.jackettEnabled) { if(!saved.jackettEnabled && torrentState.target != null && torrentState.source == TorrentSearchSource.Jackett) closeTorrentSearch() }
     LaunchedEffect(torrentState.play) {
         torrentState.play?.let { request -> torrentSearch.consumePlay();play(request.hash,request.file) }
     }
     LaunchedEffect(restoreTorrentFocus,torrentState.target) {
         if(restoreTorrentFocus && torrentState.target==null) { withFrameNanos { };withFrameNanos { };restoreTorrentFocus=false }
     }
-    fun searchCatalogItem(item: CatalogItem) {
+    fun searchCatalogItem(item: CatalogItem, source: TorrentSearchSource = TorrentSearchSource.Builtin) {
+        if(source == TorrentSearchSource.Jackett && (!saved.jackettEnabled || !saved.jackettConfigured)) { openSettings(SettingsCategory.Search); return }
         restoreTorrentFocus = false
         torrentSearch.open(SearchTarget(item.title, item.originalTitle, item.year,
-            if (item.ref.type == tv.torrserve.silicon.features.catalog.domain.CatalogType.Tv) MediaType.Series else MediaType.Movie, item.ref.id))
+            if (item.ref.type == tv.torrserve.silicon.features.catalog.domain.CatalogType.Tv) MediaType.Series else MediaType.Movie, item.ref.id), source)
     }
     val selected = lib.items.find { it.hash == detail }
     val layout = LocalTvLayout.current
@@ -205,7 +209,12 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                 listOf("Search", "Library").forEach { tab ->
                     TvNavItem(tab, section == tab && detail == null,
                         modifier = if(tab == "Library") Modifier.focusRequester(initialFocus) else Modifier,
-                        displayLabel = if(tab == "Search") "Catalog" else tab) {
+                        displayLabel = if(tab == "Search") "Catalog" else tab,
+                        onLongClick = if (tab == "Search") ({
+                            torrentSearch.close(); restoreTorrentFocus = false; restoreJackettFocus = false
+                            detail = null; section = "Search"; library.closeFiles()
+                            catalogHomeRequest++
+                        }) else null) {
                         torrentSearch.close(); restoreTorrentFocus=false; detail = null; section = tab; library.closeFiles()
                     }
                 }
@@ -229,6 +238,14 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                 torrentSearch = { restoreTorrentFocus=false;torrentSearch.open(SearchTarget(selected.title,selected.metadata?.originalTitle.orEmpty(),selected.metadata?.year,
                     if(selected.metadata?.kind==tv.torrserve.silicon.core.models.MediaKind.Tv)MediaType.Series else MediaType.Movie,
                     selected.metadata?.takeIf { it.provider=="TMDB" }?.id?.toIntOrNull())) },
+                jackettSearch = {
+                    if (!saved.jackettConfigured) openSettings(SettingsCategory.Search) else {
+                        restoreTorrentFocus=false
+                        torrentSearch.open(SearchTarget(selected.title,selected.metadata?.originalTitle.orEmpty(),selected.metadata?.year,
+                            if(selected.metadata?.kind==tv.torrserve.silicon.core.models.MediaKind.Tv)MediaType.Series else MediaType.Movie,
+                            selected.metadata?.takeIf { it.provider=="TMDB" }?.id?.toIntOrNull()), TorrentSearchSource.Jackett)
+                    }
+                }, restoreJackettFocus=restoreJackettFocus,
                 restoreTorrentFocus=restoreTorrentFocus,jackettEnabled=saved.jackettEnabled,play=::play)
             else screens.SaveableStateProvider(if (section == "Library" && libraryList != null) "LibraryList:${libraryList!!.name}" else section) {
                 when(section) {
@@ -244,7 +261,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                             // Independent navigation, shared catalog repository/cache and saved user lists.
                             val catalog: CatalogViewModel = viewModel(key = "library-list:${list.name}", factory = factory)
                             val catalogState by catalog.state.collectAsStateWithLifecycle()
-                            CatalogScreen(catalogState, catalog, contentFocus, torrentSearch = ::searchCatalogItem,
+                            CatalogScreen(catalogState, catalog, contentFocus, torrentSearch = { searchCatalogItem(it) }, jackettSearch = { searchCatalogItem(it, TorrentSearchSource.Jackett) }, restoreJackettFocus = restoreJackettFocus,
                                 restoreTorrentFocus = restoreTorrentFocus, refreshRevision = catalogReloads,
                                 jackettEnabled = saved.jackettEnabled, initialUserList = list, closeUserList = { libraryReturnList = list; libraryList = null })
                         }
@@ -252,8 +269,9 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                     "Search" -> {
                         val catalog: CatalogViewModel = viewModel(factory = factory)
                         val catalogState by catalog.state.collectAsStateWithLifecycle()
-                        CatalogScreen(catalogState, catalog, contentFocus, torrentSearch = ::searchCatalogItem,
+                        CatalogScreen(catalogState, catalog, contentFocus, torrentSearch = { searchCatalogItem(it) }, jackettSearch = { searchCatalogItem(it, TorrentSearchSource.Jackett) }, restoreJackettFocus = restoreJackettFocus,
                             restoreTorrentFocus=restoreTorrentFocus,refreshRevision=catalogReloads,
+                            homeRequest=catalogHomeRequest, homeHandled={ catalogHomeRequest=0 },
                             showFavorites=saved.catalogNetwork.showFavorites,showWatchLater=saved.catalogNetwork.showWatchLater,jackettEnabled=saved.jackettEnabled)
                     }
                 }

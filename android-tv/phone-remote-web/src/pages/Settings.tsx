@@ -97,7 +97,9 @@ function AppSettings({
           </Button>
         </div>
       )}
-      <Panel title={t("Поиск · Jackett")}>
+      <Panel title="Jackett">
+        <Toggle label={t("Использовать Jackett", "Use Jackett")} checked={draft.jackettEnabled}
+          disabled={disabled} onChange={value => edit("jackettEnabled", value)} />
         <label className="field">
           {t("Адрес Jackett")}{" "}
           <input
@@ -125,7 +127,7 @@ function AppSettings({
           />
         </label>
         <Button
-          disabled={disabled || changed}
+          disabled={disabled || changed || !draft.jackettEnabled}
           onClick={() =>
             void run("settings.testJackett").then((result) => {
               if (result)

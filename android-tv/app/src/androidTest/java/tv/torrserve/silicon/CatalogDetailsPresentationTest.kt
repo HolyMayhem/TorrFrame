@@ -33,6 +33,7 @@ class CatalogDetailsPresentationTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private var backCalls = 0
     private var torrentCalls = 0
+    private var jackettCalls = 0
     private fun details(backdrop: String = "", type: CatalogType = CatalogType.Movie) = CatalogDetails(
         CatalogItem(CatalogRef(157336, type), "Интерстеллар", "Interstellar", backdrop = backdrop,
             date = "2014-11-05", rating = 8.6, votes = 12345),
@@ -41,7 +42,7 @@ class CatalogDetailsPresentationTest {
         if (type == CatalogType.Tv) 3 else null, if (type == CatalogType.Tv) 30 else null,
         if (type == CatalogType.Tv) "Returning Series" else "", "2026-01-02")
 
-    private fun setup(value: CatalogDetails, scale: Int = 85, light: Boolean = false, language: String = "ru", actions: Boolean = false): MutableState<CatalogDetails> {
+    private fun setup(value: CatalogDetails, scale: Int = 85, light: Boolean = false, language: String = "ru", actions: Boolean = false, jackettEnabled: Boolean = true): MutableState<CatalogDetails> {
         val data = mutableStateOf(value)
         compose.runOnUiThread {
             compose.activity.setContent {
@@ -53,6 +54,8 @@ class CatalogDetailsPresentationTest {
                             CatalogDetailsScreen(CatalogUi(selected = data.value.item.ref,
                                 details = CatalogLoad(data.value), listsReady = true), back = { backCalls++ },
                                 torrentSearch = if(actions){{ torrentCalls++ }}else null,
+                                jackettEnabled = actions && jackettEnabled,
+                                jackettSearch = if(actions){{ jackettCalls++ }}else null,
                                 toggleList = if(actions){{ _, _ -> }}else null, retry = {})
                         }
                     }
@@ -127,7 +130,17 @@ class CatalogDetailsPresentationTest {
         } finally { file.delete() }
     }
 
+    @OptIn(coil3.annotation.ExperimentalCoilApi::class)
     @Test fun delayedImageErrorSwitchesToPosterAndKeepsFocusedHeading() {
+        // A loopback fixture remains reachable when Android reports no validated Internet.
+        val originalLoader=coil3.SingletonImageLoader.get(compose.activity)
+        val graph=(compose.activity.application as TorrFrameApplication).graph
+        val fixtureLoader=coil3.ImageLoader.Builder(compose.activity).components {
+            add(coil3.network.NetworkFetcher.Factory(networkClient={graph.imageNetwork},
+                connectivityChecker={coil3.network.ConnectivityChecker.ONLINE}))
+        }.build()
+        coil3.SingletonImageLoader.setUnsafe(fixtureLoader)
+        try {
         ServerSocket(0).use { server ->
             val requested = CountDownLatch(1)
             val release = CountDownLatch(1)
@@ -155,6 +168,7 @@ class CatalogDetailsPresentationTest {
                 assertEquals(1, backCalls)
             } finally { release.countDown(); worker.join(1000) }
         }
+        } finally { coil3.SingletonImageLoader.setUnsafe(originalLoader);fixtureLoader.shutdown() }
     }
 
     @Test fun fallbackRetainsTvMetadataAndFitsBothThemeScaleExtremes() {
@@ -238,7 +252,7 @@ class CatalogDetailsPresentationTest {
             compose.onAllNodesWithText(value.overview).assertCountEquals(1)
         } finally { file.delete() }
     }
-    @Test fun equalActionsAlignBelowTitleOnTheRightOfPosterAndNavigateWithRemote() {
+    @Test fun searchAndIconActionsAlignBelowTitleAndNavigateWithRemote() {
         val file=image()
         try {
             for ((scale,light,language) in listOf(Triple(110,true,"ru"),Triple(70,false,"en"))) {
@@ -250,15 +264,17 @@ class CatalogDetailsPresentationTest {
                     val tags=listOf("catalog:torrentsearch","catalog:jackett","catalog:favorite","catalog:watch-later")
                     val buttons=tags.map { compose.onNodeWithTag(it).fetchSemanticsNode().boundsInRoot }
                     assertTrue(buttons.first().top>=title.bottom)
-                    buttons.forEach { assertEquals(buttons.first().top,it.top,1f);assertEquals(buttons.first().height,it.height,1f);assertEquals(buttons.first().width,it.width,1f);assertTrue(poster.right<it.left) }
+                    buttons.forEach { assertEquals(buttons.first().top,it.top,1f);assertEquals(buttons.first().height,it.height,1f);assertTrue(poster.right<it.left) }
+                    assertEquals(buttons[0].width,buttons[1].width,1f)
+                    buttons.drop(2).forEach { assertEquals(it.width,it.height,1f);assertTrue(it.width<buttons.first().width) }
                     buttons.zipWithNext().forEach { (a,b)->assertTrue(a.right<b.left) }
-                    for(tag in tags)compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { layouts ->
+                    for(tag in tags.take(2))compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { layouts ->
                         val result=mutableListOf<TextLayoutResult>();layouts(result);assertFalse("Truncated action $tag at scale $scale",result.single().hasVisualOverflow)
                     }
                     compose.onNodeWithTag(tags.first()).performSemanticsAction(SemanticsActions.RequestFocus)
                     remote(KeyEvent.KEYCODE_DPAD_RIGHT);compose.onNodeWithTag("catalog:jackett").assertIsFocused()
-                    remote(KeyEvent.KEYCODE_DPAD_CENTER);compose.onNodeWithTag("catalog:jackett:placeholder").assertExists()
-                    remote(KeyEvent.KEYCODE_BACK);compose.onNodeWithTag("catalog:jackett").assertIsFocused()
+                    remote(KeyEvent.KEYCODE_DPAD_CENTER);compose.onNodeWithTag("catalog:jackett:placeholder").assertDoesNotExist()
+                    compose.onNodeWithTag("catalog:jackett").assertIsFocused()
                     remote(KeyEvent.KEYCODE_DPAD_RIGHT);compose.onNodeWithTag("catalog:favorite").assertIsFocused()
                     remote(KeyEvent.KEYCODE_DPAD_RIGHT);compose.onNodeWithTag("catalog:watch-later").assertIsFocused()
                     remote(KeyEvent.KEYCODE_DPAD_LEFT);remote(KeyEvent.KEYCODE_DPAD_LEFT);remote(KeyEvent.KEYCODE_DPAD_LEFT)
@@ -266,8 +282,18 @@ class CatalogDetailsPresentationTest {
                     remote(KeyEvent.KEYCODE_DPAD_UP);compose.onNodeWithTag("catalog:back").assertIsFocused()
                 }
             }
-            assertEquals(4,torrentCalls)
+            assertEquals(4,torrentCalls);assertEquals(4,jackettCalls)
         } finally { file.delete() }
+    }
+
+    @Test fun disabledJackettIsAbsentAndRemoteSkipsIt() {
+        setup(details(), actions = true, jackettEnabled = false)
+        compose.onNodeWithTag("catalog:jackett").assertDoesNotExist()
+        compose.onNodeWithTag("catalog:torrentsearch").performSemanticsAction(SemanticsActions.RequestFocus)
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        compose.onNodeWithTag("catalog:favorite").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        compose.onNodeWithTag("catalog:watch-later").assertIsFocused()
     }
 
     @Test fun failedBackdropRecoversOnTheSameMovieWithoutLosingRemoteFocus() {

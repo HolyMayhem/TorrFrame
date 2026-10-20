@@ -298,7 +298,6 @@
     <string name="player_close">Закрыть плеер</string>
     <string name="player_seek">Позиция воспроизведения</string>
     <string name="library_load_files">Загрузить файлы</string>
-    <string name="library_jackett_placeholder">Поиск через Jackett появится здесь позже.</string>
     <string name="library_in_library">В вашей медиатеке</string>
     <plurals name="library_video_count">
         <item quantity="one">%d видео</item>

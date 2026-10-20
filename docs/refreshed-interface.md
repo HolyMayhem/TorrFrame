@@ -37,8 +37,13 @@ Validation artifacts and the approved concept are in `artifacts/refreshed-interf
 
 ## Validation
 
-The latest button rounding, detail actions, Jackett switch and scroll-triggered header
-fade were build-checked only, as requested. The test results below belong to the prior revision.
+The previously postponed follow-up checks are now covered: 216 app JVM, 26 search
+module JVM, 15 Web and 72 selected Android cases passed across targeted runs.
+This includes icon actions, shared Jackett enablement, real TV search entry,
+header scale/language bounds and settings navigation. See [verification](verification.md)
+for fixture limits and the timing-sensitive genre focus rerun.
+
+The remaining figures below describe the earlier visual revision.
 
 - 206 JVM tests passed; lint: zero errors, 35 existing warnings.
 - 40 device tests passed for this revision: catalog/detail navigation, artwork/mosaic

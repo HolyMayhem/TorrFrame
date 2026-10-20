@@ -34,4 +34,15 @@ class RemoteSettingsTests {
             JSONObject().put("torrentSearch", JSONObject().put("resolutions", org.json.JSONArray(listOf("unknown")))))
         for (edit in invalid) try { RemoteSettings.edit(Settings(), edit); fail("Invalid settings accepted: $edit") } catch (_: IllegalArgumentException) { }
     }
+
+    @Test fun jackettSwitchIsSharedStrictAndDoesNotEraseCredentials() {
+        val original=Settings(jackettUrl="https://jackett.example/",jackettKey="private-key",jackettEnabled=true)
+        val disabled=RemoteSettings.edit(original,JSONObject().put("jackettEnabled",false))
+        assertFalse(disabled.jackettEnabled);assertEquals(original.jackettKey,disabled.jackettKey);assertEquals(original.jackettUrl,disabled.jackettUrl)
+        assertFalse(RemoteJson.settings(disabled,1).getBoolean("jackettEnabled"))
+        assertFalse(RemoteJson.settings(disabled,1).toString().contains("private-key"))
+        assertTrue(RemoteSettings.edit(disabled,JSONObject().put("jackettEnabled",true)).jackettEnabled)
+        try { RemoteSettings.edit(disabled,JSONObject().put("jackettEnabled","true"));fail("String accepted as Boolean") } catch (_:IllegalArgumentException) {}
+    }
+
 }

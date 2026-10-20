@@ -6,13 +6,17 @@ import tv.torrserve.silicon.features.player.*
 
 /** Only explicitly editable preferences cross the API. Server changes use TorrServerActions. */
 internal object RemoteSettings {
-    private val fields = setOf("jackettUrl", "jackettKey", "metadataOrder", "aniListEnabled", "language", "resume",
+    private val fields = setOf("jackettEnabled", "jackettUrl", "jackettKey", "metadataOrder", "aniListEnabled", "language", "resume",
         "audioLanguage", "subtitleLanguage", "updateRepository", "uiLanguage", "uiTheme", "uiAccent",
         "uiScalePercent", "animationsEnabled", "showNavigationHints", "playerMode", "externalPlayer", "builtInPlayer", "torrentSearch", "catalogNetwork")
     fun edit(current: Settings, edits: JSONObject): Settings {
         require(edits.keys().asSequence().all { it in fields })
         fun text(key: String, old: String, limit: Int) = if (edits.has(key)) edits.getString(key).also { require(it.length <= limit) } else old
-        fun flag(key: String, old: Boolean) = if (edits.has(key)) edits.getBoolean(key) else old
+        fun flag(key: String, old: Boolean): Boolean {
+            if (!edits.has(key)) return old
+            require(edits.get(key) is Boolean)
+            return edits.getBoolean(key)
+        }
         val player = merge(JSONObject(current.builtInPlayer.encode()), if (edits.has("builtInPlayer")) edits.getJSONObject("builtInPlayer") else null)
         require(player.getDouble("speed").toFloat() in PlayerPreferences.SPEEDS)
         require(player.getInt("subtitleSize") in PlayerPreferences.SUBTITLE_SIZES)
@@ -37,7 +41,7 @@ internal object RemoteSettings {
         val mode = text("playerMode", current.playerMode.name, 10); require(mode in PlayerMode.entries.map { it.name })
         val order = edits.optJSONArray("metadataOrder")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: current.metadataOrder
         val network = catalogNetwork(current.catalogNetwork, if (edits.has("catalogNetwork")) edits.getJSONObject("catalogNetwork") else null)
-        return current.copy(jackettUrl = text("jackettUrl", current.jackettUrl, 4096), jackettKey = text("jackettKey", current.jackettKey, 4096),
+        return current.copy(jackettEnabled = flag("jackettEnabled", current.jackettEnabled), jackettUrl = text("jackettUrl", current.jackettUrl, 4096), jackettKey = text("jackettKey", current.jackettKey, 4096),
             metadataOrder = MetadataPriority.normalized(order), aniListEnabled = flag("aniListEnabled", current.aniListEnabled), language = language,
             resume = flag("resume", current.resume), audioLanguage = text("audioLanguage", current.audioLanguage, 40),
             subtitleLanguage = text("subtitleLanguage", current.subtitleLanguage, 40), updateRepository = text("updateRepository", current.updateRepository, 100),

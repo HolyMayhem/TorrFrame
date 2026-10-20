@@ -30,6 +30,7 @@ export interface LibraryItem {
 }
 export interface Settings {
   revision: number;
+  jackettEnabled: boolean;
   jackettUrl: string;
   jackettKeyConfigured: boolean;
   metadataOrder: string[];
@@ -236,6 +237,8 @@ export interface CatalogItem {
   rating: number;
   favorite?: boolean;
   watchLater?: boolean;
+  partial?: boolean;
+  stale?: boolean;
   overview?: string;
   genres?: string[];
   runtime?: number;

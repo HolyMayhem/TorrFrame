@@ -15,8 +15,26 @@ class LibraryRepository(val store: LibraryStore, private val api: TorrServerApi,
     private val server: ServerController, private val jackett: JackettClient,
     private val metadata: MetadataResolver, private val settings: SettingsStore, private val scope: CoroutineScope) {
     private val adding = Mutex()
+    private data class Sync(val task: Deferred<Unit>, var users: Int = 1)
+    private val syncing = Mutex()
+    private val syncRequests = mutableMapOf<Pair<String, Boolean>, Sync>()
     suspend fun sync() {
-        server.requireRunning(); Diagnostics.timed("library_load") { api.list().forEach { store.put(it) } }
+        val settings = settings.state.value
+        val key = settings.torrServerUrl to settings.useLocalServer
+        val request = syncing.withLock {
+            syncRequests[key]?.takeUnless { it.task.isCompleted }?.also { it.users++ }
+                ?: Sync(scope.async(start = CoroutineStart.LAZY) {
+                    server.requireRunning()
+                    Diagnostics.timed("library_load") { store.putAll(api.at(key.first).list()) }
+                }).also { syncRequests[key] = it }
+        }
+        try { request.task.await() }
+        finally { withContext(NonCancellable) { syncing.withLock {
+            if (--request.users == 0) {
+                if (syncRequests[key] === request) syncRequests.remove(key)
+                if (!request.task.isCompleted) request.task.cancel()
+            }
+        } } }
     }
     suspend fun add(result: SearchResult): String = import(result.title, result.hash) { jackett.download(result) }
     suspend fun add(payload: TorrentPayload, title: String, hash: String = ""): String = import(title, hash) { payload }

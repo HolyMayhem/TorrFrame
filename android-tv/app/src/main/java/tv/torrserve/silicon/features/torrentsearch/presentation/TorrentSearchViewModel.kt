@@ -11,18 +11,20 @@ import tv.torrserve.torrentsearch.engine.TorrentSearchEngine
 import tv.torrserve.torrentsearch.model.*
 
 data class TorrentPlayback(val hash: String, val file: TorrentFile)
+enum class TorrentSearchSource { Builtin, Jackett }
 enum class TorrentActionError { Add, Files }
 data class TorrentSearchUi(val target: SearchTarget? = null, val snapshot: SearchSnapshot = SearchSnapshot(),
     val queries: List<String> = emptyList(), val options: TorrentSearchOptions = TorrentSearchOptions(),
     val starting: Boolean = false, val adding: String? = null, val added: Set<String> = emptySet(),
     val actionError: TorrentActionError? = null, val searchError: Boolean = false,
-    val files: List<TorrentFile> = emptyList(), val fileHash: String? = null, val play: TorrentPlayback? = null) {
+    val files: List<TorrentFile> = emptyList(), val fileHash: String? = null, val play: TorrentPlayback? = null, val source: TorrentSearchSource = TorrentSearchSource.Builtin) {
     val searching get() = !searchError && (starting || snapshot.searching)
 }
 class TorrentSearchViewModel(private val engine: TorrentSearchEngine, private val actions: TorrentSearchActions,
     private val saved: SavedStateHandle,
     private val options: suspend () -> TorrentSearchOptions = { TorrentSearchOptions() },
-    private val prepare: suspend (SearchTarget,TorrentSearchOptions) -> SearchTarget = { target, _ -> target }) : ViewModel() {
+    private val prepare: suspend (SearchTarget,TorrentSearchOptions) -> SearchTarget = { target, _ -> target },
+    private val jackettEngine: TorrentSearchEngine? = null) : ViewModel() {
     private val mutable = MutableStateFlow(TorrentSearchUi())
     val state = mutable.asStateFlow()
     private var searchJob: Job? = null
@@ -30,24 +32,26 @@ class TorrentSearchViewModel(private val engine: TorrentSearchEngine, private va
     private var generation = 0
     init {
         saved.get<String>("torrentTitle")?.let { title -> open(SearchTarget(title,saved["torrentOriginal"] ?: "",saved["torrentYear"],
-            if (saved.get<String>("torrentType") == "Series") MediaType.Series else MediaType.Movie,saved["torrentTmdbId"])) }
+            if (saved.get<String>("torrentType") == "Series") MediaType.Series else MediaType.Movie,saved["torrentTmdbId"]),
+            TorrentSearchSource.entries.firstOrNull { it.name == saved.get<String>("torrentSource") } ?: TorrentSearchSource.Builtin) }
     }
-    fun open(target: SearchTarget) {
+    fun open(target: SearchTarget, source: TorrentSearchSource = TorrentSearchSource.Builtin) {
         searchJob?.cancel(); actionJob?.cancel(); val version = ++generation
-        saved["torrentTitle"] = target.title; saved["torrentOriginal"] = target.originalTitle; saved["torrentYear"] = target.year; saved["torrentType"] = target.type.name; saved["torrentTmdbId"] = target.tmdbId
-        mutable.value = TorrentSearchUi(target=target,queries=target.queries(),starting=true)
+        saved["torrentSource"] = source.name; saved["torrentTitle"] = target.title; saved["torrentOriginal"] = target.originalTitle; saved["torrentYear"] = target.year; saved["torrentType"] = target.type.name; saved["torrentTmdbId"] = target.tmdbId
+        mutable.value = TorrentSearchUi(target=target,queries=target.queries(),starting=true,source=source)
         searchJob = viewModelScope.launch {
             try {
-                val config=options().normalized()
-                val queryTarget=if(engine.providers.any { target.type in it.types && config.enabledProviders?.contains(it.id)!=false })prepare(target,config)else target
+                val searchEngine = if (source == TorrentSearchSource.Jackett) requireNotNull(jackettEngine) else engine
+                val config=options().let { if (source == TorrentSearchSource.Jackett) it.copy(enabledProviders=setOf("jackett")) else it }.normalized()
+                val queryTarget=if(searchEngine.providers.any { target.type in it.types && config.enabledProviders?.contains(it.id)!=false })prepare(target,config)else target
                 if(version!=generation)return@launch
                 mutable.update { it.copy(options=config,queries=queryTarget.queries(config.titleMode)) }
-                engine.search(queryTarget,config).collect { snapshot -> if (version == generation) mutable.update { it.copy(snapshot=snapshot,starting=false) } }
+                searchEngine.search(queryTarget,config).collect { snapshot -> if (version == generation) mutable.update { it.copy(snapshot=snapshot,starting=false) } }
             }
             catch (e: Exception) { if (e is CancellationException) throw e; if(version==generation) mutable.update { it.copy(starting=false,searchError=true) } }
         }
     }
-    fun retry() { if(state.value.adding==null) state.value.target?.let(::open) }
+    fun retry() { if(state.value.adding==null) state.value.target?.let { open(it, state.value.source) } }
     fun close() {
         generation++; searchJob?.cancel(); actionJob?.cancel(); saved["torrentTitle"] = null
         mutable.value = TorrentSearchUi()

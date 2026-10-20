@@ -2,7 +2,15 @@
 
 TV Settings → **Catalog** and Phone Remote → Settings → **Catalog** share the same
 preferences. A fresh installation defaults to **TMDB**, with direct routing and
-its existing secure DNS recovery. Existing explicitly configured endpoints remain saved.
+its secure DNS recovery. Existing explicitly configured endpoints remain saved.
+
+The built-in TMDB, public CUB and poster mirror hosts fall back to Google DoH when
+system DNS fails or returns non-public addresses. The DoH connection bootstraps via
+Google's published IPv4 resolver addresses, retaining `dns.google` as the HTTPS host,
+SNI and certificate name; it therefore works even when router DNS cannot resolve
+`dns.google`. Other domains, custom proxies and LAN services keep system DNS.
+See [Google resolver addresses](https://developers.google.com/speed/public-dns/docs/using#google_public_dns_ip_addresses)
+and [secure transport hostnames](https://developers.google.com/speed/public-dns/docs/secure-transports#endpoints).
 
 ## Sources
 
@@ -25,9 +33,23 @@ three modes.** Tested CUB `/3/...` URLs redirect to TMDB and do not provide an
 independent solution to blocked details. Normal TMDB authentication, localization,
 rate limiting, error handling and its cache remain in use for those operations.
 
+If full details fail, a bounded memory map (256 items, keyed by title identity and
+locale) preserves the basic title/poster from an already loaded browse/search page.
+The card remains usable for torrent search and personal lists; its load is explicitly
+marked partial/stale on TV and Phone Remote. Missing credits or synopsis are not
+invented. A subsequent successful retry replaces the partial card with full details.
+Previously cached full details take precedence over this basic fallback.
+
 CUB and TMDB have separate cache namespaces. CUB URL/token changes also change its
 namespace. The CUB client limits concurrent requests to two, uses an 18-second call
 deadline, a 1 MiB response limit and no redirects. Denied/malformed responses are errors.
+
+The built-in public CUB host uses a separate HTTP/1.1 pool and `Connection: close`
+per request. On the physical Mi Box, a reused connection repeatedly stalled after
+successful responses, while isolated connections completed the same requests.
+This bounds the failure to one request and avoids sharing it between HTTP/2 streams.
+Custom CUB hosts and the TMDB/detail/image clients keep their existing protocols
+and pools. TLS verification and the two-request CUB concurrency limit remain enabled.
 
 ## Personal home rows
 
@@ -81,15 +103,19 @@ TMDB request routing remains separate from source selection:
 
 - Direct uses the original API.
 - Automatic routing tries the origin and then configured proxies/mirrors on
-  connection/TLS/DNS failure, HTTP 408 or 5xx. Public poster HTTP 403 also
-  advances to a mirror; API authentication failures retain their normal handling.
+  connection/TLS/DNS failure, HTTP 403/408 or 5xx, including a stalled API response
+  body or a successful HTTP response containing HTML instead of JSON. API HTTP
+  401/404/429 retain their normal handling.
 - Proxy-only routing requires both an API proxy and at least one configured mirror.
 
 API bases include `/3/`; image bases precede `/t/p/`. Endpoints must be HTTPS without
 credentials, query or fragment. Cross-host routing drops authorization/cookie/token
 headers. API query keys are forwarded only to explicitly configured API proxies.
 TorrServer, trackers and unrelated metadata providers retain their routes. Failed
-routes have a bounded 30-second cooldown. At most two API and seven image destinations
+routes have a bounded 30-second cooldown. Each API attempt limits connection time to
+five seconds and body inactivity to eight seconds, within the existing total call
+deadline. Response bodies are checked inside routing so a body timeout can reach
+the configured fallback rather than failing after route selection. At most two API and seven image destinations
 are eligible; Coil image attempts use their own bounded deadlines; cancellation closes failed responses.
 
 Optional CUB tokens remain encrypted using Android Keystore. Phone snapshots expose
@@ -100,6 +126,29 @@ References: [Lampa CUB source](https://github.com/yumata/lampa-source/blob/main/
 [Lampa image routing](https://github.com/yumata/lampa-source/blob/main/src/core/tmdb/proxy.js).
 
 Physical Mi Box availability must be checked separately from emulator/Mac results.
+
+### Failure reporting and attribution
+
+Catalog loads retain a safe structured failure: provider, DNS, timeout, TLS,
+HTTP access denial/rate limit/status, malformed/oversized response or connection
+failure. The TV displays that reason rather than assuming all failures mean no
+internet. Raw exception messages, request URLs and credentials are not displayed.
+Cached content and Retry focus handover keep their existing behavior.
+
+CUB makes at most one additional attempt after a transient connection failure,
+timeout or HTTP 502/503/504, with 200 ms between attempts. Each attempt retains
+an 18-second total deadline and allows 14 seconds of body inactivity. Access
+denial, rate limiting, certificate errors and malformed JSON are not retried.
+This does not guarantee availability of the public service. TorrentsCSV also
+uses the existing secure-DNS recovery when its system DNS lookup fails; other
+tracker/custom hosts retain system DNS.
+
+Browse results remember their provider in the bounded session cache, including
+automatic fallback. CUB detail footers distinguish `Catalog: CUB` from
+`Details and images: TMDB`; selecting CUB does not replace the TMDB detail API.
+Long-pressing the top Catalog tab clears detail history, query, genre and expanded
+collection and returns to the beginning of the home catalog. A short press keeps
+the existing route.
 
 ## Verification, 2026-10-19
 

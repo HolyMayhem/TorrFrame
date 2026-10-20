@@ -7,11 +7,13 @@ import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import java.security.MessageDigest
 import tv.torrserve.silicon.features.catalog.domain.*
+import tv.torrserve.silicon.core.network.ServiceFailure
 
 class CatalogRepositoryImpl(
     private val api: CatalogRemote, private val cache: CatalogCache, private val scope: CoroutineScope,
     private val now: () -> Long = System::currentTimeMillis,
     private val namespace: String = "",
+    private val provider: CatalogOrigin = CatalogOrigin.Tmdb,
 ) : CatalogRepository {
     private data class Request(val task: Deferred<String>, var users: Int)
     private val requests = mutableMapOf<String, Request>()
@@ -37,8 +39,8 @@ class CatalogRepositoryImpl(
             if (data == null) try { cache.remove(key) } catch (e: Exception) { if (e is CancellationException) throw e }
         }
         val fresh = entry != null && data != null && entry.expiresAt > now()
-        if (data != null) emit(CatalogLoad(data, loading = !fresh || force, stale = !fresh))
-        else emit(CatalogLoad(loading = true))
+        if (data != null) emit(CatalogLoad(data, loading = !fresh || force, stale = !fresh, source = provider))
+        else emit(CatalogLoad(loading = true, source = provider))
         if (fresh && !force) return@flow
         try {
             val payload = shared(key) {
@@ -52,10 +54,10 @@ class CatalogRepositoryImpl(
                     text
                 }
             }
-            emit(CatalogLoad(data = decode(JSONObject(payload))))
+            emit(CatalogLoad(data = decode(JSONObject(payload)), source = provider))
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(CatalogLoad(data, stale = data != null, error = true))
+            emit(CatalogLoad(data, stale = data != null, error = true, failure = failure(e), source = provider))
         }
     }
     override fun section(section: CatalogSection, language: String, page: Int, force: Boolean) = load(
@@ -75,5 +77,22 @@ class CatalogRepositoryImpl(
         "discover:${filter.name}:${type.path}:$language:$page", 12 * HOUR, 7 * DAY, force,
         { CatalogParser.page(it, type) }, { api.discover(filter, type, language, page) })
     private fun digest(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
+    private fun failure(error: Exception): CatalogFailure {
+        val causes = generateSequence<Throwable>(error) { it.cause }.take(12).toList()
+        val status = causes.filterIsInstance<ServiceFailure>().firstOrNull { it.status != 0 }?.status
+        val kind = when {
+            causes.any { it is java.net.UnknownHostException } -> CatalogFailureKind.Dns
+            causes.any { it is java.io.InterruptedIOException } || status == 408 -> CatalogFailureKind.Timeout
+            causes.any { it is javax.net.ssl.SSLException } -> CatalogFailureKind.Tls
+            status == 401 || status == 403 -> CatalogFailureKind.Denied
+            status == 429 -> CatalogFailureKind.RateLimited
+            status == -1 -> CatalogFailureKind.TooLarge
+            status == -2 || causes.any { it is org.json.JSONException || it is IllegalArgumentException } -> CatalogFailureKind.InvalidResponse
+            status != null && status > 0 -> CatalogFailureKind.Http
+            causes.any { it is java.io.IOException } -> CatalogFailureKind.Connection
+            else -> CatalogFailureKind.Unknown
+        }
+        return CatalogFailure(provider, kind, status?.takeIf { it > 0 })
+    }
     companion object { const val HOUR = 3_600_000L; const val DAY = 24 * HOUR }
 }

@@ -1,6 +1,6 @@
 import { t } from "../i18n";
 import { Catalog } from "./Catalog";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAction, type Actions } from "../actions";
 import type { TorrentResult, SearchPreset } from "../types";
 import { Button, Empty, Icon, Poster, size } from "../components/Ui";
@@ -92,13 +92,25 @@ function TorrentSearch({
     [added, setAdded] = useState<Record<string, string>>({}),
     [sort, setSort] = useState("seeds");
   const { run, busy, disabled } = useAction(actions);
+  const jackettEnabled = actions.remote.state?.settings.jackettEnabled === true;
+  const searchVersion = useRef(0);
+  useEffect(() => {
+    searchVersion.current++;
+    setResults(null); setPartial(false);
+    if (!jackettEnabled && source === "jackett") {
+      setSource("builtin");
+      setFilter(current => current === "All" ? "Movies" : current);
+    }
+    return () => { searchVersion.current++; };
+  }, [source, jackettEnabled, filter, preset, query]);
   useEffect(() => {
     setFilter(preset.filter || "Movies");
     setResults(null);
     setPartial(false);
   }, [preset]);
   const search = async () => {
-    if (!query.trim()) return;
+    if (!query.trim() || (source === "jackett" && !jackettEnabled)) return;
+    const version = ++searchVersion.current;
     const titleMatches = query.trim() === preset.query.trim();
     const response = await run<{ items: TorrentResult[]; partial: boolean }>(
       "search",
@@ -111,7 +123,7 @@ function TorrentSearch({
         tmdbId: titleMatches ? preset.tmdbId : undefined,
       },
     );
-    if (response) {
+    if (response && version === searchVersion.current) {
       setResults(response.items);
       setPartial(response.partial);
     }
@@ -144,7 +156,7 @@ function TorrentSearch({
           }}
         >
           <option value="builtin">TorrentSearch</option>
-          <option value="jackett">Jackett</option>
+          {jackettEnabled && <option value="jackett">Jackett</option>}
         </select>
       </label>
       <form

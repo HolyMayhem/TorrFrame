@@ -5,6 +5,8 @@ import tv.torrserve.silicon.AppGraph
 import tv.torrserve.silicon.core.models.TorrentFile
 import tv.torrserve.silicon.features.player.preferredVideo
 import tv.torrserve.silicon.features.search.TorrentPayload
+import tv.torrserve.silicon.features.search.JackettSearchProvider
+import tv.torrserve.silicon.features.search.jackettResult
 import tv.torrserve.torrentsearch.model.*
 
 interface TorrentSearchActions {
@@ -16,7 +18,11 @@ class AppTorrentSearchActions(private val graph: AppGraph,
     private val engine: tv.torrserve.torrentsearch.engine.TorrentSearchEngine = graph.torrentSearch) : TorrentSearchActions {
     override suspend fun add(row: TorrentResult): String {
         graph.ready.await()
-        val payload = withTimeout(30_000) { when(val link = engine.resolve(row)) {
+        val payload = withTimeout(30_000) {
+            if (row.providerId == JackettSearchProvider.ID) {
+                require(graph.settings.state.value.jackettEnabled) { "Jackett is disabled." }
+                graph.jackett.download(row.jackettResult())
+            } else when(val link = engine.resolve(row)) {
             is TorrentLink.Magnet -> TorrentPayload.Magnet(link.value)
             is TorrentLink.FileUrl -> graph.torrentSearchNetwork.download(link.value)
         } }

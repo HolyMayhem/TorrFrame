@@ -46,7 +46,12 @@ enum class CatalogFilter(val type: CatalogType? = null, private val movieGenres:
     val genreTypes get() = CatalogType.entries.filter { genres(it) != null }
     val sections get() = CatalogSection.entries.filter { type == null || it.type == type }
 }
-data class CatalogLoad<out T>(val data: T? = null, val loading: Boolean = false, val stale: Boolean = false, val error: Boolean = false)
+enum class CatalogOrigin { Tmdb, Cub, Unspecified }
+enum class CatalogFailureKind { Dns, Timeout, Tls, Denied, RateLimited, Http, InvalidResponse, TooLarge, Connection, Unknown }
+/** Safe diagnostic data: never expose request URLs, API keys or exception messages in the UI. */
+data class CatalogFailure(val provider: CatalogOrigin, val kind: CatalogFailureKind, val status: Int? = null)
+data class CatalogLoad<out T>(val data: T? = null, val loading: Boolean = false, val stale: Boolean = false, val error: Boolean = false,
+    val failure: CatalogFailure? = null, val source: CatalogOrigin = CatalogOrigin.Tmdb)
 
 internal fun JSONObject.text(name: String) = optString(name).takeUnless { it == "null" }.orEmpty()
 internal fun JSONArray?.objects(): List<JSONObject> = if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }

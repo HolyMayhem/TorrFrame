@@ -20,6 +20,7 @@ import androidx.compose.ui.res.painterResource
 import tv.torrserve.silicon.R
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -162,10 +163,48 @@ val LocalCatalogImageSettings = staticCompositionLocalOf { CatalogNetworkSetting
 @Composable internal fun CatalogSkeleton(modifier: Modifier = Modifier) {
     Box(modifier.aspectRatio(2f / 3f).background(SurfaceSecondary, RoundedCornerShape(10.dp)))
 }
-@Composable internal fun CatalogError(retry: () -> Unit, modifier: Modifier = Modifier, cached: Boolean = false) {
+@Composable internal fun CatalogError(retry: () -> Unit, modifier: Modifier = Modifier, cached: Boolean = false,
+    retryModifier: Modifier = Modifier, retrying: Boolean = false, failure: CatalogFailure? = null) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        TvText(if (cached) catalogText("Showing saved data. Could not refresh the catalog.", "Показаны сохранённые данные. Не удалось обновить каталог.")
-            else catalogText("Could not load the catalog. Check your internet connection.", "Не удалось загрузить каталог. Проверьте подключение к интернету."), color = Muted)
-        TvAction(catalogText("Retry", "Повторить"), action = retry)
+        if (cached) TvText(catalogText("Showing saved data.", "Показаны сохранённые данные."), color = Muted)
+        val provider = if (failure?.provider == CatalogOrigin.Cub) "CUB" else if (failure != null) "TMDB" else catalogText("Catalog", "Каталог")
+        val reason = when (failure?.kind) {
+            CatalogFailureKind.Dns -> catalogText("DNS could not resolve the server address.", "DNS не смог определить адрес сервера.")
+            CatalogFailureKind.Timeout -> catalogText("The server did not respond in time.", "Сервер не ответил вовремя.")
+            CatalogFailureKind.Tls -> catalogText("A secure connection could not be established.", "Не удалось установить защищённое соединение.")
+            CatalogFailureKind.Denied -> catalogText("The server denied access", "Сервер отказал в доступе") + " (HTTP ${failure.status})."
+            CatalogFailureKind.RateLimited -> catalogText("Too many requests. Try again later.", "Превышен лимит запросов. Повторите позже.")
+            CatalogFailureKind.Http -> catalogText("The server returned HTTP ${failure.status}.", "Сервер вернул HTTP ${failure.status}.")
+            CatalogFailureKind.InvalidResponse -> catalogText("The server returned an invalid response.", "Сервер вернул некорректный ответ.")
+            CatalogFailureKind.TooLarge -> catalogText("The server response exceeds the size limit.", "Ответ сервера превышает допустимый размер.")
+            CatalogFailureKind.Connection -> catalogText("Could not connect to the server.", "Не удалось подключиться к серверу.")
+            else -> catalogText("Could not load data. Try again.", "Не удалось загрузить данные. Повторите попытку.")
+        }
+        TvText("$provider: $reason", color = Muted)
+        TvAction(if (retrying) catalogText("Loading…", "Загрузка…") else catalogText("Retry", "Повторить"), modifier = retryModifier, action = retry)
+    }
+}
+
+/** Keep the invoking control alive during retry, then transfer only its own focus. */
+@Composable internal fun CatalogFeedError(feed: CatalogFeed, retry: () -> Unit, contentFocus: FocusRequester,
+    emptyFocus: FocusRequester?, tag: String) {
+    var pending by remember { mutableStateOf(false) }
+    var focused by remember { mutableStateOf(false) }
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
+    val loading = feed.loading || feed.loadingMore
+    if (feed.error || pending) CatalogError({
+        if (!pending) { pending = true; retry() }
+    }, cached = feed.items.isNotEmpty(), retrying = pending && loading, failure = feed.failure,
+        retryModifier = Modifier.onFocusChanged { focused = it.isFocused }.testTag(tag))
+    LaunchedEffect(pending, loading, feed.error) {
+        if (pending && !loading) {
+            // The click may compose before the ViewModel loading state arrives.
+            withFrameNanos { }; withFrameNanos { }
+            if (!feed.error && focused && windowFocused) {
+                if (feed.items.isNotEmpty()) contentFocus.requestFocus() else emptyFocus?.requestFocus()
+            }
+            // Remove the control after handing over focus; changing this key cancels the effect.
+            pending = false
+        }
     }
 }

@@ -12,24 +12,29 @@ import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.ConcurrentHashMap
 
-/** Repair poisoned DNS answers only for the public TMDB API/image hosts. Other hosts stay on system DNS. */
+/** DNS recovery for built-in catalog/image hosts and TorrentsCSV; LAN/custom endpoints use system DNS. */
 class TmdbDns(
     private val system: Dns = Dns.SYSTEM,
-    private val secureClient: OkHttpClient = OkHttpClient.Builder().dns(Dns.SYSTEM)
+    private val secureClient: OkHttpClient = OkHttpClient.Builder().dns(bootstrapDns())
         .connectTimeout(3, TimeUnit.SECONDS).readTimeout(3, TimeUnit.SECONDS)
         .callTimeout(4, TimeUnit.SECONDS).followRedirects(false).build(),
     private val endpoint: HttpUrl = "https://dns.google/resolve".toHttpUrl(),
     private val now: () -> Long = { System.nanoTime() / 1_000_000 },
 ) : Dns {
     private data class Cached(val addresses: List<InetAddress>, val expires: Long)
-    private val hosts = setOf("api.themoviedb.org", "image.tmdb.org")
-    private val cache = mutableMapOf<String, Cached>()
+    private val hosts = setOf("api.themoviedb.org", "image.tmdb.org", "tmdb.cub.best", "torrents-csv.com") +
+        CatalogNetworkSettings.PUBLIC_IMAGE_MIRRORS.map { it.toHttpUrl().host }
+    private val cache = ConcurrentHashMap<String, Cached>()
+    // A stalled lookup must not hold up another host, including its cached answer.
+    // The fixed allowlist also bounds the number of locks and cache entries.
+    private val lookups = hosts.associateWith { Any() }
 
     override fun lookup(hostname: String): List<InetAddress> {
         val host = hostname.lowercase(Locale.ROOT).trimEnd('.')
         if (host !in hosts) return system.lookup(hostname)
-        return synchronized(cache) { lookupTmdb(host, hostname) }
+        return synchronized(lookups.getValue(host)) { lookupTmdb(host, hostname) }
     }
 
     private fun lookupTmdb(host: String, hostname: String): List<InetAddress> {
@@ -83,7 +88,19 @@ class TmdbDns(
             }
         } catch (e: Exception) {
             if (e !is IOException && e !is org.json.JSONException) throw e
-            throw UnknownHostException("Cannot resolve TMDB using system or secure DNS").apply { initCause(e) }
+            throw UnknownHostException("Cannot resolve catalog host using system or secure DNS").apply { initCause(e) }
+        }
+    }
+
+    companion object {
+        // Connect to the existing DoH service without first depending on broken router DNS.
+        // The HTTPS URL, SNI and certificate verification still use dns.google.
+        // https://developers.google.com/speed/public-dns/docs/using#google_public_dns_ip_addresses
+        internal fun bootstrapDns(system: Dns = Dns.SYSTEM): Dns = Dns { hostname ->
+            if (hostname.lowercase(Locale.ROOT).trimEnd('.') == "dns.google") listOf(
+                InetAddress.getByAddress("dns.google", byteArrayOf(8, 8, 8, 8)),
+                InetAddress.getByAddress("dns.google", byteArrayOf(8, 8, 4, 4)))
+            else system.lookup(hostname)
         }
     }
 

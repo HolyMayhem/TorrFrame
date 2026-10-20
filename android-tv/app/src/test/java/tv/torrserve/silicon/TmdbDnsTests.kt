@@ -12,6 +12,7 @@ import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CountDownLatch
 
 class TmdbDnsTests {
     private val api = "api.themoviedb.org"
@@ -111,6 +112,31 @@ class TmdbDnsTests {
         }
     }
 
+    @Test fun dohBootstrapDoesNotDependOnWorkingSystemDnsAndOnlyOverridesItsOwnHost() {
+        val calls=mutableListOf<String>()
+        val dns=TmdbDns.bootstrapDns(Dns { host -> calls+=host;throw UnknownHostException(host) })
+        assertEquals(listOf("8.8.8.8","8.8.4.4"),dns.lookup("dns.google").map { it.hostAddress })
+        assertTrue(calls.isEmpty())
+        try { dns.lookup("torrserver.lan");fail("LAN should keep system DNS") } catch(_:UnknownHostException) { }
+        assertEquals(listOf("torrserver.lan"),calls)
+    }
+    @Test fun cubAndEveryBuiltInPosterMirrorRecoverFromSystemDnsFailure() {
+        MockWebServer().use { server ->
+            server.start()
+            val dns=resolver(server,Dns { throw UnknownHostException("router DNS unavailable") })
+            val hosts=listOf("tmdb.cub.best", "torrents-csv.com") + tv.torrserve.silicon.core.network.CatalogNetworkSettings.PUBLIC_IMAGE_MIRRORS
+                .map { okhttp3.HttpUrl.Companion.run { it.toHttpUrl().host } }
+            hosts.forEach { host ->
+                server.enqueue(MockResponse().setBody(answer()))
+                assertEquals("99.84.152.32",dns.lookup(host).single().hostAddress)
+                assertEquals(host,server.takeRequest().requestUrl!!.queryParameter("name"))
+            }
+            // Unknown custom endpoints are not silently sent to a public resolver.
+            try { dns.lookup("custom.example");fail() } catch(_:UnknownHostException) { }
+            assertEquals(hosts.size,server.requestCount)
+        }
+    }
+
     @Test fun simultaneousPosterRequestsShareOneFallbackLookup() {
         MockWebServer().use { server ->
             server.start();server.enqueue(MockResponse().setBody(answer()))
@@ -120,6 +146,32 @@ class TmdbDnsTests {
                 for(result in results)assertEquals("99.84.152.32",result.get(2,TimeUnit.SECONDS).single().hostAddress)
                 assertEquals(1,server.requestCount)
             }finally {pool.shutdownNow()}
+        }
+    }
+
+    @Test fun stalledHostDoesNotBlockCachedPostersOrOtherHostLookups() {
+        MockWebServer().use { server ->
+            server.start();server.enqueue(MockResponse().setBody(answer("79.127.134.229")))
+            val entered=CountDownLatch(1);val release=CountDownLatch(1)
+            val dns=resolver(server,Dns { host ->
+                when(host) {
+                    image -> throw UnknownHostException("fixture")
+                    api -> { entered.countDown();check(release.await(5,TimeUnit.SECONDS));listOf(address("99.84.152.32")) }
+                    else -> listOf(address("104.21.83.236"))
+                }
+            })
+            assertEquals("79.127.134.229",dns.lookup(image).single().hostAddress)
+            val pool=Executors.newFixedThreadPool(3)
+            try {
+                val slow=pool.submit<List<InetAddress>> { dns.lookup(api) }
+                assertTrue(entered.await(2,TimeUnit.SECONDS))
+                val cached=pool.submit<List<InetAddress>> { dns.lookup(image) }
+                val other=pool.submit<List<InetAddress>> { dns.lookup("tmdb.cub.best") }
+                assertEquals("79.127.134.229",cached.get(2,TimeUnit.SECONDS).single().hostAddress)
+                assertEquals("104.21.83.236",other.get(2,TimeUnit.SECONDS).single().hostAddress)
+                assertFalse(slow.isDone);assertEquals(1,server.requestCount)
+                release.countDown();assertEquals("99.84.152.32",slow.get(2,TimeUnit.SECONDS).single().hostAddress)
+            } finally { release.countDown();pool.shutdownNow() }
         }
     }
 }

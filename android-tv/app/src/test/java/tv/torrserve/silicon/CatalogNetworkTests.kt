@@ -71,7 +71,7 @@ class CatalogNetworkTests {
         assertEquals(7, requests.size)
     }
     @Test fun authenticationRateLimitAndMissingContentDoNotTriggerFallback() {
-        for (code in listOf(401, 403, 404, 429)) {
+        for (code in listOf(401, 404, 429)) {
             var calls = 0
             val client = OkHttpClient.Builder().addInterceptor(CatalogRouteInterceptor({ config }))
                 .addInterceptor { chain -> calls++; response(chain.request(), code) }.build()
@@ -155,6 +155,30 @@ class CatalogNetworkTests {
         client.newCall(Request.Builder().url(image).header("Cookie", "private").build()).execute().use { assertEquals(200, it.code) }
         assertEquals(listOf("image.tmdb.org", "imagetmdb.com"), requests.map { it.url.host })
         assertNull(requests.last().header("Cookie"))
+    }
+
+
+    @Test fun deniedOrHtmlApiOriginFallsBackToConfiguredProxy() {
+        for(code in listOf(403,200)) {
+            val requests=CopyOnWriteArrayList<Request>()
+            val client=OkHttpClient.Builder().addInterceptor(CatalogRouteInterceptor({config})).addInterceptor { chain ->
+                val r=chain.request();requests+=r
+                if(r.url.host=="api.themoviedb.org")response(r,code,"<html>blocked</html>") else response(r,200,"{\"id\":42}")
+            }.build()
+            client.newCall(Request.Builder().url(api).build()).execute().use { assertEquals("{\"id\":42}",it.body.string()) }
+            assertEquals(listOf("api.themoviedb.org","gateway.example"),requests.map {it.url.host})
+        }
+    }
+    @Test fun stalledApiBodyLeavesTimeForProxyAndDoesNotWaitForGlobalTimeout() {
+        okhttp3.mockwebserver.MockWebServer().use { server ->
+            server.start()
+            server.enqueue(okhttp3.mockwebserver.MockResponse().setBody("{\"id\":1}").setBodyDelay(600,java.util.concurrent.TimeUnit.MILLISECONDS))
+            server.enqueue(okhttp3.mockwebserver.MockResponse().setBody("{\"id\":42}"))
+            val client=OkHttpClient.Builder().addInterceptor(CatalogRouteInterceptor({config},apiReadTimeoutMs=150))
+                .addInterceptor { chain -> chain.proceed(chain.request().newBuilder().url(server.url(chain.request().url.encodedPath)).build()) }.build()
+            client.newCall(Request.Builder().url(api).build()).execute().use { assertEquals("{\"id\":42}",it.body.string()) }
+            assertEquals(2,server.requestCount)
+        }
     }
 
 }

@@ -39,6 +39,19 @@ class RemoteCatalogTests {
         remote.execute("catalog.toggle", args.put("list", "WatchLater")); assertTrue(lists.entries.value.single().watchLater)
         remote.execute("catalog.toggle", args.put("list", "Favorites")); assertFalse(lists.entries.value.single().favorite)
     }
+    @Test fun partialDetailsRemainUsableAndReportTheirNetworkFailure() = runBlocking {
+        val base = Repository()
+        val repo = object : CatalogRepository by base {
+            override fun details(ref: CatalogRef, language: String, force: Boolean) = flowOf(
+                CatalogLoad(CatalogDetails(base.item, "", emptyList(), null, emptyList(), emptyList()), error = true, stale = true))
+        }
+        val remote = RemoteCatalog(repo, MemoryCatalogUserLists()) { "en" }
+        val result = remote.execute("catalog.details", JSONObject().put("id", 1).put("mediaType", "Movie"))
+        assertEquals("Title", result.getString("title"))
+        assertTrue(result.getBoolean("partial")); assertTrue(result.getBoolean("stale"))
+        assertEquals(0, result.getJSONArray("cast").length())
+        assertTrue(result.isNull("runtime"))
+    }
     @Test fun invalidPagingAndUnsupportedGenreTypesAreRejected() = runBlocking {
         val remote = RemoteCatalog(Repository(), MemoryCatalogUserLists()) { "en" }
         for (args in listOf(JSONObject().put("page", 501), JSONObject().put("filter", "Thriller").put("mediaType", "Tv"))) {

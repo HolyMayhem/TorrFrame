@@ -69,3 +69,15 @@ scripts/build-local.sh :app:connectedDebugAndroidTest -PtorrframeAbi=arm64-v8a -
 Снимок настроек применяется при запуске или «Повторить». Изменение каждого переключателя не перезапускает текущие сетевые запросы. Отключённые/неподходящие для фильма или сериала источники не вызываются; если активных источников нет, дополнительный запрос русского названия также не выполняется. Фильтрация идёт после объединения hash-дубликатов, порядок по сидам сохраняется после каждой партии. Пустая выдача и отключённые источники имеют отдельные пояснения.
 
 Проверки настроек: `OptionsTests`, `TorrentSearchSettingsTests`, дополнительный сценарий `TorrentSearchViewModelTests`, а также `TorrentSearchSettingsNavigationTest` (автосохранение/перезагрузка, D-pad, границы счётчиков, оба масштаба/темы, русский запрос при английском интерфейсе и подключение сохранённой политики к реальному маршруту каталога).
+
+
+## Jackett on TV
+
+Catalog and TorrServe-library detail cards open the same results screen with a
+separate Jackett provider engine. The selected backend survives Retry and saved
+state restoration, and does not enable built-in providers when Jackett is selected.
+Shared sorting, quality/size/seed filters, import, file selection and playback are
+retained. Jackett private download URLs use `JackettClient.download`, preserving
+magnet redirects and torrent-file downloads before the normal TorrServe import.
+The enabled flag is shared with Phone Remote. Missing configuration opens the
+Jackett settings panel; Back restores the invoking search button.

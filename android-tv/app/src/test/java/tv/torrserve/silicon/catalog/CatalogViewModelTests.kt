@@ -182,4 +182,21 @@ class CatalogViewModelTests {
         assertEquals(1,vm.state.value.results.items.size)
     }
 
+    @Test fun homeClearsNestedHistoryQueryAndGenreWithoutReloadingFreshHomeFeeds()=runTest {
+        val repo=Repository().apply { delayMs=2000 }; val saved=SavedStateHandle(); val vm=vm(repo,saved=saved);runCurrent()
+        val sections=repo.sections.size
+        vm.filter(CatalogFilter.Comedy);runCurrent()
+        vm.query("Pending");advanceTimeBy(451);runCurrent()
+        vm.open(CatalogRef(1,CatalogType.Movie));runCurrent()
+        vm.openRelated(CatalogRef(2,CatalogType.Movie));runCurrent()
+        vm.home();advanceTimeBy(3000);runCurrent()
+        assertNull(vm.state.value.selected);assertTrue(vm.state.value.detailTrail.isEmpty())
+        assertEquals("",vm.state.value.query);assertEquals(CatalogFilter.All,vm.state.value.filter)
+        assertTrue(repo.searchCancelled);assertEquals(sections,repo.sections.size)
+        assertEquals("",saved.get<String>("catalogQuery"));assertNull(saved.get<String>("catalogSelected"))
+        // Back after another ordinary card must not reopen a discarded ancestor.
+        vm.open(CatalogRef(3,CatalogType.Movie));runCurrent();vm.close();runCurrent()
+        assertNull(vm.state.value.selected)
+    }
+
 }

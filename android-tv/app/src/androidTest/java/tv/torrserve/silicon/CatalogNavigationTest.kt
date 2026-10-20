@@ -73,14 +73,17 @@ class CatalogNavigationTest {
                 val state by vm.state.collectAsState()
                 val entry=remember{FocusRequester()}
                 val screen=remember{FocusRequester()}
+                var homeRequest by remember { mutableIntStateOf(0) }
                 TorrFrameTheme(scale,light,animationsEnabled=false) {
                     CompositionLocalProvider(LocalUiLanguage provides "ru") {
                         Column {
                             if (header) Row(Modifier.fillMaxWidth().focusProperties { down=screen }.focusGroup()) {
                                 for (tab in listOf("Search", "Library", "Settings"))
-                                    tv.torrserve.silicon.ui.components.TvNavItem(tab,tab=="Search") {}
+                                    tv.torrserve.silicon.ui.components.TvNavItem(tab,tab=="Search",
+                                        onLongClick=if(tab=="Search") ({ homeRequest++ }) else null) {}
                             }
-                            Box(Modifier.weight(1f).focusRequester(screen).focusGroup()) { CatalogScreen(state,vm,entry,showFavorites=home.value.first,showWatchLater=home.value.second) }
+                            Box(Modifier.weight(1f).focusRequester(screen).focusGroup()) { CatalogScreen(state,vm,entry,showFavorites=home.value.first,showWatchLater=home.value.second,
+                                homeRequest=homeRequest, homeHandled={ homeRequest=0 }) }
                         }
                     }
                 }
@@ -104,7 +107,7 @@ class CatalogNavigationTest {
         compose.onNodeWithTag("catalog:genres-dialog").assertDoesNotExist()
         compose.onNodeWithTag("catalog:genres").assertIsFocused()
     }
-    private fun holdOk(key:Int=KeyEvent.KEYCODE_DPAD_CENTER) {
+    private fun holdOk(key:Int=KeyEvent.KEYCODE_DPAD_CENTER, expectMenu:Boolean=true) {
         compose.waitForIdle()
         val now=android.os.SystemClock.uptimeMillis()
         val instrumentation=InstrumentationRegistry.getInstrumentation()
@@ -114,7 +117,7 @@ class CatalogNavigationTest {
             android.view.KeyCharacterMap.VIRTUAL_KEYBOARD,0,KeyEvent.FLAG_LONG_PRESS,android.view.InputDevice.SOURCE_DPAD))
         instrumentation.sendKeySync(KeyEvent(now,android.os.SystemClock.uptimeMillis(),KeyEvent.ACTION_UP,key,0))
         compose.waitForIdle()
-        compose.onNodeWithTag("catalog:list-menu").assertExists()
+        if(expectMenu) compose.onNodeWithTag("catalog:list-menu").assertExists()
         compose.onNodeWithTag("catalog:details").assertDoesNotExist()
     }
     private fun chooseList(list:CatalogUserList) {
@@ -184,7 +187,7 @@ class CatalogNavigationTest {
     }
     @Test fun emptyRelatedIsHiddenAndFailureDoesNotBlockTheMovie() {
         setup();compose.runOnUiThread{vm.open(CatalogRef(1,CatalogType.Movie))};compose.waitForIdle()
-        compose.onNodeWithTag("catalog:detail:scroll").performScrollToNode(hasText("Информация и изображения предоставлены TMDB"))
+        compose.onNodeWithTag("catalog:detail:scroll").performScrollToNode(hasText("Каталог, информация и изображения: TMDB"))
         compose.onNodeWithTag("catalog:row:related:movie:1").assertDoesNotExist()
         val repo=setup(Repository(relatedCount=20).apply{failRelatedPage=1})
         openRelatedParent()
@@ -355,6 +358,29 @@ class CatalogNavigationTest {
         compose.onNodeWithTag("catalog:collection:back").assertExists()
         remote(KeyEvent.KEYCODE_BACK);compose.onNodeWithTag("catalog:more:TrendingMovies").assertIsFocused()
     }
+    @Test fun holdingCatalogLeavesNestedDetailsAndResetsSearchAndFilters() {
+        setup(header=true)
+        compose.runOnUiThread {
+            vm.filter(CatalogFilter.Comedy); vm.query("Title")
+            vm.open(CatalogRef(1,CatalogType.Movie)); vm.openRelated(CatalogRef(2,CatalogType.Movie))
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("nav:Search").performSemanticsAction(SemanticsActions.RequestFocus)
+        holdOk(expectMenu=false)
+        compose.onNodeWithTag("catalog:screen").assertIsDisplayed()
+        compose.onNodeWithTag("nav:Search").assertIsFocused()
+        assertEquals("",vm.state.value.query);assertEquals(CatalogFilter.All,vm.state.value.filter)
+        assertTrue(vm.state.value.detailTrail.isEmpty())
+        remote(KeyEvent.KEYCODE_DPAD_DOWN);remote(KeyEvent.KEYCODE_DPAD_DOWN);remote(KeyEvent.KEYCODE_DPAD_DOWN)
+        card(1).assertIsFocused()
+        // An ordinary press preserves the current route.
+        compose.runOnUiThread { vm.open(CatalogRef(3,CatalogType.Movie)) }
+        compose.waitForIdle()
+        compose.onNodeWithTag("nav:Search").performSemanticsAction(SemanticsActions.RequestFocus)
+        remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.onNodeWithTag("catalog:details").assertExists()
+        assertEquals(CatalogRef(3,CatalogType.Movie),vm.state.value.selected)
+    }
     @Test fun headerDownEntersMovieAndTvDetailsAndScrolledContent() {
         for (type in CatalogType.entries) {
             setup(header=true)
@@ -365,7 +391,7 @@ class CatalogNavigationTest {
                 remote(KeyEvent.KEYCODE_DPAD_DOWN)
                 compose.onNodeWithTag("catalog:back").assertIsFocused()
             }
-            compose.onNodeWithTag("catalog:detail:scroll").performScrollToNode(hasText("Movie information and images from TMDB") or hasText("Информация и изображения предоставлены TMDB"))
+            compose.onNodeWithTag("catalog:detail:scroll").performScrollToNode(hasText("Catalog, details and images: TMDB") or hasText("Каталог, информация и изображения: TMDB"))
             compose.onNodeWithTag("nav:Search").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
             remote(KeyEvent.KEYCODE_DPAD_DOWN)
             compose.onNode(isFocused() and hasAnyAncestor(hasTestTag("catalog:details"))).assertExists()
@@ -462,51 +488,55 @@ class CatalogNavigationTest {
         openGenres();compose.onNodeWithTag("catalog:filter:Romance").assertIsFocused()
         remote(KeyEvent.KEYCODE_BACK)
     }
-    @Test fun actualAppearanceLanguageControlsCatalogWhileMetadataLanguageStaysSeparate() {
+    @Test fun actualAppearanceLanguageControlsCatalogWhileMetadataLanguageStaysSeparate() = runBlocking {
         val graph=(compose.activity.application as TorrFrameApplication).graph
-        runBlocking { graph.ready.await() };val original=graph.settings.state.value
-        fun chooseLanguage(value:String) {
-            compose.onNodeWithTag("nav:Settings").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
-            remote(KeyEvent.KEYCODE_DPAD_CENTER)
-            compose.onNodeWithTag("settings:categories").performScrollToNode(hasTestTag("settings:category:Appearance"))
-            compose.onNodeWithTag("settings:category:Appearance").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
-            remote(KeyEvent.KEYCODE_DPAD_CENTER)
-            compose.onNodeWithTag("settings:detail:Appearance").performScrollToNode(hasText(value))
-            compose.onNodeWithText(value).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
-            remote(KeyEvent.KEYCODE_DPAD_CENTER)
-            remote(KeyEvent.KEYCODE_BACK);remote(KeyEvent.KEYCODE_BACK)
-        }
-        try {
-            runBlocking { graph.settings.update { it.copy(uiLanguage="en",language="ru-RU") } }
-            compose.onNodeWithTag("nav:Search").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
-            remote(KeyEvent.KEYCODE_DPAD_CENTER)
-            val catalog=compose.activity.viewModelStore.get("androidx.lifecycle.ViewModelProvider.DefaultKey:${CatalogViewModel::class.java.name}") as CatalogViewModel
-            compose.waitUntil(5000) { catalog.state.value.language=="en-US" }
-            compose.runOnUiThread { catalog.query("Interstellar") }
-            compose.waitUntil(15_000) { catalog.state.value.results.items.any { it.ref.id==157336 } }
-            assertEquals("Interstellar",catalog.state.value.results.items.first { it.ref.id==157336 }.title)
-            compose.onNodeWithTag("catalog:card:movie:157336").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
-            remote(KeyEvent.KEYCODE_DPAD_CENTER)
-            compose.waitUntil(15_000) { catalog.state.value.details.data!=null }
-            val english=catalog.state.value.details.data!!.overview
-            for (language in listOf("ru","en","ru")) {
-                chooseLanguage(language)
-                val locale=if(language=="ru")"ru-RU" else "en-US"
-                val title=if(language=="ru")"Интерстеллар" else "Interstellar"
-                compose.waitUntil(15_000) { catalog.state.value.language==locale && catalog.state.value.details.data?.item?.title==title }
-                compose.onNodeWithTag("catalog:detail:title").assertTextEquals(title)
-                assertEquals("Interstellar",catalog.state.value.query)
-                val overview=catalog.state.value.details.data!!.overview
-                if(language=="ru") { assertNotEquals(english,overview);assertFalse(catalog.state.value.details.data!!.englishOverview) }
-                else assertEquals(english,overview)
-                assertEquals("ru-RU",graph.settings.state.value.language)
+        graph.ready.await()
+        compose.waitUntil(15_000) { graph.startupSplash.state.value.phase == tv.torrserve.silicon.features.startup.StartupPhase.Finished }
+        withCatalogDetailsFixture(graph) {
+            val original=graph.settings.state.value
+            fun chooseLanguage(value:String) {
+                compose.onNodeWithTag("nav:Settings").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
+                remote(KeyEvent.KEYCODE_DPAD_CENTER)
+                compose.onNodeWithTag("settings:categories").performScrollToNode(hasTestTag("settings:category:Appearance"))
+                compose.onNodeWithTag("settings:category:Appearance").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
+                remote(KeyEvent.KEYCODE_DPAD_CENTER)
+                compose.onNodeWithTag("settings:detail:Appearance").performScrollToNode(hasText(value))
+                compose.onNodeWithText(value).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
+                remote(KeyEvent.KEYCODE_DPAD_CENTER)
+                remote(KeyEvent.KEYCODE_BACK);remote(KeyEvent.KEYCODE_BACK)
             }
-            remote(KeyEvent.KEYCODE_BACK)
-            compose.waitUntil(5000) { catalog.state.value.results.items.any { it.ref.id==157336 } }
-            compose.waitUntil(5000) { compose.onAllNodesWithTag("catalog:card:movie:157336").fetchSemanticsNodes().any { it.config.getOrNull(SemanticsProperties.Focused)==true } }
-            compose.onNodeWithTag("catalog:card:movie:157336").assertIsFocused()
-            assertEquals("Интерстеллар",catalog.state.value.results.items.first { it.ref.id==157336 }.title)
-        } finally { runBlocking { graph.settings.save(original) } }
+            try {
+                runBlocking { graph.settings.update { it.copy(uiLanguage="en",language="ru-RU") } }
+                compose.onNodeWithTag("nav:Search").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
+                remote(KeyEvent.KEYCODE_DPAD_CENTER)
+                val catalog=compose.activity.viewModelStore.get("androidx.lifecycle.ViewModelProvider.DefaultKey:${CatalogViewModel::class.java.name}") as CatalogViewModel
+                compose.waitUntil(5000) { catalog.state.value.language=="en-US" }
+                compose.runOnUiThread { catalog.query("Interstellar") }
+                compose.waitUntil(15_000) { catalog.state.value.results.items.any { it.ref.id==157336 } }
+                assertEquals("Interstellar",catalog.state.value.results.items.first { it.ref.id==157336 }.title)
+                compose.onNodeWithTag("catalog:card:movie:157336").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
+                remote(KeyEvent.KEYCODE_DPAD_CENTER)
+                compose.waitUntil(15_000) { catalog.state.value.details.data!=null }
+                val english=catalog.state.value.details.data!!.overview
+                for (language in listOf("ru","en","ru")) {
+                    chooseLanguage(language)
+                    val locale=if(language=="ru")"ru-RU" else "en-US"
+                    val title=if(language=="ru")"Интерстеллар" else "Interstellar"
+                    compose.waitUntil(15_000) { catalog.state.value.language==locale && catalog.state.value.details.data?.item?.title==title }
+                    compose.onNodeWithTag("catalog:detail:title").assertTextEquals(title)
+                    assertEquals("Interstellar",catalog.state.value.query)
+                    val overview=catalog.state.value.details.data!!.overview
+                    if(language=="ru") { assertNotEquals(english,overview);assertFalse(catalog.state.value.details.data!!.englishOverview) }
+                    else assertEquals(english,overview)
+                    assertEquals("ru-RU",graph.settings.state.value.language)
+                }
+                remote(KeyEvent.KEYCODE_BACK)
+                compose.waitUntil(5000) { catalog.state.value.results.items.any { it.ref.id==157336 } }
+                compose.waitUntil(5000) { compose.onAllNodesWithTag("catalog:card:movie:157336").fetchSemanticsNodes().any { it.config.getOrNull(SemanticsProperties.Focused)==true } }
+                compose.onNodeWithTag("catalog:card:movie:157336").assertIsFocused()
+                assertEquals("Интерстеллар",catalog.state.value.results.items.first { it.ref.id==157336 }.title)
+            } finally { graph.settings.save(original) }
+        }
     }
     @Test fun diskCacheSurvivesReopenExpiresOnlyAtRetentionAndDoesNotTouchLibrary()=runBlocking {
         val context=compose.activity;val name="catalog-test-${System.nanoTime()}.sqlite";var clock=1000L
@@ -536,13 +566,13 @@ class CatalogNavigationTest {
         remote(KeyEvent.KEYCODE_BACK)
         compose.runOnUiThread { vm.open(ref) }
         compose.waitUntil(5000) { vm.state.value.details.data!=null }
-        compose.onNodeWithTag("catalog:favorite").assertTextEquals("Удалить из избранного")
+        compose.onNodeWithTag("catalog:favorite").assertContentDescriptionEquals("Удалить из избранного")
             .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.waitUntil(5000) { !vm.state.value.listBusy && vm.state.value.userEntries.singleOrNull()?.favorite==false }
         compose.onNodeWithTag("catalog:favorite").assertIsFocused().assertIsNotSelected()
         remote(KeyEvent.KEYCODE_DPAD_RIGHT)
-        compose.onNodeWithTag("catalog:watch-later").assertTextEquals("Удалить из «Смотреть позже»")
+        compose.onNodeWithTag("catalog:watch-later").assertContentDescriptionEquals("Удалить из «Смотреть позже»")
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.waitUntil(5000) { !vm.state.value.listBusy && vm.state.value.userEntries.isEmpty() }
         compose.onNodeWithTag("catalog:watch-later").assertIsFocused().assertIsNotSelected()

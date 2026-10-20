@@ -69,6 +69,8 @@ class BuiltInPlayerIntegrationTest {
         }
         instrumentation.runOnMainSync { media!!.pause() }
         compose.waitUntil(5000) { compose.onAllNodesWithTag("player:play").fetchSemanticsNodes().isNotEmpty() }
+        // The Activity owns a different MediaController; wait for its pause acknowledgement too.
+        compose.waitUntil(5000) { compose.onAllNodes(hasTestTag("player:play") and hasText("Play") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
         compose.waitForIdle()
     }
     @After fun teardown() = runBlocking {
@@ -147,6 +149,11 @@ class BuiltInPlayerIntegrationTest {
         focus("player:speed"); remote(KeyEvent.KEYCODE_DPAD_CENTER)
         focus("player:speed:1.5"); remote(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.waitUntil(5000) { graph.settings.state.value.builtInPlayer.speed == 1.5f }
+        compose.waitUntil(5000) {
+            var applied = false
+            instrumentation.runOnMainSync { applied = media!!.playbackParameters.speed == 1.5f }
+            applied
+        }
         instrumentation.runOnMainSync { assertEquals(1.5f, media!!.playbackParameters.speed) }
         remote(KeyEvent.KEYCODE_BACK)
         focus("player:aspect"); remote(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -177,6 +184,12 @@ class BuiltInPlayerIntegrationTest {
     }
     @Test fun hiddenControlsRespondToRemoteWithoutLosingFocusOrPausing() = runBlocking {
         focus("player:play"); remote(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.waitUntil(5000) {
+            var playing=false
+            instrumentation.runOnMainSync { playing=media!!.isPlaying }
+            playing
+        }
+        compose.mainClock.advanceTimeBy(5500)
         compose.waitUntil(8000) { compose.onAllNodesWithTag("player:hidden").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("player:hidden").assertIsFocused()
         remote(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -184,8 +197,15 @@ class BuiltInPlayerIntegrationTest {
         instrumentation.runOnMainSync { assertTrue(media!!.playWhenReady) }
         remote(KeyEvent.KEYCODE_DPAD_UP)
         compose.onNodeWithTag("player:seek").assertIsFocused()
+        var before=0L
+        instrumentation.runOnMainSync { before=media!!.currentPosition }
         remote(KeyEvent.KEYCODE_DPAD_RIGHT)
-        instrumentation.runOnMainSync { assertTrue(media!!.currentPosition > 15000) }
+        // Compose's virtual idle time does not advance the native decoder's media clock.
+        compose.waitUntil(5000) {
+            var moved=false
+            instrumentation.runOnMainSync { moved=media!!.currentPosition>=before+9500 }
+            moved
+        }
     }
     @Test fun playbackErrorKeepsRetryFocusedAndBackExits() {
         instrumentation.runOnMainSync { media!!.setMediaItem(MediaItem.fromUri("file:///does-not-exist.mp4")); media!!.prepare() }

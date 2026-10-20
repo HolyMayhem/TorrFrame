@@ -107,6 +107,53 @@ class TorrentSearchNavigationTest {
             assertTrue(row.left>=list.left && row.right<=list.right && row.top>=list.top && row.bottom<=list.bottom)
         }
     }
+    @Test fun actualJackettButtonQueriesConfiguredServerAndBackRestoresJackett():Unit=runBlocking {
+        val graph=(compose.activity.application as TorrFrameApplication).graph
+        graph.ready.await()
+        val original=graph.settings.state.value
+        val server=java.net.ServerSocket(0,10,java.net.InetAddress.getByName("127.0.0.1"))
+        val requests=java.util.concurrent.CopyOnWriteArrayList<String>()
+        val body="""<rss xmlns:torznab="http://torznab.com/schemas/2015/feed"><channel><item>
+            <title>Jackett.Fixture.2014.1080p</title><guid>one</guid><enclosure url="magnet:?xt=urn:btih:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" length="1073741824"/>
+            <torznab:attr name="seeders" value="12"/><torznab:attr name="category" value="2000"/>
+            </item></channel></rss>""".toByteArray()
+        val worker=kotlin.concurrent.thread(isDaemon=true,name="jackett-fixture") {
+            while(!server.isClosed) try { server.accept().use { socket ->
+                val reader=socket.getInputStream().bufferedReader()
+                requests+=reader.readLine().orEmpty()
+                while(!reader.readLine().isNullOrEmpty()) { }
+                socket.getOutputStream().apply {
+                    write("HTTP/1.1 200 OK\r\nContent-Type: application/xml\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray())
+                    write(body);flush()
+                }
+            } } catch(_:java.io.IOException) { }
+        }
+        try {
+            graph.settings.update { it.copy(jackettEnabled=true,jackettUrl="http://127.0.0.1:${server.localPort}",jackettKey="integration-fixture",uiLanguage="en",
+                torrentSearch=TorrentSearchOptions(enabledProviders=emptySet())) }
+            compose.waitUntil(15_000) { graph.startupSplash.state.value.phase == tv.torrserve.silicon.features.startup.StartupPhase.Finished }
+            withCatalogDetailsFixture(graph) {
+                compose.onNodeWithTag("nav:Search").performSemanticsAction(SemanticsActions.RequestFocus);remote(KeyEvent.KEYCODE_DPAD_CENTER)
+                val catalog=compose.activity.viewModelStore.get("androidx.lifecycle.ViewModelProvider.DefaultKey:${CatalogViewModel::class.java.name}") as CatalogViewModel
+                compose.runOnUiThread { catalog.open(CatalogRef(157336,CatalogType.Movie)) }
+                compose.waitUntil(10_000) { catalog.state.value.details.data != null }
+                compose.onNodeWithTag("catalog:jackett").performSemanticsAction(SemanticsActions.RequestFocus);remote(KeyEvent.KEYCODE_DPAD_CENTER)
+                compose.onNodeWithTag("torrentsearch:screen").assertExists()
+                val search=compose.activity.viewModelStore.get("androidx.lifecycle.ViewModelProvider.DefaultKey:${TorrentSearchViewModel::class.java.name}") as TorrentSearchViewModel
+                compose.waitUntil(10_000) { !search.state.value.searching }
+                assertEquals(TorrentSearchSource.Jackett,search.state.value.source)
+                assertEquals(1,search.state.value.snapshot.results.size)
+                assertTrue(requests.any { it.contains("q=Interstellar%202014") || it.contains("q=Interstellar+2014") })
+                assertTrue(requests.all { it.contains("cat=2000") })
+                remote(KeyEvent.KEYCODE_BACK)
+                compose.onNodeWithTag("catalog:jackett").assertIsFocused()
+                // Disabling from shared settings removes Jackett without breaking the first search action.
+                graph.settings.update { it.copy(jackettEnabled=false) }
+                compose.onNodeWithTag("catalog:jackett").assertDoesNotExist()
+                compose.onNodeWithTag("catalog:torrentsearch").assertIsFocused()
+            }
+        } finally { server.close();worker.join(1000);graph.settings.save(original) }
+    }
     @Test fun actualCatalogButtonBuildsOriginalTitleYearQueryAndBackRestoresIt():Unit=runBlocking {
         withCatalogDetailsFixture((compose.activity.application as TorrFrameApplication).graph) {
         compose.onNodeWithTag("nav:Search").performSemanticsAction(SemanticsActions.RequestFocus);remote(KeyEvent.KEYCODE_DPAD_CENTER)

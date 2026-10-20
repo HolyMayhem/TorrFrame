@@ -388,6 +388,7 @@ export function Catalog({
         >
           {details ? (
             <>
+              {details.partial && <p role="status">{t("Полные сведения временно недоступны. Показаны сохранённые данные.", "Full details are temporarily unavailable. Showing saved information.")}</p>}
               <p className="overview">{details.overview}</p>
               <p>
                 {details.year} · {details.genres?.join(" · ")} ·{" "}
