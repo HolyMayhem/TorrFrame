@@ -10,7 +10,7 @@ import tv.torrframe.R
 import tv.torrframe.ui.components.*
 import tv.torrframe.ui.theme.Muted
 
-@Composable fun DeveloperSettings(controls:DeveloperControls) {
+@Composable fun DeveloperSettings(controls:DeveloperControls, restartSetup: () -> Unit = {}) {
     val state by controls.state.collectAsState()
     val diagnostics by controls.diagnosticsVisible.collectAsState()
     Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -19,6 +19,7 @@ import tv.torrframe.ui.theme.Muted
         TvAction(stringResource(R.string.developer_startup_preview), modifier=Modifier.testTag("developer:startup-preview")) { controls.previewStartup(slow=false) }
         TvAction(stringResource(R.string.developer_startup_slow), modifier=Modifier.testTag("developer:startup-slow")) { controls.previewStartup(slow=true) }
         TvText(stringResource(R.string.developer_startup_hint), color=Muted)
+        TvAction(stringResource(R.string.setup_developer_restart), modifier = Modifier.testTag("developer:setup"), action = restartSetup)
         TvText(stringResource(R.string.developer_hint),color=Muted)
         for(provider in DeveloperControls.keyedServices) {
             TvToggle(stringResource(R.string.developer_missing_key,provider),provider in state.missingKeys,

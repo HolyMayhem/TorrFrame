@@ -26,30 +26,39 @@ import tv.torrframe.ui.theme.*
 @Composable internal fun TorrServerConnectionPanel(state: TorrServerSettingsUi, connection: ConnectionState,
     server: ServerState, vm: TorrServerSettingsViewModel, engineFocus: FocusRequester, openEngine: () -> Unit) {
     val s = state.settings
-    SettingsGroup(stringResource(R.string.server_title)) {
-        val status = if (s.useLocalServer && server is ServerState.Starting) ConnectionStatus.Connecting else connection.status
-        TvText(stringResource(when (status) {
-            ConnectionStatus.Connected -> R.string.server_connected
-            ConnectionStatus.Connecting -> R.string.server_connecting
-            ConnectionStatus.Unavailable -> R.string.server_unavailable
-            ConnectionStatus.Error -> R.string.server_connection_error
-        }), color = if (status == ConnectionStatus.Connected) AccentText else Muted, modifier = Modifier.testTag("server:connection"))
-        connection.failure?.let { failure ->
-            TvText(stringResource(when (failure) {
-                408 -> R.string.server_timeout
-                401, 403 -> R.string.server_access_denied
-                -2 -> R.string.server_invalid_response
-                else -> R.string.server_operation_failed
-            }), color = Muted)
+    val status = if (s.useLocalServer && server is ServerState.Starting) ConnectionStatus.Connecting else connection.status
+    SettingsGroup(stringResource(R.string.server_title), trailing = {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (status == ConnectionStatus.Connected) Box(Modifier.size(6.dp).background(AccentText, androidx.compose.foundation.shape.CircleShape))
+            TvText(stringResource(when (status) {
+                ConnectionStatus.Connected -> R.string.server_connected
+                ConnectionStatus.Connecting -> R.string.server_connecting
+                ConnectionStatus.Unavailable -> R.string.server_unavailable
+                ConnectionStatus.Error -> R.string.server_connection_error
+            }), color = if (status == ConnectionStatus.Connected) AccentText else Muted,
+                style = MaterialTheme.typography.labelLarge, modifier = Modifier.testTag("server:connection"))
         }
-        if (connection.version.isNotBlank()) TvText(stringResource(R.string.server_version, connection.version), color = Muted)
-        EditField(stringResource(R.string.server_url), s.torrServerUrl, keyboardType = KeyboardType.Uri, russian = true, onValue = vm::address)
-        TvText(stringResource(R.string.server_default_hint), color = Muted)
-        TvToggle(stringResource(R.string.server_mode), s.useLocalServer, Modifier.testTag("server:local"), vm::local)
-        TvText(stringResource(if (s.useLocalServer) R.string.server_local_hint else R.string.server_remote_hint), color = Muted)
-        TvAction(stringResource(R.string.server_default_url), action = vm::defaultAddress)
-        TvAction(stringResource(R.string.server_check), modifier = Modifier.testTag("server:check"), action = vm::check)
-        TvAction(stringResource(R.string.engine_open), modifier = Modifier.focusRequester(engineFocus).testTag("server:engine"), action = openEngine)
+    }) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            connection.failure?.let { failure ->
+                TvText(stringResource(when (failure) {
+                    408 -> R.string.server_timeout
+                    401, 403 -> R.string.server_access_denied
+                    -2 -> R.string.server_invalid_response
+                    else -> R.string.server_operation_failed
+                }), color = Muted)
+            }
+            if (connection.version.isNotBlank()) TvText(stringResource(R.string.server_version, connection.version), color = Muted)
+            EditField(stringResource(R.string.server_url), s.torrServerUrl, keyboardType = KeyboardType.Uri, russian = true, onValue = vm::address)
+            TvToggle(stringResource(R.string.server_mode), s.useLocalServer, Modifier.testTag("server:local"), vm::local)
+            TvText(stringResource(if (s.useLocalServer) R.string.server_local_hint else R.string.server_remote_hint),
+                color = Muted, style = MaterialTheme.typography.bodySmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                TvAction(stringResource(R.string.server_default_url), action = vm::defaultAddress)
+                TvAction(stringResource(R.string.server_check), modifier = Modifier.testTag("server:check"), action = vm::check)
+                TvAction(stringResource(R.string.engine_open), modifier = Modifier.focusRequester(engineFocus).testTag("server:engine"), action = openEngine)
+            }
+        }
     }
     if (s.useLocalServer) SettingsGroup(stringResource(R.string.server_process_title)) {
         TvText(when (server) {

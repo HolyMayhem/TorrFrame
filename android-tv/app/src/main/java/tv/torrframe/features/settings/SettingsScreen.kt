@@ -61,6 +61,7 @@ enum class SettingsCategory(val title: Int) {
 @Composable fun SettingsScreen(state: SettingsUi, server: ServerState, vm: SettingsViewModel,
     torrState: TorrServerSettingsUi, connection: ConnectionState, torrVm: TorrServerSettingsViewModel,
     initialCategory: SettingsCategory? = null, dismiss: () -> Unit,
+    onSetup: () -> Unit = vm::restartSetup,
     phoneRemote: @Composable () -> Unit = {}, updates: @Composable () -> Unit) {
     val developerEnabled by vm.developer.accessible.collectAsState()
     val categories = remember(developerEnabled) { SettingsCategory.entries.filter { it != SettingsCategory.Developer || developerEnabled } }
@@ -133,7 +134,7 @@ enum class SettingsCategory(val title: Int) {
                                         verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(4.dp)) {
                                         item("message") { Message(state.message) }
                                         when (category) {
-                                            SettingsCategory.PhoneRemote -> item { SettingsGroup(stringResource(category!!.title), phoneRemote) }
+                                            SettingsCategory.PhoneRemote -> item { SettingsGroup(stringResource(category!!.title), content = phoneRemote) }
                                             SettingsCategory.TorrServer -> item {
                                                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                                     ServerOperationStatus(torrState)
@@ -174,7 +175,7 @@ enum class SettingsCategory(val title: Int) {
                                                     }
                                                 }
                                             }
-                                            SettingsCategory.Updates -> item { SettingsGroup(stringResource(category!!.title), updates) }
+                                            SettingsCategory.Updates -> item { SettingsGroup(stringResource(category!!.title), content = updates) }
                                             SettingsCategory.Appearance -> item {
                                                 SettingsGroup(stringResource(category!!.title)) {
                                                     TvToggle(stringResource(R.string.ui_sounds), s.uiSoundsEnabled, Modifier.testTag("appearance:sounds"), vm::sounds)
@@ -205,7 +206,7 @@ enum class SettingsCategory(val title: Int) {
                                             }
                                             SettingsCategory.Developer -> item {
                                                 if(developerEnabled)SettingsGroup(stringResource(R.string.settings_developer)) {
-                                                    tv.torrframe.features.developer.DeveloperSettings(vm.developer)
+                                                    tv.torrframe.features.developer.DeveloperSettings(vm.developer, onSetup)
                                                 }
                                             }
                                             SettingsCategory.About -> item {
@@ -214,6 +215,7 @@ enum class SettingsCategory(val title: Int) {
                                                     androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.tmdb_logo),
                                                         contentDescription = "TMDB", modifier = Modifier.width(164.dp).height(24.dp))
                                                     Text("This product uses the TMDB API but is not endorsed or certified by TMDB.", color = Muted, translate = false)
+                                                    TvAction(stringResource(R.string.setup_reopen), modifier = Modifier.testTag("settings:setup"), action = onSetup)
                                                     TvAction(stringResource(R.string.settings_licenses)) { licenses = true }
                                                 }
                                             }
@@ -289,10 +291,16 @@ enum class SettingsCategory(val title: Int) {
     }
 }
 
-@Composable internal fun SettingsGroup(title: String, content: @Composable () -> Unit) {
+@Composable internal fun SettingsGroup(title: String, trailing: (@Composable () -> Unit)? = null,
+    content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().focusGroup().background(Surface, RoundedCornerShape(20.dp))
         .border(1.dp, Outline, RoundedCornerShape(20.dp)).padding(LocalTvLayout.current.panelPadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(title, style = MaterialTheme.typography.headlineSmall)
+        if (trailing == null) Text(title, style = MaterialTheme.typography.headlineSmall)
+        else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+            trailing()
+        }
         content()
     }
 }

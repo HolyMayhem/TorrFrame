@@ -81,7 +81,12 @@ class MainActivity : ComponentActivity() {
                 TorrFrameTheme(settings.uiScalePercent, light = settings.uiTheme == "light", accent = settings.uiAccent, animationsEnabled = settings.animationsEnabled) {
                     CompositionLocalProvider(LocalCatalogImageSettings provides settings.catalogNetwork) {
                         CatalogImageRecovery {
-                            AppLanguage(settings.uiLanguage) { AppScreen(graph, covered) { mainReady = true } }
+                            AppLanguage(settings.uiLanguage) {
+                                Box(Modifier.fillMaxSize()) {
+                                    AppScreen(graph, covered) { mainReady = true }
+                                    tv.torrframe.onboarding.SetupHost(graph, enabled = preferencesReady && !covered)
+                                }
+                            }
                         }
                     }
                 }
@@ -312,6 +317,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     }
     if (settingsOpen && !startupCovered) SettingsScreen(set, server, settings, torrSet, connection, torrSettings,
         initialCategory = settingsCategory,
+        onSetup = { settingsOpen = false; graph.setup.restart() },
         dismiss = { settingsOpen = false; restoreSettingsFocus = true },
         phoneRemote = { tv.torrframe.phoneRemote.ui.PhoneRemoteSettings(graph) }) {
         UpdatesPanel(update, set.draft, { value -> settings.edit { it.copy(updateRepository = value) } }, updates) {

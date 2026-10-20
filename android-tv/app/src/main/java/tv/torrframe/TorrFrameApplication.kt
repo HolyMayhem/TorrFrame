@@ -27,6 +27,7 @@ class AppGraph(val app: Application) {
     val startupSplash = tv.torrframe.features.startup.StartupSplashState(android.os.SystemClock::elapsedRealtime)
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val ready = CompletableDeferred<Unit>()
+    val setup = tv.torrframe.onboarding.SetupController(app.getSharedPreferences("first-run-setup", Application.MODE_PRIVATE), scope)
     private val developerPreferences = app.getSharedPreferences("developer-access", Application.MODE_PRIVATE)
     private val developerAccessLock = kotlinx.coroutines.sync.Mutex()
     val developer = tv.torrframe.features.developer.DeveloperControls(developerPreferences.getBoolean("unlocked", BuildConfig.DEBUG))
@@ -85,6 +86,7 @@ class AppGraph(val app: Application) {
         }
         scope.launch {
             try {
+                setup.initialize(settings.hasStoredSettings())
                 settings.load(); ready.complete(Unit)
                 launch { settings.state.map { it.uiSoundsEnabled }.distinctUntilChanged().collect { uiSounds.settingsChanged() } }
                 if (settings.state.value.startOnBoot && settings.state.value.useLocalServer) {

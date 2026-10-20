@@ -68,6 +68,7 @@ class SettingsStore(context: Context) {
         c.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
         return c.doFinal(bytes.copyOfRange(12, bytes.size)).toString(Charsets.UTF_8)
     }
+    suspend fun hasStoredSettings(): Boolean = withContext(Dispatchers.IO) { prefs.all.isNotEmpty() }
     suspend fun load() = withContext(Dispatchers.IO) { lock.withLock {
         persisted = null
         mutable.value = Settings(

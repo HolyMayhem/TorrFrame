@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setup_welcome_title">Welcome to TorrFrame</string>
+    <string name="setup_welcome_body">Let’s make the app yours. You can change every setting later.</string>
+    <string name="setup_duration">%1$d steps · about a minute</string>
+    <string name="setup_progress">Step %1$d of %2$d</string>
+    <string name="setup_skip">Skip</string>
+    <string name="setup_start">Get started</string>
+    <string name="setup_back">Back</string>
+    <string name="setup_next">Next</string>
+    <string name="setup_finish">Open TorrFrame</string>
+    <string name="setup_language_title">Choose your language</string>
+    <string name="setup_language_body">Which language would you like to use?</string>
+    <string name="setup_appearance_title">Make TorrFrame yours</string>
+    <string name="setup_appearance_body">Choose a theme and accent color. See your changes in the preview.</string>
+    <string name="setup_preview">Your TorrFrame</string>
+    <string name="setup_preview_action">Watch</string>
+    <string name="setup_phone_title">Your phone makes a great remote</string>
+    <string name="setup_phone_body">Find films with your phone’s keyboard, add magnet links and control playback — without typing with the TV remote.</string>
+    <string name="setup_phone_instruction">Connect your phone to the same Wi-Fi network and scan the QR code. No phone app is needed.</string>
+    <string name="setup_phone_optional">You can connect later. Select Next to continue.</string>
+    <string name="setup_phone_scan">Scan with your phone’s camera</string>
+    <string name="setup_phone_connected">Phone paired</string>
+    <string name="setup_server_title">Get your playback server ready</string>
+    <string name="setup_server_body">TorrServer prepares torrents for playback. It is already built into TorrFrame — no separate installation is needed.</string>
+    <string name="setup_server_builtin">Built-in · recommended</string>
+    <string name="setup_server_external">My TorrServer</string>
+    <string name="setup_server_ready">Your server is ready</string>
+    <string name="setup_server_later">You can check readiness in TorrServer settings. You can already open the app.</string>
+    <string name="setup_save_failed">Could not save your progress. Please try again.</string>
+    <string name="setup_operation_failed">Could not apply this setting. Please try again.</string>
+    <string name="setup_connection_failed">Could not change the connection. Check TorrServer settings.</string>
+    <string name="setup_reopen">First-time setup</string>
+    <string name="setup_developer_restart">Replay first launch: setup wizard</string>
+</resources>

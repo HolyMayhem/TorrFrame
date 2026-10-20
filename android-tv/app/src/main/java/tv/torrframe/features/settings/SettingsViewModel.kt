@@ -51,6 +51,7 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
             }
         }
     }
+    fun restartSetup() = graph.setup.restart()
     val developer get() = graph.developer
     val externalPlayers get() = graph.externalPlayers
     val torrentProviders get() = graph.torrentSearch.providers.map { it.id to it.name }

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setup_welcome_title">Добро пожаловать в TorrFrame</string>
+    <string name="setup_welcome_body">Давайте настроим приложение под вас. Все параметры можно изменить позже.</string>
+    <string name="setup_duration">%1$d шага · около минуты</string>
+    <string name="setup_progress">Шаг %1$d из %2$d</string>
+    <string name="setup_skip">Пропустить</string>
+    <string name="setup_start">Начать</string>
+    <string name="setup_back">Назад</string>
+    <string name="setup_next">Далее</string>
+    <string name="setup_finish">Открыть TorrFrame</string>
+    <string name="setup_language_title">Выберите язык</string>
+    <string name="setup_language_body">На каком языке вам удобнее пользоваться приложением?</string>
+    <string name="setup_appearance_title">Сделайте TorrFrame своим</string>
+    <string name="setup_appearance_body">Выберите тему и акцентный цвет. Изменения сразу видны в превью.</string>
+    <string name="setup_preview">Ваш TorrFrame</string>
+    <string name="setup_preview_action">Смотреть</string>
+    <string name="setup_phone_title">Ваш телефон — удобный пульт</string>
+    <string name="setup_phone_body">Ищите фильмы с клавиатуры телефона, добавляйте magnet-ссылки и управляйте просмотром — без долгого ввода пультом.</string>
+    <string name="setup_phone_instruction">Подключите телефон к той же Wi-Fi сети и отсканируйте QR-код. Устанавливать приложение на телефон не нужно.</string>
+    <string name="setup_phone_optional">Подключиться можно и позже. Для продолжения нажмите «Далее».</string>
+    <string name="setup_phone_scan">Наведите камеру телефона</string>
+    <string name="setup_phone_connected">Телефон привязан</string>
+    <string name="setup_server_title">Подготовьте сервер для просмотра</string>
+    <string name="setup_server_body">TorrServer подготавливает торренты для воспроизведения. Он уже встроен в TorrFrame — отдельно устанавливать его не требуется.</string>
+    <string name="setup_server_builtin">Встроенный · рекомендуется</string>
+    <string name="setup_server_external">Мой TorrServer</string>
+    <string name="setup_server_ready">Сервер готов к работе</string>
+    <string name="setup_server_later">Готовность можно проверить в настройках TorrServer. Вы уже можете открыть приложение.</string>
+    <string name="setup_save_failed">Не удалось сохранить шаг. Попробуйте ещё раз.</string>
+    <string name="setup_operation_failed">Не удалось применить настройку. Попробуйте ещё раз.</string>
+    <string name="setup_connection_failed">Не удалось изменить подключение. Проверьте настройки TorrServer.</string>
+    <string name="setup_reopen">Мастер первоначальной настройки</string>
+    <string name="setup_developer_restart">Повторить первый запуск: мастер настройки</string>
+</resources>
