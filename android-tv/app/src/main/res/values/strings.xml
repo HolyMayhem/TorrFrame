@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">TorrFrame</string>
+    <string name="app_name" translatable="false">TorrFrame</string>
     <string name="settings_title">Настройки</string>
     <string name="settings_search">Jackett</string>
     <string name="settings_torrserver">TorrServer</string>
@@ -358,4 +358,7 @@
     <string name="library_favorites">Избранное</string>
     <string name="library_watch_later">Смотреть позже</string>
     <string name="settings_use_jackett">Использовать Jackett</string>
+    <string name="ui_sounds">Звуки интерфейса</string>
+    <string name="developer_unlocked">Режим разработчика активирован</string>
+    <string name="developer_locked">Режим разработчика отключён</string>
 </resources>

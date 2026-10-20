@@ -1,123 +1,87 @@
 ![TorrFrame](icons/TorrFrame%20icon%2016x9.png)
 
-[English](README.md) · [Русский](README.ru.md)
-
 # TorrFrame
 
-TorrFrame is an app for watching movies and TV shows on Android TV. Pick a title from the catalog, find a torrent, and start watching with your regular TV remote. TorrServe is included, so there is no need to install it separately.
+### Movies, torrents, and your library on Android TV
 
-## What you can do
+Choose a title, find a torrent, and start watching — with your regular TV remote.
 
-- Browse movies and TV shows with posters, descriptions, ratings, and similar titles.
-- Find torrents with TorrentSearch and, optionally, Jackett.
-- Save titles to Favorites and Watch later.
-- Keep track of torrents added to TorrServe in your Library.
-- Use the built-in player with seeking, audio tracks, subtitles, and playback resume.
-- Watch with an installed external player.
-- Control the app from your phone's browser, including search and adding magnet links.
-- Choose Russian or English, a light or dark theme, an accent color, and the interface size.
+[Installation](#installation) · [Phone Remote](#phone-remote) · [English](README.md) · [Русский](README.ru.md)
 
-## What you need
+---
 
-A TV or streaming box running **Android TV 8.0 or later**, an internet connection, and a remote with directional buttons and OK. TorrFrame supports ARM64 and ARMv7 devices, including boxes running 32-bit Android.
+Browse the catalog, save something for later, or go straight to your library. TorrFrame brings title information, torrent search, and playback together in one app.
+
+TorrServe is built in and starts automatically. You do not need a computer or a separate server to start watching.
+
+## Features
+
+| | |
+| --- | --- |
+| **Movie and TV catalog** | Posters, descriptions, ratings, genres, and similar titles. TMDB, CUB, and automatic source selection. |
+| **Torrent search** | Find torrents with TorrentSearch. Connect your own Jackett for additional search. |
+| **Your saved titles** | Favorites and Watch later, with optional rows on the catalog home page. |
+| **TorrServe library** | Access the torrents you have added, or connect to your own external TorrServe. |
+| **Built-in player** | Seeking, audio tracks, subtitles, playback speed, and resume. You can also use an installed external player. |
+| **Phone Remote** | Browse, search, add magnet links, and control playback from your phone's browser. |
+| **Make it yours** | English and Russian, light and dark themes, accent colors, interface size, animations, and optional sounds. |
 
 ## Installation
 
-1. Download the TorrFrame APK file.
-2. Transfer it to your TV or streaming box over your local network or on a USB drive.
-3. Open the APK using a file manager on the TV. If Android asks you to allow installation from this source, enable the permission and try again.
-4. Open TorrFrame from your apps list.
+You will need a TV or streaming box running **Android TV 8.0 or later**, an internet connection, and a remote with directional buttons and OK. ARM64 and ARMv7 devices are supported, including boxes running 32-bit Android.
 
-The built-in TorrServe starts automatically. Everyday use does not require a computer, a separate server, or a CUB account.
+1. Download the **TorrFrame APK** and transfer it to your TV over your local network or on a USB drive.
+2. Open the APK using a file manager on the TV. Allow installation from this source if Android asks.
+3. Launch TorrFrame from your apps list.
 
-To update, install the new APK over the existing app. You do not need to uninstall TorrFrame first: keeping the app installed preserves your settings and library.
+On first launch, the app uses Russian, Phone Remote is enabled, and navigation hints are hidden. You can change these in settings.
+
+To update, install the new APK over the existing app without uninstalling it first. This keeps your settings and library.
 
 ## Start watching
 
-1. Open **Catalog** and choose a movie or TV show. You can search by title or browse genres.
-2. Select **TorrentSearch** on the title's details page to search for matching torrents.
-3. Choose a torrent and start playback. If it contains several video files, select the movie or episode you want.
+**Catalog → choose a title → TorrentSearch → choose a torrent → watch.**
 
-Added torrents appear in **Library**. The next time you watch, the built-in player can offer to resume from your saved position if resume is enabled in settings.
+If a torrent contains several video files, select the movie or episode you want. Added torrents appear in **Library**; they are not necessarily fully downloaded to your device.
 
-The catalog provides information about titles. A title appearing there does not guarantee an available torrent. How quickly playback starts depends on your connection and the number of peers sharing the file.
+Use the heart on a title's page for **Favorites**, or the clock for **Watch later**. These lists save titles without starting a download. Both are accessible from Catalog and Library; their home page rows can be hidden under **Settings → Catalog**.
 
-### Catalog and Library: what's the difference?
+Navigate with the directional buttons, select with **OK**, and return with **Back**. Hold **OK** on a catalog poster for its actions, or on the **Catalog** tab to return to the catalog home page.
 
-**Catalog** helps you choose what to watch. It contains collections, genres, search, and title details.
+## Phone Remote
 
-**Library** shows torrents added to TorrServe. These files are not necessarily fully downloaded to your device.
+Use TorrFrame from your phone without installing another app.
 
-**Favorites** and **Watch later** are separate lists of saved titles. Adding a title to either list does not start a download. You can access both lists from Catalog and Library.
+1. Connect your phone and TV to the **same home network**.
+2. Open **Settings → Phone Remote** on the TV. It is enabled by default.
+3. Scan the QR code, or open the displayed address in your browser and enter the on-screen code.
 
-### Favorites and Watch later
+The phone interface has four tabs: **Search**, **Library**, **Remote**, and **Settings**. Browse the catalog, find torrents, paste a magnet link, or manage your saved titles. Favorites, Watch later, and Library are shared with the TV. The phone's language can be changed independently.
 
-On a title's details page, select the heart to add it to Favorites or the clock to save it for later. Select the icon again to remove the title from that list.
+Playback controls work with TorrFrame's built-in player. External player features depend on the app you choose.
 
-You can also hold **OK** on a catalog poster and choose an action from the menu.
+## Catalog sources
 
-In **Settings → Catalog**, you can show or hide the Favorites and Watch later rows at the top of the catalog home page. Hiding a row does not remove your saved titles.
+**TMDB** is selected by default. Choose **CUB** or **automatic mode** under **Settings → Catalog**. Automatic mode tries TMDB first and uses CUB if loading collections or search fails. A CUB account is not required.
 
-## Using your TV remote
+Full title details and similar titles still use TMDB in every mode. Posters have separate fallback addresses. Availability of these services depends on your network and internet provider; switching sources may not resolve every loading problem.
 
-| Button | Action |
-| --- | --- |
-| Directional buttons | Move between items |
-| OK | Open or select |
-| Back | Close a menu or return to the previous screen |
-| Hold OK on a catalog poster | Open the Favorites and Watch later menu |
-| Hold OK on the Catalog tab | Return to the catalog home page |
+The catalog helps you choose what to watch. Torrent availability and playback speed depend on the search sources, your connection, and the peers sharing the file.
 
-In the built-in player, **OK** reveals the controls. Use the playback button to pause or resume, and left/right on the progress bar to seek. The player menus let you choose audio tracks, subtitles, and playback speed.
+## Optional search with Jackett
 
-## Control from your phone
+If you use Jackett, enable it under **Settings → Jackett** and enter your server address and API key. A Jackett search button will appear on title pages.
 
-Phone Remote lets you use TorrFrame from your phone's browser. You do not need to install a separate phone app.
+Jackett is optional. Leave it disabled to use TorrentSearch on its own.
 
-1. Connect your phone and TV to the same home network.
-2. On the TV, open **Settings → Phone Remote** and enable it.
-3. Display the QR code and scan it with your phone. Alternatively, open the address shown on the TV in your browser and enter the on-screen code.
+## Appearance and sounds
 
-The phone interface has four tabs:
+Open the round gear button, then **Appearance**, to change the language, theme, accent color, interface size, and animations.
 
-- **Search** — the movie and TV catalog, plus torrent search.
-- **Library** — added torrents and magnet link input.
-- **Remote** — playback controls for your TV.
-- **Settings** — app and server preferences.
-
-Favorites, Watch later, and Library are shared between the TV and phone. You can switch the phone interface between English and Russian independently of the TV language.
-
-Phone Remote's playback controls work with the built-in player. External player features depend on the app you choose.
-
-## Useful settings
-
-Open settings using the round gear button in the upper-right corner.
-
-- **Catalog** — choose TMDB, CUB, or automatic mode, and show or hide your personal rows.
-- **TorrentSearch** — search sources, quality, file size, and other torrent filters.
-- **Jackett** — enable optional search and enter your Jackett address and API key. Leave it disabled if you do not use Jackett.
-- **Playback** — choose the built-in or an external player, playback resume, and preferred track languages.
-- **Appearance** — language, theme, accent color, interface size, animations, and navigation hints.
-- **TorrServer** — configure the built-in server or connect to your own external server.
-
-### Choosing a catalog source
-
-**TMDB** is selected by default. In **automatic mode**, TorrFrame tries TMDB first and falls back to CUB if loading collections or search fails. You can also select **CUB** manually.
-
-Full descriptions and similar titles still come from TMDB in every mode. Switching to CUB may therefore not resolve a problem with loading a full details page. Posters use separate fallback addresses regardless of the catalog source.
-
-## If something isn't working
-
-**The catalog or posters won't load.** Check the TV's connection, retry, and try automatic catalog mode. Access to TMDB, CUB, and image servers depends on your network and internet provider. One of these services can fail even when the rest of the internet works.
-
-**Torrent search finds nothing.** Check the enabled sources and filters in TorrentSearch settings. Try the movie's original title. A third-party source may be temporarily unavailable on your network.
-
-**Playback takes a long time to start or keeps stopping.** Try a torrent with more seeders or a smaller file. Playback depends on both your network speed and the availability of the torrent itself.
-
-**Phone Remote won't open.** Make sure the phone and TV really are on the same network and Phone Remote is enabled. Display the QR code again: the TV's address may have changed after switching networks. Guest Wi-Fi may prevent devices from communicating with each other.
-
-**The interface is too large or too small.** Adjust the interface size under Appearance. You can also disable animations there if they do not run smoothly on your device.
+Quiet interface sounds and the startup sound are enabled by default. Turn them off with **Interface sounds** in the same section. Movie and TV audio is controlled separately.
 
 ## Acknowledgements
 
-TorrFrame uses [TorrServer](https://github.com/YouROK/TorrServer), data from [TMDB](https://www.themoviedb.org/), the public [CUB](https://tmdb.cub.best/) catalog, and work from [TorrentSearch](https://github.com/prajwalch/TorrentSearch). Third-party licenses are available under About.
+TorrFrame is an independent project using [TorrServer](https://github.com/YouROK/TorrServer), data from [TMDB](https://www.themoviedb.org/), the public [CUB](https://tmdb.cub.best/) catalog, and work from [TorrentSearch](https://github.com/prajwalch/TorrentSearch).
+
+Thank you to their authors and contributors. Third-party licenses are available in **About**.

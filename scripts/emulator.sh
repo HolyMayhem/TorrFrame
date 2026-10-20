@@ -6,7 +6,7 @@ EMULATOR_BIN="$ANDROID_HOME/emulator/emulator"
 EMULATOR_GPU=swiftshader
 # Qt plugin discovery fails when this macOS emulator lives in a path with spaces.
 if [ "$(uname -s)" = Darwin ]; then
-    for TASK_EMULATOR_DIR in "$HOME/Library/Android/torrframe" "$HOME/Library/Android/torrserve-silicon"; do
+    for TASK_EMULATOR_DIR in "$HOME/Library/Android/torrframe"; do
         if [ -x "$TASK_EMULATOR_DIR/emulator/emulator" ]; then
             EMULATOR_BIN="$TASK_EMULATOR_DIR/emulator/emulator"
             EMULATOR_GPU=host

@@ -1,6 +1,22 @@
-# Temporary developer menu
+# Developer menu
 
-The **Developer menu / Меню разработчика** category is available in debug builds. It uses session-only `DeveloperControls`; no credentials, production settings, library records or poster caches are deleted or changed by its switches. Activity recreation keeps the session, process restart resets it. **Reset test switches** disables all overrides and reloads the current catalog view through the ordinary repository, clearing a previous simulated error when the source is reachable. Reload revisions remain monotonic across resets.
+The **Developer menu / Меню разработчика** category is available in all builds.
+Debug builds show it by default, unless explicitly disabled. In optimized/release builds, focus the settings
+gear and hold OK for five continuous seconds. A brief text-only bottom notification confirms
+“Developer mode enabled” / “Режим разработчика активирован”. Releasing a shorter
+press still opens ordinary settings; a completed hold does not also open them.
+Pointer press-and-hold follows the same five-second rule. Focus loss, cancellation
+or backgrounding cancels the pending key hold.
+
+Hold the same gear for five seconds again to disable developer mode. This hides
+the category and diagnostic panel, cancels pending startup previews, and resets any
+simulated failures. Ordinary app settings and media remain intact. The gear uses
+the same pressed-state animation as other buttons throughout the whole hold,
+including cancellation and focus loss. Notifications contain no app icon.
+
+Menu access is saved locally in `developer-access` preferences and survives a new
+process, including an explicitly disabled state in debug builds. It is not an authentication boundary or exposed through Phone Remote.
+The tools use session-only `DeveloperControls`; no credentials, production settings, library records or poster caches are deleted or changed by its switches. Activity recreation keeps the session, process restart resets it. **Reset test switches** disables all overrides and reloads the current catalog view through the ordinary repository, clearing a previous simulated error when the source is reachable. Reload revisions remain monotonic across resets.
 
 Controls:
 - Missing-key simulation for TMDB, OMDb and Kinopoisk independently: raises the existing authentication error before sending a request.
@@ -14,7 +30,7 @@ Existing library metadata and posters remain in place. To test failed metadata e
 
 The library uses the existing local process and connection states to distinguish startup, a stopped server, unavailability, authentication failures and invalid API responses. Failed library synchronization also prevents an empty-library claim. Previously saved cards remain available with a compact status banner. A successful refresh or connection recovery restores the ordinary view.
 
-Tests cover disabled release controls, request scoping, zero outbound requests for injected failures, cache preservation and provider fallback, catalog reload deduplication, actual server stop/restart, simulation without a process restart, D-pad focus and both UI languages.
+Tests cover initially locked release controls, request scoping, zero outbound requests for injected failures, cache preservation and provider fallback, catalog reload deduplication, actual server stop/restart, simulation without a process restart, D-pad focus and both UI languages.
 
 ## Verified recovery, 2026-10-16
 
@@ -35,7 +51,7 @@ This emulator setting is separate from the application and is not bundled in the
 
 ## Diagnostic panel
 
-In a debug build, open **Settings → Developer menu → Diagnostic panel**.
+After unlocking (or directly in a debug build), open **Settings → Developer menu → Diagnostic panel**.
 The panel is off by default, survives Activity recreation, and resets on process
 restart. Its switch is independent of fault injection: **Reset test switches**
 keeps the panel visible so recovery can be inspected.
@@ -58,7 +74,8 @@ player without covering its transport controls. It shows:
 
 Metrics are sampled every two seconds on a background dispatcher only while the
 panel's Activity is STARTED. Hiding it cancels sampling; returning from background
-starts a fresh CPU baseline. Network state is process-only, bounded to eight
+starts a fresh CPU baseline. Network observation is available in every build, even before menu unlock; it is
+process-only, bounded to eight
 hosts, and contains no full URLs, request queries, API keys, response bodies or
 exception messages. DNS, TLS and connection exceptions retain their original
 cause in the HTTP layer so the diagnostic category is not lost.

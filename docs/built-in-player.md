@@ -96,11 +96,11 @@ app internals and asserts a genuinely playing platform MediaSession:
 
 ```sh
 scripts/build-local.sh :app:assembleDebugAndroidTest \
-  -PplayerSmokeRunner=tv.torrserve.silicon.PlatformPlayerSmokeInstrumentation
+  -PplayerSmokeRunner=tv.torrframe.PlatformPlayerSmokeInstrumentation
 adb install -r <preview-signed-release.apk>
 adb install -r <app-debug-androidTest.apk>
 adb shell am instrument -w -r \
-  tv.torrserve.silicon.test/tv.torrserve.silicon.PlatformPlayerSmokeInstrumentation
+  tv.torrframe.test/tv.torrframe.PlatformPlayerSmokeInstrumentation
 ```
 
 Normal tests keep the default AndroidJUnitRunner; omit `playerSmokeRunner`.

@@ -50,6 +50,7 @@ export interface Settings {
   uiAccent: string;
   uiScalePercent: number;
   animationsEnabled: boolean;
+  uiSoundsEnabled: boolean;
   showNavigationHints: boolean;
   playerMode: string;
   externalPlayer: string;

@@ -1,6 +1,6 @@
 # Phone Remote
 
-Phone Remote — дополнительный локальный интерфейс TorrFrame. По умолчанию выключен.
+Phone Remote — дополнительный локальный интерфейс TorrFrame. При первой установке включён; сохранённый выбор пользователя сохраняется при обновлении.
 Основные экраны TV, поиск, SQLite-медиатека, настройки, встроенный TorrServer и
 Media3-плеер работают независимо от него. Модуль не запускается из BOOT_COMPLETED.
 
@@ -51,7 +51,7 @@ cookie привязана браузером к прежнему IP, поэто�
 ## Архитектура и файлы
 
 Новые Android-компоненты находятся в
-`android-tv/app/src/main/java/tv/torrserve/silicon/phoneRemote/`:
+`android-tv/app/src/main/java/tv/torrframe/phoneRemote/`:
 
 | Каталог | Ответственность |
 | --- | --- |

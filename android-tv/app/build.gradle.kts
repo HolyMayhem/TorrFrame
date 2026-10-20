@@ -25,11 +25,11 @@ require(selectedServerAbis.all { it in supportedServerAbis }) { "Supported TorrS
 android {
     // Both UI languages must remain available for in-app switching, including in bundles.
     bundle { language { enableSplit = false } }
-    // Stable Android identity: TorrFrame updates the installed app and keeps its data.
-    namespace = "tv.torrserve.silicon"
+    // Source code and generated R/BuildConfig use the TorrFrame namespace.
+    namespace = "tv.torrframe"
     compileSdk = 37
     defaultConfig {
-        applicationId = "tv.torrserve.silicon"
+        applicationId = "tv.torrframe"
         minSdk = 26
         targetSdk = 37
         versionCode = 11
@@ -131,7 +131,7 @@ val buildPhoneRemoteWeb = tasks.register<Exec>("buildPhoneRemoteWeb") {
     inputs.dir(phoneWeb.dir("src"))
     inputs.files(phoneWeb.file("index.html"), phoneWeb.file("branding.mjs"), phoneWeb.file("vite.config.js"),
         phoneWeb.file("tsconfig.json"), phoneWeb.file("package.json"), phoneWeb.file("package-lock.json"),
-        rootProject.layout.projectDirectory.file("../icons/TorrFrame FrameElement.png"))
+        rootProject.layout.projectDirectory.file("../icons/TorrFrame square icon ver2.png"))
     outputs.dir(layout.projectDirectory.dir("src/main/assets/phone-remote"))
 }
 tasks.named("preBuild") { dependsOn(buildPhoneRemoteWeb) }

@@ -32,6 +32,6 @@ def export(source: str, folder: str, name: str, base_size: tuple[int, int]) -> N
 
 
 if __name__ == "__main__":
-    export("TorrFrame square icon.png", "mipmap", "app_icon", (80, 80))
+    export("TorrFrame square icon ver2.png", "mipmap", "app_icon", (80, 80))
     export("TorrFrame icon 16x9.png", "drawable", "tv_banner", (160, 90))
     export("TorrFrame FrameElement.png", "drawable", "brand_mark", (32, 32))

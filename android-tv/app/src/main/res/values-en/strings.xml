@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">TorrFrame</string>
     <string name="settings_title">Settings</string>
     <string name="settings_search">Jackett</string>
     <string name="settings_torrserver">TorrServer</string>
@@ -355,4 +354,7 @@
     <string name="library_favorites">Favorites</string>
     <string name="library_watch_later">Watch later</string>
     <string name="settings_use_jackett">Use Jackett</string>
+    <string name="ui_sounds">Interface sounds</string>
+    <string name="developer_unlocked">Developer mode enabled</string>
+    <string name="developer_locked">Developer mode disabled</string>
 </resources>

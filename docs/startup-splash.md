@@ -1,9 +1,23 @@
 # Animated startup
 
-The launcher uses the supplied `icons/Welcome Clip.mp4`, packaged byte-for-byte as
-`app/src/main/res/raw/welcome_clip.mp4`. It is H.264/AVC, 1920×1080, approximately
-60 fps, 2.667 seconds, with no audio track. No re-encoding or additional cropping
-is applied. The original animation, including its final zoom, is preserved.
+The launcher uses the supplied `icons/Welcome Clip.mp4`, with an original quiet
+startup sound muxed into `app/src/main/res/raw/welcome_clip.mp4`. The H.264/AVC
+video is 1920×1080, 60 fps, 2.683 seconds. All 161 compressed video samples are
+byte-identical to the original; there is no video re-encoding or additional cropping.
+The original animation, color metadata and final zoom are preserved.
+
+A stereo AAC track adds a soft original chord and airy motion. It has a quiet gap
+around 2 seconds, so a freeze does not chop a sustained note. The approved 2.667-second
+soundtrack is kept intact; an extended video can continue after the sound ends. Audio and video share
+the same player and media timeline, pausing/resuming together. The existing
+“Appearance → Interface sounds” switch also mutes this track. Startup remains muted
+until saved preferences have loaded, so a previously disabled setting never leaks
+sound on cold launch. The animation continues while preferences load.
+
+Reproducible source: `scripts/startup-sound/generate.py` and `mux.swift`. The former
+creates a 48 kHz stereo WAV with −20 dBFS peak; encode to AAC with macOS `afconvert`,
+then mux using AVFoundation passthrough. The muxer verifies compressed video digests
+and duration before accepting its output.
 
 The video and normal local initialization run concurrently. At media position 1,900 ms,
 readiness is checked. If still unready at 2,000 ms, the same player pauses and seeks to
@@ -31,8 +45,8 @@ stays mounted beneath the cover throughout; optional network work never gates it
 - `StartupSplash.kt` composes the existing content immediately, intercepts input
   while covered, owns the black/fade presentation and lifecycle observers.
 - `StartupVideoPlayer.kt` owns at most one local ExoPlayer for that startup. It uses
-  the existing Media3 dependencies, filters out software codecs, disables extension
-  renderers, audio/text tracks, audio focus and looping, and releases on end, error,
+  the existing Media3 dependencies, filters out software video codecs, disables extension
+  renderers, text tracks, audio focus and looping, and releases on end, error,
   disposal or backgrounding. No playback service/media session is created.
 - The video surface is a TextureView inside a centered FIT AspectRatioFrameLayout.
   There are no player controls. Letterboxing uses the black cover underneath it.
@@ -67,18 +81,18 @@ Fade progress also uses the process timestamp so recreation cannot reset it to b
 
 ## Developer previews
 
-Debug Settings → Developer offers a normal replay and a slow-load replay. Each is
+Settings → Developer (after unlocking in optimized builds) offers a normal replay and a slow-load replay. Each is
 consumed once and recreates the launcher Activity with fresh screen state. The slow
 variant withholds UI readiness until at least seven seconds after the sequence starts,
 using a cancellable coroutine delay, without blocking or stressing the UI thread.
 The AppGraph/process, settings, files and caches remain intact: these are startup
 presentation simulations rather than a full cold-process benchmark. Normal Activity
-recreation and foreground return do not replay the intro. Release controls are inert.
+recreation and foreground return do not replay the intro. Release controls remain inert until the menu is unlocked.
 
 ## Verification
 
 - 206 app JVM tests pass, including readiness races, long frozen waits, tail resumption,
-  500 ms fading, one-shot previews and disabled Release controls.
+  500 ms fading, one-shot previews and initially locked Release controls.
 - Android instrumentation exercises hardware decoding, a video frame held longer than the
   six-second playback watchdog, missing media, recreation, background/resume and Back.
   The hold test checks unchanged TextureView identity and decoded pixels across the wait.

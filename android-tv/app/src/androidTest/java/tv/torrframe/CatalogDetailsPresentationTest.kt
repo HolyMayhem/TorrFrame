@@ -1,0 +1,313 @@
+package tv.torrframe
+
+import android.view.KeyEvent
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
+import java.net.ServerSocket
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
+import org.junit.Assert.*
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import tv.torrframe.features.catalog.domain.*
+import tv.torrframe.features.catalog.presentation.*
+import tv.torrframe.ui.components.LocalUiLanguage
+import tv.torrframe.ui.theme.TorrFrameTheme
+
+@RunWith(AndroidJUnit4::class)
+class CatalogDetailsPresentationTest {
+    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    private var backCalls = 0
+    private var torrentCalls = 0
+    private var jackettCalls = 0
+    private fun details(backdrop: String = "", type: CatalogType = CatalogType.Movie) = CatalogDetails(
+        CatalogItem(CatalogRef(157336, type), "Интерстеллар", "Interstellar", backdrop = backdrop,
+            date = "2014-11-05", rating = 8.6, votes = 12345),
+        "Полное описание фильма. ".repeat(25) + "Конец описания.", listOf("Драма", "Фантастика"), 169,
+        listOf("Кристофер Нолан"), listOf("Мэттью Макконахи", "Энн Хэтэуэй"),
+        if (type == CatalogType.Tv) 3 else null, if (type == CatalogType.Tv) 30 else null,
+        if (type == CatalogType.Tv) "Returning Series" else "", "2026-01-02")
+
+    private fun setup(value: CatalogDetails, scale: Int = 85, light: Boolean = false, language: String = "ru", actions: Boolean = false, jackettEnabled: Boolean = true): MutableState<CatalogDetails> {
+        val data = mutableStateOf(value)
+        compose.runOnUiThread {
+            compose.activity.setContent {
+                TorrFrameTheme(scale, light, animationsEnabled = false) {
+                    CompositionLocalProvider(LocalUiLanguage provides language) {
+                        BackHandler { backCalls++ }
+                        // Match the bounded viewport supplied by the application's main content area.
+                        Box(Modifier.fillMaxSize()) {
+                            CatalogDetailsScreen(CatalogUi(selected = data.value.item.ref,
+                                details = CatalogLoad(data.value), listsReady = true), back = { backCalls++ },
+                                torrentSearch = if(actions){{ torrentCalls++ }}else null,
+                                jackettEnabled = actions && jackettEnabled,
+                                jackettSearch = if(actions){{ jackettCalls++ }}else null,
+                                toggleList = if(actions){{ _, _ -> }}else null, retry = {})
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("catalog:back").assertIsFocused()
+        return data
+    }
+    private fun remote(key: Int) {
+        compose.waitForIdle()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(key)
+        compose.waitForIdle()
+    }
+    private fun waitForPosterLayout() = compose.waitUntil(5000) {
+        compose.onAllNodesWithTag("catalog:detail:posterLayout").fetchSemanticsNodes().isNotEmpty()
+    }
+    private fun image(): File = File(compose.activity.cacheDir, "detail-backdrop-${System.nanoTime()}.png").also { file ->
+        compose.activity.resources.openRawResource(R.drawable.brand_mark).use { input ->
+            file.outputStream().use { input.copyTo(it) }
+        }
+    }
+    private fun textLayout(tag: String): TextLayoutResult {
+        val results=mutableListOf<TextLayoutResult>()
+        compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(results) }
+        return results.single()
+    }
+    private fun baseline(tag: String, last: Boolean): Float {
+        val result=textLayout(tag)
+        val top=compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.top
+        return top + if(last) result.lastBaseline else result.firstBaseline
+    }
+
+    @Test fun missingBackdropUsesLargePosterAndFullSynopsisWithRemoteFocus() {
+        val value = details()
+        setup(value)
+        compose.onNodeWithTag("catalog:detail:posterLayout").assertExists()
+        compose.onNodeWithTag("catalog:detail:cinematic").assertDoesNotExist()
+        compose.onNodeWithTag("catalog:detail:fullOverview").assertTextEquals(value.overview)
+        compose.onAllNodesWithText(value.overview).assertCountEquals(1)
+        remote(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.onNodeWithTag("catalog:detail:hero").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.onNodeWithTag("catalog:detail:overview").assertIsFocused()
+        remote(KeyEvent.KEYCODE_BACK)
+        assertEquals(1, backCalls)
+    }
+
+    @Test fun validBackdropUsesCinemaAndChangingTitleResetsImageFailure() {
+        val file = image()
+        try {
+            val data = setup(details("file:///missing-backdrop-${System.nanoTime()}.jpg"))
+            waitForPosterLayout()
+            compose.onNodeWithTag("catalog:back").assertIsFocused()
+            compose.runOnUiThread { data.value = details(file.toURI().toString()).let {
+                it.copy(item = it.item.copy(ref = CatalogRef(999, CatalogType.Movie)))
+            } }
+            compose.waitUntil(5000) { compose.onAllNodesWithTag("catalog:detail:cinematic").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitForIdle()
+            compose.onNodeWithTag("catalog:detail:posterLayout").assertDoesNotExist()
+            compose.onNodeWithTag("catalog:detail:preview").assertDoesNotExist()
+            compose.onNodeWithText("↓  Полное описание и актёры").assertDoesNotExist()
+            compose.onNodeWithTag("catalog:back").assertIsFocused()
+            remote(KeyEvent.KEYCODE_DPAD_DOWN)
+            compose.onNodeWithTag("catalog:detail:hero").assertIsFocused()
+            remote(KeyEvent.KEYCODE_DPAD_DOWN)
+            compose.onNodeWithTag("catalog:detail:overview").assertIsFocused()
+            compose.onNodeWithTag("catalog:detail:fullOverview").assertTextEquals(data.value.overview)
+            compose.onAllNodesWithText(data.value.overview).assertCountEquals(1)
+            remote(KeyEvent.KEYCODE_DPAD_UP)
+            compose.onNodeWithTag("catalog:detail:hero").assertIsFocused()
+        } finally { file.delete() }
+    }
+
+    @OptIn(coil3.annotation.ExperimentalCoilApi::class)
+    @Test fun delayedImageErrorSwitchesToPosterAndKeepsFocusedHeading() {
+        // A loopback fixture remains reachable when Android reports no validated Internet.
+        val originalLoader=coil3.SingletonImageLoader.get(compose.activity)
+        val graph=(compose.activity.application as TorrFrameApplication).graph
+        val fixtureLoader=coil3.ImageLoader.Builder(compose.activity).components {
+            add(coil3.network.NetworkFetcher.Factory(networkClient={graph.imageNetwork},
+                connectivityChecker={coil3.network.ConnectivityChecker.ONLINE}))
+        }.build()
+        coil3.SingletonImageLoader.setUnsafe(fixtureLoader)
+        try {
+        ServerSocket(0).use { server ->
+            val requested = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val worker = thread(name = "failed-catalog-image", isDaemon = true) {
+                runCatching { server.accept().use { socket ->
+                    socket.soTimeout = 5000
+                    val reader = socket.getInputStream().bufferedReader()
+                    while (!reader.readLine().isNullOrBlank()) { }
+                    requested.countDown()
+                    release.await(20, TimeUnit.SECONDS)
+                    socket.getOutputStream().write("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
+                } }
+            }
+            try {
+                setup(details("http://127.0.0.1:${server.localPort}/missing.jpg"))
+                assertTrue(requested.await(5, TimeUnit.SECONDS))
+                remote(KeyEvent.KEYCODE_DPAD_DOWN)
+                compose.onNodeWithTag("catalog:detail:hero").assertIsFocused()
+                release.countDown()
+                waitForPosterLayout()
+                compose.onNodeWithTag("catalog:detail:hero").assertIsFocused()
+                remote(KeyEvent.KEYCODE_DPAD_UP)
+                compose.onNodeWithTag("catalog:back").assertIsFocused()
+                remote(KeyEvent.KEYCODE_DPAD_CENTER)
+                assertEquals(1, backCalls)
+            } finally { release.countDown(); worker.join(1000) }
+        }
+        } finally { coil3.SingletonImageLoader.setUnsafe(originalLoader);fixtureLoader.shutdown() }
+    }
+
+    @Test fun fallbackRetainsTvMetadataAndFitsBothThemeScaleExtremes() {
+        for ((scale, light) in listOf(110 to true, 70 to false)) {
+            setup(details(type = CatalogType.Tv), scale, light)
+            val screen = compose.onNodeWithTag("catalog:details").fetchSemanticsNode().boundsInRoot
+            val poster = compose.onNodeWithTag("catalog:detail:poster").fetchSemanticsNode().boundsInRoot
+            val title = compose.onNodeWithTag("catalog:detail:title").fetchSemanticsNode().boundsInRoot
+            assertTrue(poster.right < title.left)
+            assertTrue(poster.left >= screen.left && title.right <= screen.right)
+            compose.onNodeWithTag("catalog:detail:scroll").performScrollToNode(hasTestTag("catalog:detail:credits"))
+            compose.onNodeWithText("Сезонов: 3  ·  Эпизодов: 30").assertExists()
+            compose.onNodeWithText("Статус: Продолжается").assertExists()
+            compose.onNodeWithText("Последний выпуск: 2 января 2026").assertExists()
+        }
+    }
+
+    @Test fun cinemaBackIsInsideBannerTitleIsAtBottomAndLargerPosterOverlapsOnlyTheEdge() {
+        val file = image()
+        try {
+            for ((scale, light) in listOf(110 to true, 70 to false)) {
+                setup(details(file.toURI().toString()), scale, light)
+                val screen = compose.onNodeWithTag("catalog:details").fetchSemanticsNode().boundsInRoot
+                val banner = compose.onNodeWithTag("catalog:detail:cinematic").fetchSemanticsNode().boundsInRoot
+                val button = compose.onNodeWithTag("catalog:back").fetchSemanticsNode().boundsInRoot
+                val title = compose.onNodeWithTag("catalog:detail:title").fetchSemanticsNode().boundsInRoot
+                val poster = compose.onNodeWithTag("catalog:detail:poster").fetchSemanticsNode().boundsInRoot
+                assertTrue("Banner starts directly below the main navigation", banner.top - screen.top < screen.height * .03f)
+                assertTrue("Back is on the banner", button.top >= banner.top && button.bottom < banner.bottom)
+                assertTrue("Title is at the bottom beside the left poster", title.center.y > banner.center.y && title.left > poster.right)
+                assertTrue("Title stays clear of the poster", poster.right < title.left)
+                assertTrue("Poster is larger: poster=$poster banner=$banner scale=$scale", poster.width / banner.width >= .18f)
+                assertTrue("Poster hangs below the banner", poster.top < banner.bottom && poster.bottom > banner.bottom)
+                assertTrue("Most of the banner remains uncovered", (banner.bottom - poster.top) * poster.width < banner.width * banner.height * .2f)
+                remote(KeyEvent.KEYCODE_DPAD_DOWN)
+                compose.onNodeWithTag("catalog:detail:hero").assertIsFocused()
+                remote(KeyEvent.KEYCODE_DPAD_UP)
+                compose.onNodeWithTag("catalog:back").assertIsFocused()
+            }
+        } finally { file.delete() }
+    }
+
+    @Test fun accentValuesAndCaptionsAlignForWrappedTextBothLanguagesAndScaleExtremes() {
+        val file=image()
+        try {
+            for ((scale,light,language) in listOf(Triple(110,true,"ru"),Triple(70,false,"en"))) {
+                val value=details(file.toURI().toString()).copy(
+                    directors=listOf("Кристофер Нолан", "Очень длинное имя второго режиссёра"),
+                    genres=listOf("Приключения", "Драма", "Научная фантастика", "Мистический триллер"))
+                setup(value,scale,light,language)
+                compose.onNodeWithTag("catalog:detail:stats").performScrollTo()
+                for (keys in listOf(listOf("rating","director","premiere"),listOf("runtime","genres","original"))) {
+                    val values=keys.map { baseline("catalog:stat:$it:value",last=true) }
+                    val captions=keys.map { baseline("catalog:stat:$it:label",last=false) }
+                    keys.forEachIndexed { index,key ->
+                        assertEquals("Value baseline for $key",values.first(),values[index],2f)
+                        assertEquals("Caption baseline for $key",captions.first(),captions[index],2f)
+                        assertEquals("Value-to-caption interval for $key",captions.first()-values.first(),captions[index]-values[index],2f)
+                        assertEquals(14.sp,textLayout("catalog:stat:$key:label").layoutInput.style.fontSize)
+                    }
+                }
+                compose.onAllNodesWithText(value.item.originalTitle).assertCountEquals(1)
+                compose.onNodeWithTag("catalog:stat:director:value").assertTextEquals(value.directors.joinToString(", "))
+                compose.onNodeWithTag("catalog:stat:genres:value").assertTextEquals(value.genres.joinToString(" · "))
+                val stats=compose.onNodeWithTag("catalog:detail:stats").fetchSemanticsNode().boundsInRoot
+                val poster=compose.onNodeWithTag("catalog:detail:poster").fetchSemanticsNode().boundsInRoot
+                assertTrue("Information stays right of the poster",poster.right < stats.left)
+            }
+        } finally { file.delete() }
+    }
+    @Test fun missingOptionalMetadataDoesNotCreateEmptyCaptionsOrDuplicateSynopsis() {
+        val file=image()
+        try {
+            val base=details(file.toURI().toString())
+            val value=base.copy(item=base.item.copy(originalTitle="",date="",votes=0),runtime=null,genres=emptyList(),directors=emptyList())
+            setup(value)
+            for(key in listOf("rating","director","premiere","runtime","genres","original"))
+                compose.onNodeWithTag("catalog:stat:$key:label").assertDoesNotExist()
+            remote(KeyEvent.KEYCODE_DPAD_DOWN);remote(KeyEvent.KEYCODE_DPAD_DOWN)
+            compose.onNodeWithTag("catalog:detail:overview").assertIsFocused()
+            compose.onAllNodesWithText(value.overview).assertCountEquals(1)
+        } finally { file.delete() }
+    }
+    @Test fun searchAndIconActionsAlignBelowTitleAndNavigateWithRemote() {
+        val file=image()
+        try {
+            for ((scale,light,language) in listOf(Triple(110,true,"ru"),Triple(70,false,"en"))) {
+                for(backdrop in listOf("",file.toURI().toString())) {
+                    setup(details(backdrop),scale,light,language,actions=true)
+                    compose.onNodeWithTag("catalog:torrentsearch").performScrollTo()
+                    val poster=compose.onNodeWithTag("catalog:detail:poster").fetchSemanticsNode().boundsInRoot
+                    val title=compose.onNodeWithTag("catalog:detail:title").fetchSemanticsNode().boundsInRoot
+                    val tags=listOf("catalog:torrentsearch","catalog:jackett","catalog:favorite","catalog:watch-later")
+                    val buttons=tags.map { compose.onNodeWithTag(it).fetchSemanticsNode().boundsInRoot }
+                    assertTrue(buttons.first().top>=title.bottom)
+                    buttons.forEach { assertEquals(buttons.first().top,it.top,1f);assertEquals(buttons.first().height,it.height,1f);assertTrue(poster.right<it.left) }
+                    assertEquals(buttons[0].width,buttons[1].width,1f)
+                    buttons.drop(2).forEach { assertEquals(it.width,it.height,1f);assertTrue(it.width<buttons.first().width) }
+                    buttons.zipWithNext().forEach { (a,b)->assertTrue(a.right<b.left) }
+                    for(tag in tags.take(2))compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { layouts ->
+                        val result=mutableListOf<TextLayoutResult>();layouts(result);assertFalse("Truncated action $tag at scale $scale",result.single().hasVisualOverflow)
+                    }
+                    compose.onNodeWithTag(tags.first()).performSemanticsAction(SemanticsActions.RequestFocus)
+                    remote(KeyEvent.KEYCODE_DPAD_RIGHT);compose.onNodeWithTag("catalog:jackett").assertIsFocused()
+                    remote(KeyEvent.KEYCODE_DPAD_CENTER);compose.onNodeWithTag("catalog:jackett:placeholder").assertDoesNotExist()
+                    compose.onNodeWithTag("catalog:jackett").assertIsFocused()
+                    remote(KeyEvent.KEYCODE_DPAD_RIGHT);compose.onNodeWithTag("catalog:favorite").assertIsFocused()
+                    remote(KeyEvent.KEYCODE_DPAD_RIGHT);compose.onNodeWithTag("catalog:watch-later").assertIsFocused()
+                    remote(KeyEvent.KEYCODE_DPAD_LEFT);remote(KeyEvent.KEYCODE_DPAD_LEFT);remote(KeyEvent.KEYCODE_DPAD_LEFT)
+                    compose.onNodeWithTag("catalog:torrentsearch").assertIsFocused();remote(KeyEvent.KEYCODE_DPAD_CENTER)
+                    remote(KeyEvent.KEYCODE_DPAD_UP);compose.onNodeWithTag("catalog:back").assertIsFocused()
+                }
+            }
+            assertEquals(4,torrentCalls);assertEquals(4,jackettCalls)
+        } finally { file.delete() }
+    }
+
+    @Test fun disabledJackettIsAbsentAndRemoteSkipsIt() {
+        setup(details(), actions = true, jackettEnabled = false)
+        compose.onNodeWithTag("catalog:jackett").assertDoesNotExist()
+        compose.onNodeWithTag("catalog:torrentsearch").performSemanticsAction(SemanticsActions.RequestFocus)
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        compose.onNodeWithTag("catalog:favorite").assertIsFocused()
+        remote(KeyEvent.KEYCODE_DPAD_RIGHT)
+        compose.onNodeWithTag("catalog:watch-later").assertIsFocused()
+    }
+
+    @Test fun failedBackdropRecoversOnTheSameMovieWithoutLosingRemoteFocus() {
+        val pending = File(compose.activity.cacheDir, "recovering-backdrop-${System.nanoTime()}.png")
+        try {
+            setup(details(pending.toURI().toString()))
+            waitForPosterLayout()
+            remote(KeyEvent.KEYCODE_DPAD_DOWN)
+            compose.onNodeWithTag("catalog:detail:hero").assertIsFocused()
+            compose.activity.resources.openRawResource(R.drawable.brand_mark).use { input -> pending.outputStream().use { input.copyTo(it) } }
+            compose.waitUntil(8_000) { compose.onAllNodesWithTag("catalog:detail:posterLayout").fetchSemanticsNodes().isEmpty() }
+            compose.onNodeWithTag("catalog:detail:cinematic").assertIsDisplayed()
+            compose.onNodeWithTag("catalog:detail:hero").assertIsFocused()
+        } finally { pending.delete() }
+    }
+
+}

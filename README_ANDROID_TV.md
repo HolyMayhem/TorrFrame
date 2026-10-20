@@ -1,21 +1,34 @@
 # TorrFrame — Android TV
 
 Самостоятельное нативное приложение для Android TV, Kotlin и Compose for TV.
-Исходники Android находятся в `android-tv/`; macOS-приложение не изменялось.
+Исходники приложения находятся в `android-tv/`.
 
 Новый раздел настроек TorrServer: [возможности, API и проверки](docs/android-tv-torrserver-settings.md).
+
+## Название и идентификатор приложения
+
+Название приложения на всех языках — **TorrFrame**. Идентификатор Android APK,
+пространство имён исходников и тестов — `tv.torrframe`.
+Плитка Android TV напрямую открывает `tv.torrframe.MainActivity`.
+
+Сборка с новым идентификатором устанавливается как новое приложение. При переходе
+с прежних сборок требуется удалить старую установку; её настройки и локальные
+данные автоматически не переносятся. Последующие обновления TorrFrame с тем же
+идентификатором и подписью сохраняют данные обычным образом.
 
 ## Быстрый запуск
 
 Откройте каталог **android-tv** в Android Studio. APK для проверки лежит в
 `artifacts/TorrFrame-TV-debug.apk`.
 Нужны Android 8.0+ (API 26+) и ARM64 либо ARMv7. x86 не включён.
+При первой установке выбран русский язык, Phone Remote включён, нижние подсказки
+по навигации скрыты. Сохранённые пользователем настройки при обновлении сохраняются.
 В ручных командах ниже замените IP:PORT адресом приставки. Для повседневной
 разработки используйте автоматическую отправку через VS Code, описанную ниже.
 
 ```sh
 .tools/sdk/platform-tools/adb -s IP:PORT install -r artifacts/TorrFrame-TV-debug.apk
-.tools/sdk/platform-tools/adb -s IP:PORT shell am start -n tv.torrserve.silicon/.MainActivity
+.tools/sdk/platform-tools/adb -s IP:PORT shell am start -n tv.torrframe/.MainActivity
 ```
 
 Preview APK собран с R8 и сокращением ресурсов, но подписан **локальным debug-ключом**.
@@ -163,7 +176,7 @@ scripts/emulator.sh -no-window -no-audio -no-snapshot
 В профиле AVD включите аппаратную клавиатуру (`hw.keyboard=yes`). В окне эмулятора
 стрелки перемещают фокус, Enter выбирает, Escape возвращает назад. Альтернатива:
 Extended Controls → Directional Pad.
-На этом Mac графический эмулятор установлен в `~/Library/Android/torrserve-silicon/`:
+На этом Mac графический эмулятор установлен в `~/Library/Android/torrframe/`:
 Qt не находил плагины при запуске из пути workspace с пробелами.
 Для Jackett на этом же Mac используйте `http://10.0.2.2:9117` (или свой порт).
 При разработке все визуальные проверки выполняет пользователь. Computer Use в
@@ -323,7 +336,7 @@ Go нужен **только для тестового BitTorrent-сида на 
 ```sh
 scripts/profile-adb.sh
 .tools/sdk/platform-tools/adb logcat -s TorrFrameTiming:I AndroidRuntime:E
-.tools/sdk/platform-tools/adb shell dumpsys gfxinfo tv.torrserve.silicon framestats
+.tools/sdk/platform-tools/adb shell dumpsys gfxinfo tv.torrframe framestats
 ```
 
 Профилировщик сохраняет отдельно startup, память приложения и TorrServer, кадры.

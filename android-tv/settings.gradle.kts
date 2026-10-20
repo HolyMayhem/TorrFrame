@@ -3,7 +3,7 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories { google(); mavenCentral() }
 }
-rootProject.name = "TorrFrameTV"
+rootProject.name = "TorrFrame"
 include(":app")
 include(":torrent-search")
 

@@ -44,8 +44,8 @@ Magnet для 1337x и NoNameClub разрешается только после
 
 ```sh
 scripts/build-local.sh :torrent-search:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
-scripts/build-local.sh :app:connectedDebugAndroidTest -PtorrframeAbi=arm64-v8a -Pandroid.testInstrumentationRunnerArguments.class=tv.torrserve.silicon.TorrentSearchNavigationTest
-scripts/build-local.sh :app:connectedDebugAndroidTest -PtorrframeAbi=arm64-v8a -Pandroid.testInstrumentationRunnerArguments.class=tv.torrserve.silicon.TorrentSearchIntegrationTest
+scripts/build-local.sh :app:connectedDebugAndroidTest -PtorrframeAbi=arm64-v8a -Pandroid.testInstrumentationRunnerArguments.class=tv.torrframe.TorrentSearchNavigationTest
+scripts/build-local.sh :app:connectedDebugAndroidTest -PtorrframeAbi=arm64-v8a -Pandroid.testInstrumentationRunnerArguments.class=tv.torrframe.TorrentSearchIntegrationTest
 ```
 
 Живая проверка 15 октября 2026 на Android TV API36: Interstellar — 226 уникальных результатов, Breaking Bad — 245. Результаты дали Rutor, NoNameClub (для сериала), TorrentsCSV, Knaben, ThePirateBay и YTS (для фильма). Nyaa вернул пустую выдачу. 1337x и EZTV были недоступны; их сбои не мешали поиску. Эти цифры зависят от сети, запроса и состояния источников; работу всех сайтов постоянно гарантировать нельзя. Автоматические отчёты и лог живой выдачи сохраняются в `artifacts/torrentsearch/`.

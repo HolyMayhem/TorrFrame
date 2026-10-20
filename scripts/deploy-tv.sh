@@ -47,7 +47,7 @@ fi
     || fail 'TV is offline or unauthorized. Check its address and accept the ADB prompt on the TV.'
 mkdir -p "$(dirname -- "$TARGET_FILE")"
 printf '%s\n' "$TARGET" > "$TARGET_FILE"
-APP_ID=tv.torrserve.silicon
+APP_ID=tv.torrframe
 
 if [ "$MODE" = logs ]; then
     PID=$("$TASK_ADB" -s "$TARGET" shell pidof "$APP_ID" | tr -d '\r' | awk '{print $1}' || true)

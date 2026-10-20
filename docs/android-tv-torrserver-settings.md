@@ -165,34 +165,34 @@ Back из диалогов, восстановление фокуса и про�
 
 Созданы:
 
-- `android-tv/app/src/androidTest/java/tv/torrserve/silicon/TorrServerPersistenceTest.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/core/server/ConnectionMonitor.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/core/server/EngineSettings.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/core/server/LocalServerService.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/core/server/ServerAddress.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/core/server/ServerBootReceiver.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/features/settings/TorrServerSettingsPanels.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/features/settings/TorrServerSettingsViewModel.kt`
+- `android-tv/app/src/androidTest/java/tv/torrframe/TorrServerPersistenceTest.kt`
+- `android-tv/app/src/main/java/tv/torrframe/core/server/ConnectionMonitor.kt`
+- `android-tv/app/src/main/java/tv/torrframe/core/server/EngineSettings.kt`
+- `android-tv/app/src/main/java/tv/torrframe/core/server/LocalServerService.kt`
+- `android-tv/app/src/main/java/tv/torrframe/core/server/ServerAddress.kt`
+- `android-tv/app/src/main/java/tv/torrframe/core/server/ServerBootReceiver.kt`
+- `android-tv/app/src/main/java/tv/torrframe/features/settings/TorrServerSettingsPanels.kt`
+- `android-tv/app/src/main/java/tv/torrframe/features/settings/TorrServerSettingsViewModel.kt`
 - `android-tv/app/src/main/res/drawable/ic_server_notification.xml`
-- `android-tv/app/src/test/java/tv/torrserve/silicon/TorrServerSettingsTests.kt`
+- `android-tv/app/src/test/java/tv/torrframe/TorrServerSettingsTests.kt`
 - `docs/android-tv-torrserver-settings.md`
 
 Изменены:
 
 - `README_ANDROID_TV.md`
-- `android-tv/app/src/androidTest/java/tv/torrserve/silicon/RemoteNavigationTest.kt`
+- `android-tv/app/src/androidTest/java/tv/torrframe/RemoteNavigationTest.kt`
 - `android-tv/app/src/main/AndroidManifest.xml`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/MainActivity.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/TorrFrameApplication.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/core/network/Http.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/core/server/ServerController.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/core/server/TorrServerApi.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/core/storage/SettingsStore.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/features/settings/SettingsScreen.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/features/settings/SettingsViewModel.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/features/updates/UpdatesPanel.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/features/updates/UpdatesViewModel.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/ui/components/LicensesDialog.kt`
-- `android-tv/app/src/main/java/tv/torrserve/silicon/ui/components/TvComponents.kt`
+- `android-tv/app/src/main/java/tv/torrframe/MainActivity.kt`
+- `android-tv/app/src/main/java/tv/torrframe/TorrFrameApplication.kt`
+- `android-tv/app/src/main/java/tv/torrframe/core/network/Http.kt`
+- `android-tv/app/src/main/java/tv/torrframe/core/server/ServerController.kt`
+- `android-tv/app/src/main/java/tv/torrframe/core/server/TorrServerApi.kt`
+- `android-tv/app/src/main/java/tv/torrframe/core/storage/SettingsStore.kt`
+- `android-tv/app/src/main/java/tv/torrframe/features/settings/SettingsScreen.kt`
+- `android-tv/app/src/main/java/tv/torrframe/features/settings/SettingsViewModel.kt`
+- `android-tv/app/src/main/java/tv/torrframe/features/updates/UpdatesPanel.kt`
+- `android-tv/app/src/main/java/tv/torrframe/features/updates/UpdatesViewModel.kt`
+- `android-tv/app/src/main/java/tv/torrframe/ui/components/LicensesDialog.kt`
+- `android-tv/app/src/main/java/tv/torrframe/ui/components/TvComponents.kt`
 - `android-tv/app/src/main/res/values/strings.xml`
-- `android-tv/app/src/test/java/tv/torrserve/silicon/NetworkTests.kt`
+- `android-tv/app/src/test/java/tv/torrframe/NetworkTests.kt`

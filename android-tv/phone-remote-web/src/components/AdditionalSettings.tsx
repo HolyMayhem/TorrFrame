@@ -123,6 +123,11 @@ export function AdditionalSettings({
           onChange={(value) => edit("animationsEnabled", value)}
         />
         <Toggle
+          label={t("Звуки интерфейса TV", "TV interface sounds")}
+          checked={draft.uiSoundsEnabled}
+          onChange={(value) => edit("uiSoundsEnabled", value)}
+        />
+        <Toggle
           label={t("Подсказки навигации", "Navigation hints")}
           checked={draft.showNavigationHints}
           onChange={(value) => edit("showNavigationHints", value)}
