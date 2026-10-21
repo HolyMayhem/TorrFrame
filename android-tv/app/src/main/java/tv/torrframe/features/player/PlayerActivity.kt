@@ -50,16 +50,26 @@ import tv.torrframe.ui.theme.TorrFrameTheme
 class PlayerActivity : ComponentActivity() {
     private val graph get() = (application as TorrFrameApplication).graph
     private val presentation = PlayerController()
+    private val playbackHost = Any()
+    private var mediaJob: Job? = null
+    private var choosingSubtitle = false
+    private var resumeAfterRecreation = false
     private var controller: MediaController? = null
     private var future: ListenableFuture<MediaController>? = null
     private var video: PlayerView? = null
     private lateinit var frameRate: FrameRateMatcher
     private var subtitleStyle: Pair<PlayerPreferences, Boolean>? = null
     private var subtitleUrl by mutableStateOf(false)
-    private val pickSubtitle = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(::attachSubtitle) }
+    private val pickSubtitle = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        choosingSubtitle = false
+        uri?.let(::attachSubtitle)
+    }
     override fun attachBaseContext(newBase: Context) { super.attachBaseContext(newBase.withUiLanguage()) }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        choosingSubtitle = savedInstanceState?.getBoolean("choosingSubtitle") == true
+        resumeAfterRecreation = savedInstanceState?.getBoolean("playerResume") == true
+        graph.playback.claimHost(playbackHost)
         frameRate = FrameRateMatcher(window)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -76,7 +86,7 @@ class PlayerActivity : ComponentActivity() {
                     Column(Modifier.fillMaxSize()) {
                         Box(Modifier.weight(1f)) {
                             PlayerScreen(state, settings.builtInPlayer, presentation, ::change,
-                                close = { graph.playback.stopInternal(); finish() }, file = ::openSubtitleFile, url = { subtitleUrl = true }) { controlsVisible ->
+                                close = { graph.playback.stopHost(playbackHost); finish() }, file = ::openSubtitleFile, url = { subtitleUrl = true }) { controlsVisible ->
                                 AndroidView(factory = { context -> PlayerView(context).apply {
                                     useController = false
                                     descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
@@ -110,36 +120,65 @@ class PlayerActivity : ComponentActivity() {
                 }
             }
         }
-        lifecycleScope.launch { graph.playback.closePlayer.collect { finish() } }
+        lifecycleScope.launch { graph.playback.activeHost.collect { if (it !== playbackHost) finish() } }
         lifecycleScope.launch { repeatOnLifecycle(Lifecycle.State.STARTED) {
+            graph.ready.await()
+            if (canStartMedia()) connect()
             while (isActive) { presentation.refresh(); delay(500) }
         } }
-        lifecycleScope.launch { graph.ready.await(); connect() }
     }
+    private fun canStartMedia() = !isFinishing && !isDestroyed && graph.playback.ownsHost(playbackHost)
+        && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
     private fun connect() {
+        if (future != null || !canStartMedia()) return
         val began = Diagnostics.mark()
         future = MediaController.Builder(this, SessionToken(this, ComponentName(this, PlaybackService::class.java))).buildAsync().also { result ->
             result.addListener({
-                if (isDestroyed) return@addListener
+                if (!canStartMedia() || result.isCancelled) return@addListener
                 runCatching { result.get() }.onSuccess { player ->
                     controller = player; video?.player = player; presentation.attach(player)
                     player.addListener(object : Player.Listener {
                         override fun onRenderedFirstFrame() { Diagnostics.elapsed("playback_first_frame", began) }
                     })
-                    val stream = intent.getStringExtra("stream")
-                    val identity = intent.getStringExtra("identity")
-                    if (stream.isNullOrBlank() || identity.isNullOrBlank()) { presentation.failed(); return@onSuccess }
-                    if (player.currentMediaItem?.mediaId != identity) lifecycleScope.launch {
-                        val parts = identity.split(':')
-                        val position = if (graph.settings.state.value.resume && parts.size == 2 && parts[1].toIntOrNull() != null)
-                            graph.store.progress(parts[0], parts[1].toInt()) else 0
-                        player.setMediaItem(MediaItem.Builder().setUri(stream).setMediaId(identity)
-                            .setMediaMetadata(MediaMetadata.Builder().setTitle(intent.getStringExtra("title")).build()).build(), position)
-                        player.prepare(); player.play()
-                    }
+                    prepareMedia(player)
                 }.onFailure { presentation.failed() }
             }, ContextCompat.getMainExecutor(this))
         }
+    }
+    private fun prepareMedia(player: MediaController) {
+        mediaJob?.cancel()
+        val requested = intent
+        val stream = requested.getStringExtra("stream")
+        val identity = requested.getStringExtra("identity")
+        if (stream.isNullOrBlank() || identity.isNullOrBlank()) { presentation.failed(); return }
+        if (player.currentMediaItem?.mediaId == identity) {
+            if (resumeAfterRecreation && canStartMedia()) player.play()
+            resumeAfterRecreation = false
+            return
+        }
+        graph.playback.pauseInternal()
+        mediaJob = lifecycleScope.launch {
+            val parts = identity.split(':')
+            val position = if (graph.settings.state.value.resume && parts.size == 2 && parts[1].toIntOrNull() != null)
+                graph.store.progress(parts[0], parts[1].toInt()) else 0
+            ensureActive()
+            if (!canStartMedia() || controller !== player) return@launch
+            player.setMediaItem(MediaItem.Builder().setUri(stream).setMediaId(identity)
+                .setMediaMetadata(MediaMetadata.Builder().setTitle(requested.getStringExtra("title")).build()).build(), position)
+            player.prepare(); player.play()
+            resumeAfterRecreation = false
+        }
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        resumeAfterRecreation = false
+        controller?.let(::prepareMedia)
+    }
+    private fun disconnect() {
+        video?.player = null
+        presentation.detach()
+        future?.let(MediaController::releaseFuture); future = null; controller = null
     }
     private fun change(edit: (PlayerPreferences) -> PlayerPreferences) {
         graph.scope.launch {
@@ -148,8 +187,10 @@ class PlayerActivity : ComponentActivity() {
         }
     }
     private fun openSubtitleFile() {
+        graph.playback.pauseInternal()
+        choosingSubtitle = true
         try { pickSubtitle.launch(arrayOf("*/*")) }
-        catch (_: android.content.ActivityNotFoundException) { showMessage(R.string.player_no_file_picker) }
+        catch (_: android.content.ActivityNotFoundException) { choosingSubtitle = false; showMessage(R.string.player_no_file_picker) }
     }
     private fun attachSubtitle(uri: Uri) {
         lifecycleScope.launch {
@@ -173,14 +214,33 @@ class PlayerActivity : ComponentActivity() {
             setBottomPaddingFraction(if (controlsVisible) .32f else .08f)
         }
     }
+    override fun onStart() {
+        super.onStart()
+        graph.playback.hostVisibility(playbackHost, true)
+    }
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("choosingSubtitle", choosingSubtitle)
+        outState.putBoolean("playerResume", controller?.playWhenReady ?: resumeAfterRecreation)
+        super.onSaveInstanceState(outState)
+    }
     override fun onResume() {
         super.onResume()
         if (::frameRate.isInitialized) frameRate.update(graph.settings.state.value.builtInPlayer.matchFrameRate, presentation.state.value.frameRate)
     }
-    override fun onStop() { frameRate.restore(); super.onStop() }
+    override fun onStop() {
+        mediaJob?.cancel()
+        if (isChangingConfigurations) resumeAfterRecreation = controller?.playWhenReady == true
+        graph.playback.hostVisibility(playbackHost, false)
+        if (!isChangingConfigurations && graph.playback.ownsHost(playbackHost)) {
+            if (choosingSubtitle) graph.playback.pauseInternal()
+            else { graph.playback.stopHost(playbackHost); finish() }
+        }
+        if (!choosingSubtitle || controller == null) disconnect()
+        frameRate.restore(); super.onStop()
+    }
     override fun onDestroy() {
-        video?.player = null; video = null; presentation.detach()
-        future?.let(MediaController::releaseFuture); controller = null
+        if (!isChangingConfigurations) graph.playback.stopHost(playbackHost)
+        disconnect(); video = null
         frameRate.restore(); super.onDestroy()
     }
 }

@@ -46,6 +46,9 @@ class PlaybackService : MediaSessionService() {
                 .setPreferredTextLanguage(s.subtitleLanguage.ifBlank { null }).build()
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) { if (!isPlaying) checkpoint() }
+                override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                    if (playWhenReady && !graph.playback.hasVisibleHost) pause()
+                }
             })
         }
         graph.playback.attach(player, ::checkpoint)
@@ -78,9 +81,9 @@ class PlaybackService : MediaSessionService() {
     }
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = session
     override fun onDestroy() {
-        checkpoint(); graph.playback.detach(); session?.player?.release(); session?.release(); session = null
+        checkpoint(); session?.player?.let(graph.playback::detach); session?.player?.release(); session?.release(); session = null
         scope.cancel(); graph.server.playbackOwned = false; graph.server.scheduleIdleStop()
         super.onDestroy()
     }
-    override fun onTaskRemoved(rootIntent: Intent?) { if (!isPlaybackOngoing) { checkpoint(); stopSelf() } }
+    override fun onTaskRemoved(rootIntent: Intent?) { if (!graph.playback.hasVisibleHost) { graph.playback.stopInternal(); stopSelf() } }
 }

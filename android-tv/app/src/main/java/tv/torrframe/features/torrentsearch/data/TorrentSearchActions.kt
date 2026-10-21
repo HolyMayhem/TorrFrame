@@ -26,7 +26,7 @@ class AppTorrentSearchActions(private val graph: AppGraph,
             is TorrentLink.Magnet -> TorrentPayload.Magnet(link.value)
             is TorrentLink.FileUrl -> graph.torrentSearchNetwork.download(link.value)
         } }
-        return graph.library.add(payload,row.title,row.infoHash.orEmpty())
+        return graph.library.add(payload,row.title,row.infoHash.orEmpty(), source = if (row.providerId == JackettSearchProvider.ID) "Jackett" else "TorrentSearch")
     }
     override suspend fun files(hash: String) = graph.library.files(hash)
     override suspend fun preferred(hash: String, files: List<TorrentFile>) = preferredVideo(graph.store.item(hash), files)

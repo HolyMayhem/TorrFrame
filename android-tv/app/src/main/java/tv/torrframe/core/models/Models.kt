@@ -4,9 +4,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 enum class MediaKind { Movie, Tv }
-data class TorrentFile(val id: Int, val path: String, val size: Long) {
+data class TorrentFile(val id: Int, val path: String, val size: Long,
+    val hash: String = "", val source: String = "Manual",
+    val position: Long = 0, val duration: Long = 0, val updatedAt: Long = 0) {
     val isVideo get() = path.substringAfterLast('.').lowercase() in setOf("mkv", "mp4", "avi", "m4v", "mov", "ts", "m2ts", "webm", "mpg", "mpeg")
+    val watchedFraction get() = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f).let { if (it >= .95f) 1f else it } else 0f
     fun json() = JSONObject().put("id", id).put("path", path).put("length", size)
+        .put("hash", hash).put("source", source).put("position", position).put("duration", duration)
+        .put("watchedFraction", watchedFraction)
 }
 data class Torrent(val hash: String, val title: String, val files: List<TorrentFile>)
 data class Metadata(
@@ -27,7 +32,8 @@ data class Metadata(
 }
 data class LibraryItem(val hash: String, val sourceTitle: String, val addedAt: Long,
     val metadata: Metadata? = null, val files: List<TorrentFile> = emptyList(),
-    val position: Long = 0, val duration: Long = 0, val lastFileId: Int = 0) {
+    val position: Long = 0, val duration: Long = 0, val lastFileId: Int = 0,
+    val torrentHashes: List<String> = listOf(hash), val lastFileHash: String = hash) {
     val title get() = metadata?.title ?: sourceTitle
     val inProgress get() = position > 30_000 && (duration <= 0 || position < duration * 0.95)
 }
@@ -38,3 +44,19 @@ fun JSONObject.torrent(): Torrent {
 }
 fun JSONArray?.files(): List<TorrentFile> = if (this == null) emptyList() else
     (0 until length()).map { getJSONObject(it).let { j -> TorrentFile(j.getInt("id"), j.getString("path"), j.optLong("length")) } }
+
+/** A display projection only; torrents and playback records retain their original identities. */
+fun List<LibraryItem>.groupedLibrary(): List<LibraryItem> = groupBy { item ->
+    item.metadata?.takeIf { it.id.isNotBlank() }?.let {
+        val provider = if (it.provider.equals("CUB", true)) "TMDB" else it.provider.uppercase(java.util.Locale.ROOT)
+        "$provider:${it.kind}:${it.id}"
+    } ?: "hash:${item.hash}"
+}.values.map { members ->
+    val first = members.minWith(compareBy<LibraryItem> { it.addedAt }.thenBy { it.hash })
+    val files = members.flatMap { it.files }
+    val recent = files.filter { it.updatedAt > 0 }.maxByOrNull { it.updatedAt }
+    first.copy(addedAt = members.maxOf { it.addedAt }, files = files,
+        torrentHashes = members.map { it.hash },
+        position = recent?.position ?: first.position, duration = recent?.duration ?: first.duration,
+        lastFileId = recent?.id ?: first.lastFileId, lastFileHash = recent?.hash ?: first.hash)
+}.sortedByDescending { it.addedAt }

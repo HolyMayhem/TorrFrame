@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Actions } from "../actions";
 import type { Settings, SearchOptions, PlayerPreferences } from "../types";
-import { Panel, Toggle, Button } from "./Ui";
+import { CollapsiblePanel as Panel, Toggle, Button } from "./Ui";
 import { t } from "../i18n";
 export function AdditionalSettings({
   draft,

@@ -33,7 +33,7 @@ class LibraryViewModel(private val graph: AppGraph) : ViewModel() {
         }
         viewModelScope.launch {
             try { graph.store.library.collect { items ->
-                mutable.update { it.copy(items = items) }; initialLocalLoad.complete(Unit)
+                mutable.update { it.copy(items = items.groupedLibrary()) }; initialLocalLoad.complete(Unit)
             } } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 mutable.update { it.copy(message = friendly(e)) }
@@ -57,12 +57,13 @@ class LibraryViewModel(private val graph: AppGraph) : ViewModel() {
     }
     fun addMagnet(value: String, done: (String) -> Unit) = operation { done(graph.library.addMagnet(value)) }
     fun files(hash: String, done: (List<TorrentFile>) -> Unit = {}) = operation {
-        val files = graph.library.files(hash)
+        val files = graph.library.groupFiles(hash)
         if (files.isEmpty()) { mutable.update { it.copy(message = "No supported video files were found.") }; return@operation }
         mutable.update { it.copy(files = files, fileHash = hash) }; done(files)
     }
     fun closeFiles() { mutable.update { it.copy(files = emptyList(), fileHash = null) } }
-    fun remove(hash: String, done: () -> Unit) = operation { graph.library.remove(hash); done() }
+    fun remove(hash: String, done: () -> Unit) = operation { graph.library.removeGroup(hash); done() }
+    fun clear(done: () -> Unit) = operation { graph.library.clear(); done() }
     fun metadata(hash: String) = operation {
         val found = graph.library.refreshMetadata(hash, force = true)
         mutable.update { it.copy(message = if(found) "Metadata updated." else "No confident match found, or the provider is unavailable. The original title is retained.") }

@@ -238,6 +238,15 @@ export function Panel({
     </section>
   );
 }
+/** Native disclosure keeps drafts mounted while categories are folded. */
+export function CollapsiblePanel({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <details className="panel settings-panel">
+      <summary><h3>{title}</h3><Icon name="chevron" size={18} /></summary>
+      <div className="settings-panel-body">{children}</div>
+    </details>
+  );
+}
 export const time = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(s / 3600) ? `${Math.floor(s / 3600)}:` : ""}${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;

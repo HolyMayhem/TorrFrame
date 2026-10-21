@@ -1,6 +1,6 @@
 import type { CatalogNetworkSettings as Network } from "../types";
 import { t } from "../i18n";
-import { Button, Panel, Toggle } from "./Ui";
+import { Button, CollapsiblePanel as Panel, Toggle } from "./Ui";
 
 export function CatalogNetworkSettings({ value, edit }: {
   value: Network;

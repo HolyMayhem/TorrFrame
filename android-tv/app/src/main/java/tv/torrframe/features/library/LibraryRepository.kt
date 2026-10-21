@@ -36,9 +36,9 @@ class LibraryRepository(val store: LibraryStore, private val api: TorrServerApi,
             }
         } } }
     }
-    suspend fun add(result: SearchResult): String = import(result.title, result.hash) { jackett.download(result) }
-    suspend fun add(payload: TorrentPayload, title: String, hash: String = ""): String = import(title, hash) { payload }
-    private suspend fun import(title: String, hash: String, payload: suspend () -> TorrentPayload): String = adding.withLock {
+    suspend fun add(result: SearchResult): String = import(result.title, result.hash, "Jackett") { jackett.download(result) }
+    suspend fun add(payload: TorrentPayload, title: String, hash: String = "", source: String = "Manual"): String = import(title, hash, source) { payload }
+    private suspend fun import(title: String, hash: String, source: String, payload: suspend () -> TorrentPayload): String = adding.withLock {
         server.requireRunning()
         val existing = hash.takeIf { it.isNotBlank() }?.let { store.item(it) }
         // A local row can survive a server failure before TorrServer persists its metadata.
@@ -48,11 +48,11 @@ class LibraryRepository(val store: LibraryStore, private val api: TorrServerApi,
             is TorrentPayload.Magnet -> api.addMagnet(value.value, title)
             is TorrentPayload.File -> api.upload(value.value, title)
         }
-        store.put(torrent, title); enrich(torrent.hash); torrent.hash
+        store.put(torrent, title); store.origin(torrent.hash, source); enrich(torrent.hash); torrent.hash
     }
     suspend fun addMagnet(value: String): String = adding.withLock {
         server.requireRunning(); val torrent = api.addMagnet(value, "")
-        store.put(torrent); enrich(torrent.hash); torrent.hash
+        store.put(torrent); store.origin(torrent.hash, "Manual"); enrich(torrent.hash); torrent.hash
     }
     fun enrich(hash: String) = scope.launch { refreshMetadata(hash) }
     suspend fun refreshMetadata(hash: String, force: Boolean = false): Boolean {
@@ -71,7 +71,29 @@ class LibraryRepository(val store: LibraryStore, private val api: TorrServerApi,
             while (t.files.isEmpty()) { delay(1000); t = api.get(hash) }
             t
         }
-        store.put(torrent); enrich(hash); return torrent.files.filter { it.isVideo }
+        store.put(torrent); enrich(hash); return store.item(hash)?.files.orEmpty().filter { it.isVideo }
+    }
+    suspend fun group(hash: String): LibraryItem? = store.list().groupedLibrary().find { hash in it.torrentHashes }
+    suspend fun groupFiles(hash: String): List<TorrentFile> {
+        val item = group(hash) ?: error("Title is no longer in the library.")
+        var failure: Exception? = null
+        for (member in item.torrentHashes) {
+            if (store.item(member)?.files?.any { it.isVideo } != true) try { files(member) }
+            catch (e: Exception) { if (e is CancellationException) throw e; failure = e }
+        }
+        val result = group(hash)?.files.orEmpty().filter { it.isVideo }
+        if (result.isEmpty()) failure?.let { throw it }
+        return result
+    }
+    suspend fun removeGroup(hash: String) {
+        val members = group(hash)?.torrentHashes.orEmpty()
+        for (member in members) remove(member)
+    }
+    suspend fun clear() = adding.withLock {
+        server.requireRunning()
+        // Include torrents added outside TorrFrame and keep successfully removed rows consistent on partial failure.
+        val hashes = (api.list().map { it.hash } + store.list().map { it.hash }).distinct()
+        for (hash in hashes) remove(hash)
     }
     suspend fun remove(hash: String) {
         server.requireRunning(); api.remove(hash); store.remove(hash)

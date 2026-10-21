@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { request } from "../api";
 import { useAction, type Actions } from "../actions";
 import type { Engine, Settings, Snapshot } from "../types";
-import { Button, Icon, Panel, Toggle } from "../components/Ui";
+import { Button, Icon, CollapsiblePanel as Panel, Toggle } from "../components/Ui";
 export function SettingsPage({
   state,
   actions,
@@ -102,7 +102,7 @@ function AppSettings({
           </Button>
         </div>
       )}
-      <Panel title="Phone Remote">
+      <Panel title={t("Язык Phone Remote", "Phone Remote language")}>
         <label className="field">
           {t("Язык Phone Remote", "Phone Remote language")}
           <select value={webLanguage()} onChange={event => setWebLanguage(event.target.value as "ru" | "en")}>
@@ -310,7 +310,7 @@ function AppSettings({
       </Panel>
       <div className="sticky-save">
         <Button
-          kind="primary wide"
+          kind="save-settings"
           disabled={disabled || !changed}
           onClick={() => void save()}
         >
@@ -318,7 +318,7 @@ function AppSettings({
           {busy ? t("Сохранение…") : t("Сохранить настройки")}
         </Button>
       </div>
-      <Panel title="Phone Remote">
+      <Panel title={t("Подключение Phone Remote", "Phone Remote session")}>
         <p className="muted">
           TorrFrame {state.device.appVersion}
           {t(

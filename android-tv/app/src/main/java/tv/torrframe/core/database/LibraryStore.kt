@@ -25,7 +25,7 @@ interface MetadataCache {
 }
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class LibraryStore(context: Context, databaseName: String = "library.sqlite") : SQLiteOpenHelper(context, databaseName, null, 1), MetadataCache {
+class LibraryStore(context: Context, databaseName: String = "library.sqlite") : SQLiteOpenHelper(context, databaseName, null, 2), MetadataCache {
     private val metadataLock = Mutex()
     private val manualMetadata = mutableSetOf<String>()
     private val metadataEpochs = mutableMapOf<String, Long>()
@@ -37,24 +37,44 @@ class LibraryStore(context: Context, databaseName: String = "library.sqlite") : 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE library(hash TEXT PRIMARY KEY, source_title TEXT NOT NULL, added_at INTEGER NOT NULL, metadata TEXT, files TEXT NOT NULL DEFAULT '[]')")
         db.execSQL("CREATE TABLE playback(hash TEXT NOT NULL REFERENCES library(hash) ON DELETE CASCADE, file_id INTEGER NOT NULL, position INTEGER NOT NULL, duration INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(hash,file_id))")
+        db.execSQL("CREATE TABLE library_origin(hash TEXT PRIMARY KEY REFERENCES library(hash) ON DELETE CASCADE, source TEXT NOT NULL)")
         db.execSQL("CREATE TABLE metadata_cache(cache_key TEXT PRIMARY KEY, payload TEXT, expires_at INTEGER NOT NULL)")
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        error("Database migration from $oldVersion to $newVersion is not defined.")
+        if (oldVersion < 2) db.execSQL("CREATE TABLE library_origin(hash TEXT PRIMARY KEY REFERENCES library(hash) ON DELETE CASCADE, source TEXT NOT NULL)")
     }
     private fun changed() { revision.update { it+1 } }
-    suspend fun item(hash: String): LibraryItem? = withContext(Dispatchers.IO) {
-        readableDatabase.rawQuery("SELECT l.*, p.position, p.duration, p.file_id FROM library l LEFT JOIN playback p ON p.hash=l.hash AND p.file_id=(SELECT file_id FROM playback WHERE hash=l.hash ORDER BY updated_at DESC LIMIT 1) WHERE l.hash=?", arrayOf(hash)).use { c ->
-            if(!c.moveToFirst()) null else LibraryItem(c.getString(0),c.getString(1),c.getLong(2),
-                c.getString(3)?.let { Metadata.from(JSONObject(it)) },JSONArray(c.getString(4)).files(),c.getLong(5),c.getLong(6),c.getInt(7))
+    suspend fun item(hash: String): LibraryItem? = withContext(Dispatchers.IO) { readItems(hash).singleOrNull() }
+    suspend fun list(): List<LibraryItem> = withContext(Dispatchers.IO) { readItems() }
+    private fun readItems(hash: String? = null): List<LibraryItem> {
+        val args = hash?.let { arrayOf(it) }
+        val origins = readableDatabase.rawQuery("SELECT hash, source FROM library_origin" + if (hash != null) " WHERE hash=?" else "", args).use { c ->
+            buildMap { while (c.moveToNext()) put(c.getString(0), c.getString(1)) }
+        }
+        val progress = readableDatabase.rawQuery("SELECT hash,file_id,position,duration,updated_at FROM playback" + if (hash != null) " WHERE hash=?" else "", args).use { c ->
+            buildMap { while (c.moveToNext()) put(c.getString(0) to c.getInt(1), Triple(c.getLong(2), c.getLong(3), c.getLong(4))) }
+        }
+        return readableDatabase.rawQuery("SELECT * FROM library" + (if (hash != null) " WHERE hash=?" else "") + " ORDER BY added_at DESC", args).use { c ->
+            buildList { while (c.moveToNext()) {
+                val identity = c.getString(0)
+                val files = JSONArray(c.getString(4)).files().map { file ->
+                    val saved = progress[identity to file.id]
+                    file.copy(hash = identity, source = origins[identity] ?: "Manual",
+                        position = saved?.first ?: 0, duration = saved?.second ?: 0, updatedAt = saved?.third ?: 0)
+                }
+                val recent = progress.filterKeys { it.first == identity }.maxByOrNull { it.value.third }
+                add(LibraryItem(identity, c.getString(1), c.getLong(2),
+                    c.getString(3)?.let { Metadata.from(JSONObject(it)) }, files,
+                    recent?.value?.first ?: 0, recent?.value?.second ?: 0, recent?.key?.second ?: 0))
+            } }
         }
     }
-    suspend fun list(): List<LibraryItem> = withContext(Dispatchers.IO) {
-        readableDatabase.rawQuery("SELECT l.*, p.position, p.duration, p.file_id FROM library l LEFT JOIN playback p ON p.hash=l.hash AND p.file_id=(SELECT file_id FROM playback WHERE hash=l.hash ORDER BY updated_at DESC LIMIT 1) ORDER BY added_at DESC", null).use { c ->
-            buildList { while (c.moveToNext()) add(LibraryItem(c.getString(0), c.getString(1), c.getLong(2),
-                c.getString(3)?.let { Metadata.from(JSONObject(it)) }, JSONArray(c.getString(4)).files(),
-                c.getLong(5), c.getLong(6), c.getInt(7))) }
-        }
+    suspend fun origin(hash: String, source: String) = withContext(Dispatchers.IO) {
+        require(source in setOf("Manual", "Jackett", "TorrentSearch"))
+        writableDatabase.insertWithOnConflict("library_origin", null, ContentValues().apply {
+            put("hash", hash); put("source", source)
+        }, SQLiteDatabase.CONFLICT_IGNORE)
+        changed()
     }
     suspend fun put(t: Torrent, sourceTitle: String = t.title) = withContext(Dispatchers.IO) {
         val db = writableDatabase; db.beginTransaction()
