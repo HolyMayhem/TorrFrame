@@ -217,6 +217,7 @@ enum class SettingsCategory(val title: Int) {
                                                     Text("This product uses the TMDB API but is not endorsed or certified by TMDB.", color = Muted, translate = false)
                                                     TvAction(stringResource(R.string.setup_reopen), modifier = Modifier.testTag("settings:setup"), action = onSetup)
                                                     TvAction(stringResource(R.string.settings_licenses)) { licenses = true }
+                                                    AboutLinks()
                                                 }
                                             }
                                             null -> Unit

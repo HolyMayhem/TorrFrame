@@ -27,9 +27,9 @@ object RemoteJson {
         .put("torrentSearch", JSONObject(tv.torrframe.core.storage.TorrentSearchSettingsCodec.encode(value.torrentSearch)))
         .put("catalogNetwork", JSONObject(value.catalogNetwork.encode()).put("cubTokenConfigured", value.catalogNetwork.cubToken.isNotBlank()))
         .put("lanAccess", value.lanAccess).put("useLocalServer", value.useLocalServer).put("port", value.port).put("startOnBoot", value.startOnBoot)
-    fun library(items: List<LibraryItem>) = JSONArray(items.map { item ->
+    fun library(items: List<LibraryItem>) = JSONArray(items.groupedLibrary().map { item ->
         JSONObject().put("hash", item.hash).put("title", item.title).put("sourceTitle", item.sourceTitle)
-            .put("addedAt", item.addedAt).put("metadata", item.metadata?.json() ?: JSONObject.NULL)
+            .put("torrentHashes", JSONArray(item.torrentHashes)).put("addedAt", item.addedAt).put("metadata", item.metadata?.json() ?: JSONObject.NULL)
             .put("position", item.position).put("duration", item.duration).put("lastFileId", item.lastFileId)
             .put("files", JSONArray(item.files.filter { it.isVideo }.map { it.json() }))
     })

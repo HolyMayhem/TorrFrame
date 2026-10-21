@@ -1,5 +1,10 @@
 package tv.torrframe.ui.sound
 
+import android.os.SystemClock
+import android.view.KeyEvent as NativeKeyEvent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -36,6 +41,28 @@ import tv.torrframe.TorrFrameApplication
     content: @Composable () -> Unit) {
     val sounds = rememberUiSounds()
     Dialog(onDismissRequest = { sounds?.play(UiSound.Back); onDismissRequest() }, properties = properties) {
-        UiSoundFeedback(content)
+        // A long press can move focus into this window while OK is still held.
+        // Only a new key-down in this dialog may arm an action; inherited repeats
+        // and the release from the opening press must never reach its buttons.
+        val openedAt = remember { SystemClock.uptimeMillis() }
+        val presses = remember { mutableSetOf<Int>() }
+        Box(Modifier.onPreviewKeyEvent { event ->
+            val key = event.nativeKeyEvent
+            if (key.keyCode != NativeKeyEvent.KEYCODE_DPAD_CENTER && key.keyCode != NativeKeyEvent.KEYCODE_ENTER &&
+                key.keyCode != NativeKeyEvent.KEYCODE_NUMPAD_ENTER) false
+            else if (key.action == NativeKeyEvent.ACTION_DOWN && key.downTime < openedAt) true
+            else when (key.action) {
+                NativeKeyEvent.ACTION_DOWN -> {
+                    if (key.repeatCount == 0) {
+                        presses.add(key.keyCode)
+                        false
+                    } else key.keyCode !in presses
+                }
+                NativeKeyEvent.ACTION_UP -> !presses.remove(key.keyCode)
+                else -> false
+            }
+        }, propagateMinConstraints = true) {
+            UiSoundFeedback(content)
+        }
     }
 }

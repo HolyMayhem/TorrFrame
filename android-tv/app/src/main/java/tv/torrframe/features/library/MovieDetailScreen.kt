@@ -36,11 +36,11 @@ import tv.torrframe.ui.theme.*
     var filesRequested by remember(item.hash) { mutableStateOf(false) }
     var focusFiles by remember(item.hash) { mutableStateOf(false) }
     var restoreAction by remember { mutableStateOf<String?>(null) }
-    val files = (if (state.fileHash == item.hash) state.files else item.files).filter { it.isVideo }
+    val files = item.files.filter { it.isVideo }
     // Cached torrent files are shown immediately. Fetch once only when this card
     // has no file metadata, after any existing library operation has completed.
     LaunchedEffect(item.hash, state.busy) {
-        if (!state.busy && files.isEmpty() && !filesRequested) { filesRequested = true; vm.files(item.hash) }
+        if (!state.busy && item.torrentHashes.any { member -> files.none { it.hash.ifBlank { item.hash } == member } } && !filesRequested) { filesRequested = true; vm.files(item.hash) }
     }
     LaunchedEffect(focusFiles, files.isNotEmpty()) {
         if (focusFiles && files.isNotEmpty()) {
@@ -62,7 +62,7 @@ import tv.torrframe.ui.theme.*
         }
         vm.files(item.hash) { files ->
             val preferred = tv.torrframe.features.player.preferredVideo(item, files)
-            if (preferred != null) play(item.hash, preferred) else focusFiles = true
+            if (preferred != null) play(preferred.hash.ifBlank { item.hash }, preferred) else focusFiles = true
         }
     }
     BoxWithConstraints(Modifier.fillMaxSize().headerEdgeFade(enabled = list.canScrollBackward)) {
@@ -75,7 +75,7 @@ import tv.torrframe.ui.theme.*
                     itemVerticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 TvIconAction(R.drawable.ic_play, if (item.inProgress) "Continue Watching" else "Watch",
                     Modifier.focusRequester(watchFocus).focusProperties { up = backFocus; if (files.isNotEmpty()) down = fileFocus }
-                        .testTag("movie:watch"), enabled = !state.busy, primary = true) { watch() }
+                        .testTag("movie:watch"), enabled = !state.busy) { watch() }
                 TvIconAction(R.drawable.ic_delete, "Remove", Modifier.focusRequester(removeFocus).focusProperties { up = backFocus }.testTag("movie:remove"),
                     enabled = !state.busy) { removing = true }
                 TvAction("Refresh Metadata", !state.busy, Modifier.focusProperties { up = backFocus }.testTag("movie:metadata")) { vm.metadata(item.hash) }
@@ -97,14 +97,14 @@ import tv.torrframe.ui.theme.*
                         modifier = Modifier.testTag("movie:files:retry")) { vm.files(item.hash) }
                 }
             }
-            itemsIndexed(files, key = { _, file -> "video:${file.id}" }) { index, file ->
+            itemsIndexed(files, key = { _, file -> "video:${file.hash}:${file.id}" }) { index, file ->
                 MovieFileAction(file, index + 1, enabled = !state.busy,
                     modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().testTag("movie:file:${file.id}")
-                        .then(if (file.id == files.first().id) Modifier.focusRequester(fileFocus).focusProperties { up = watchFocus } else Modifier)) { play(item.hash, file) }
+                        .then(if (index == 0) Modifier.focusRequester(fileFocus).focusProperties { up = watchFocus } else Modifier)) { play(file.hash.ifBlank { item.hash }, file) }
             }
         }
     }
     if(removing) Confirm("Remove from library?", "The torrent and its saved playback history will be removed.",
-        { removing = false; restoreAction = "remove" }) { removing = false; vm.remove(item.hash, back) }
+        { removing = false; restoreAction = "remove" }, destructive = true) { removing = false; vm.remove(item.hash, back) }
 
 }

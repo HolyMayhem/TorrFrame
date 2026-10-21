@@ -13,11 +13,17 @@ export interface Metadata {
   runtime: number;
 }
 export interface VideoFile {
+  hash?: string;
+  source?: string;
+  position?: number;
+  duration?: number;
+  watchedFraction?: number;
   id: number;
   path: string;
   length: number;
 }
 export interface LibraryItem {
+  torrentHashes?: string[];
   hash: string;
   title: string;
   sourceTitle: string;
@@ -145,6 +151,7 @@ export type Command =
   | "search"
   | "library.add"
   | "library.sync"
+  | "library.clear"
   | "library.remove"
   | "library.files"
   | "library.play"
@@ -209,6 +216,7 @@ export interface PlayerPreferences {
   decoder: string;
   matchFrameRate: boolean;
   skipSilence: boolean;
+  subtitleMargin: number;
   subtitleSize: number;
   subtitleColor: string;
   subtitleBackground: boolean;

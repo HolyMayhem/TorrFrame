@@ -3,7 +3,7 @@ import type { Command } from "./types";
 export type SyncPhase = "idle" | "changed" | "syncing" | "done" | "failed";
 const writes = new Set<Command>([
   "settings.update", "server.connect", "server.boot", "server.lan",
-  "engine.save", "engine.reset", "library.add", "library.magnet", "library.remove",
+  "engine.save", "engine.reset", "library.add", "library.magnet", "library.remove", "library.clear",
   "metadata.refresh", "metadata.reset", "metadata.rename", "metadata.select", "catalog.toggle",
 ]);
 export function useSyncStatus() {

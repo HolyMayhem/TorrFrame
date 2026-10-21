@@ -14,17 +14,20 @@ data class PlayerPreferences(
     val subtitleBackground: Boolean = false,
     val subtitleBold: Boolean = false,
     val embeddedSubtitleStyle: Boolean = true,
+    val subtitleMargin: Int = 4,
 ) {
     fun normalized() = copy(speed = speed.takeIf { it in SPEEDS } ?: 1f,
-        subtitleSize = subtitleSize.takeIf { it in SUBTITLE_SIZES } ?: 100)
+        subtitleSize = subtitleSize.takeIf { it in SUBTITLE_SIZES } ?: 100,
+        subtitleMargin = subtitleMargin.takeIf { it in SUBTITLE_MARGINS } ?: 4)
     fun encode(): String = JSONObject().put("speed", speed).put("aspect", aspect.name)
         .put("decoder", decoder.name).put("matchFrameRate", matchFrameRate).put("skipSilence", skipSilence)
         .put("subtitleSize", subtitleSize).put("subtitleColor", subtitleColor.name)
         .put("subtitleBackground", subtitleBackground).put("subtitleBold", subtitleBold)
-        .put("embeddedSubtitleStyle", embeddedSubtitleStyle).toString()
+        .put("embeddedSubtitleStyle", embeddedSubtitleStyle).put("subtitleMargin", subtitleMargin).toString()
 
     companion object {
         val SPEEDS = listOf(.5f, .75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
+        val SUBTITLE_MARGINS = listOf(2, 4, 6, 8, 10, 12, 16, 20)
         val SUBTITLE_SIZES = listOf(75, 100, 125, 150, 175)
         fun decode(value: String?): PlayerPreferences = runCatching {
             val j = JSONObject(value ?: "{}")
@@ -33,7 +36,7 @@ data class PlayerPreferences(
                 AudioDecoder.entries.firstOrNull { it.name == j.optString("decoder") } ?: AudioDecoder.Device,
                 j.optBoolean("matchFrameRate"), j.optBoolean("skipSilence"), j.optInt("subtitleSize", 100),
                 SubtitleColor.entries.firstOrNull { it.name == j.optString("subtitleColor") } ?: SubtitleColor.White,
-                j.optBoolean("subtitleBackground"), j.optBoolean("subtitleBold"), j.optBoolean("embeddedSubtitleStyle", true)
+                j.optBoolean("subtitleBackground"), j.optBoolean("subtitleBold"), j.optBoolean("embeddedSubtitleStyle", true), j.optInt("subtitleMargin", 4)
             ).normalized()
         }.getOrDefault(PlayerPreferences())
 
@@ -48,7 +51,8 @@ data class PlayerPreferences(
             subtitleColor = if (draft.subtitleColor != base.subtitleColor) draft.subtitleColor else current.subtitleColor,
             subtitleBackground = if (draft.subtitleBackground != base.subtitleBackground) draft.subtitleBackground else current.subtitleBackground,
             subtitleBold = if (draft.subtitleBold != base.subtitleBold) draft.subtitleBold else current.subtitleBold,
-            embeddedSubtitleStyle = if (draft.embeddedSubtitleStyle != base.embeddedSubtitleStyle) draft.embeddedSubtitleStyle else current.embeddedSubtitleStyle)
+            embeddedSubtitleStyle = if (draft.embeddedSubtitleStyle != base.embeddedSubtitleStyle) draft.embeddedSubtitleStyle else current.embeddedSubtitleStyle,
+            subtitleMargin = if (draft.subtitleMargin != base.subtitleMargin) draft.subtitleMargin else current.subtitleMargin)
     }
 }
 enum class VideoAspect { Fit, Zoom, Fill }

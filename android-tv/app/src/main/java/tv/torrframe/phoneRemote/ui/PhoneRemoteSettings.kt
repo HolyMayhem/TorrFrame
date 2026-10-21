@@ -3,8 +3,6 @@ package tv.torrframe.phoneRemote.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -64,7 +62,7 @@ import tv.torrframe.ui.theme.*
     }
     TvText(stringResource(R.string.phone_http_warning), color = Muted)
     if (qr) PhoneRemoteQrDialog(manager) { qr = false }
-    if (devices) PhoneRemoteDevices(manager) { devices = false }
+    if (devices) PhoneRemoteDevices(manager.sessions) { devices = false }
 }
 
 @Composable private fun PhoneStatus(state: PhoneRemoteState) {
@@ -122,29 +120,7 @@ import tv.torrframe.ui.theme.*
     }
 }
 
-@Composable private fun PhoneRemoteDevices(manager: PhoneRemoteManager, dismiss: () -> Unit) {
-    val sessions by manager.sessions.sessions.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope(); val focus = remember { FocusRequester() }
-    var error by remember { mutableStateOf(false) }
-    Dialog(onDismissRequest = dismiss) {
-        Column(Modifier.width(560.dp).heightIn(max = 400.dp).background(Surface, RoundedCornerShape(24.dp)).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            TvText(stringResource(R.string.phone_devices), style = MaterialTheme.typography.headlineSmall)
-            if (sessions.isEmpty()) TvText(stringResource(R.string.phone_no_devices), color = Muted)
-            if (error) TvText(stringResource(R.string.phone_operation_failed))
-            LazyColumn(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(sessions, key = { it.id }) { session ->
-                    TvAction("${session.label} · ${stringResource(R.string.phone_revoke)}") {
-                        scope.launch { try { manager.sessions.revoke(session.id); focus.requestFocus() } catch (e: Exception) { if (e is CancellationException) throw e; error = true } }
-                    }
-                }
-            }
-            TvAction(stringResource(R.string.phone_close), modifier = Modifier.focusRequester(focus), action = dismiss)
-        }
-        LaunchedEffect(Unit) { focus.requestFocus() }
-    }
-}
-
-@Composable fun PhoneRemoteShortcut(open: () -> Unit) {
+@Composable fun PhoneRemoteShortcut(openDevices: (() -> Unit)? = null, open: () -> Unit) {
     TvIconAction(R.drawable.ic_phone, stringResource(R.string.phone_qr),
-        modifier = Modifier.testTag("phone:shortcut"), action = open)
+        modifier = Modifier.testTag("phone:shortcut"), onLongClick = openDevices, action = open)
 }

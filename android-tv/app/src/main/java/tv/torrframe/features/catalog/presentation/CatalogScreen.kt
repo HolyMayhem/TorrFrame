@@ -256,7 +256,11 @@ import tv.torrframe.ui.theme.*
             restoreMore = false
         }
     }
-    menuItem?.let { item -> CatalogListMenu(item, state, ::dismissMenu) { list -> vm.toggleList(item, list, ::dismissMenu) } }
+    menuItem?.let { item -> CatalogListMenu(item, state, ::dismissMenu,
+        torrentSearch = torrentSearch?.let { search -> ({ menuItem = null; search(item) }) },
+        jackettSearch = jackettSearch?.takeIf { jackettEnabled }?.let { search -> ({ menuItem = null; search(item) }) }) {
+        list -> vm.toggleList(item, list, ::dismissMenu)
+    } }
     if (genrePicker) CatalogGenreDialog(state.filter, dismiss = { genrePicker = false; restoreGenreFocus = true }) { filter ->
         focusedKey = null; focusedSection = null; vm.filter(filter)
         genrePicker = false; restoreGenreFocus = true

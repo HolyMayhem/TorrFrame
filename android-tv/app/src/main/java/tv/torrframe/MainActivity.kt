@@ -160,6 +160,8 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     val catalogReloads by graph.developer.catalogReloads.collectAsStateWithLifecycle()
     val libraryServer = libraryAvailability(saved.useLocalServer,server,connection,developer.serverUnavailable)
     LaunchedEffect(libraryServer) { if(libraryServer == LibraryAvailability.Ready)library.refresh() }
+    var clearingLibrary by remember { mutableStateOf(false) }
+    var phoneDevices by remember { mutableStateOf(false) }
     var phoneQr by remember { mutableStateOf(false) }
     var section by rememberSaveable { mutableStateOf("Library") }
     var catalogHomeRequest by rememberSaveable { mutableIntStateOf(0) }
@@ -180,15 +182,16 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
         if (target == "Settings") openSettings(SettingsCategory.Search)
         else { pendingContentFocus = target; section = target }
     }
-    BackHandler(!settingsOpen && !phoneQr && (detail != null || section != "Library")) {
+    BackHandler(!settingsOpen && !phoneQr && !phoneDevices && (detail != null || section != "Library")) {
         if(detail != null) { detail = null; library.closeFiles() } else { section = "Library"; initialFocus.requestFocus() }
     }
     fun play(hash: String, file: TorrentFile) {
+        val torrentHash = file.hash.ifBlank { hash }
         playbackScope.launch {
             try {
                 graph.ready.await()
-                graph.playback.open(graph.api.stream(hash, file), "$hash:${file.id}",
-                    lib.items.find { it.hash == hash }?.title ?: file.path.substringAfterLast('/'))
+                graph.playback.open(graph.api.stream(torrentHash, file), "$torrentHash:${file.id}",
+                    lib.items.find { hash in it.torrentHashes || torrentHash in it.torrentHashes }?.title ?: file.path.substringAfterLast('/'))
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 android.widget.Toast.makeText(context, context.uiString(R.string.player_start_failed), android.widget.Toast.LENGTH_LONG).show()
@@ -209,7 +212,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
         torrentSearch.open(SearchTarget(item.title, item.originalTitle, item.year,
             if (item.ref.type == tv.torrframe.features.catalog.domain.CatalogType.Tv) MediaType.Series else MediaType.Movie, item.ref.id), source)
     }
-    val selected = lib.items.find { it.hash == detail }
+    val selected = lib.items.find { detail in it.torrentHashes }
     val layout = LocalTvLayout.current
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().testTag("app:screen").background(Background).padding(horizontal = layout.screenInset)
@@ -231,14 +234,14 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                             torrentSearch.close(); restoreTorrentFocus = false; restoreJackettFocus = false
                             detail = null; section = "Search"; library.closeFiles()
                             catalogHomeRequest++
-                        }) else null) {
+                        }) else ({ clearingLibrary = true })) {
                         torrentSearch.close(); restoreTorrentFocus=false; detail = null; section = tab; library.closeFiles()
                     }
                 }
             }
             Row(Modifier.align(androidx.compose.ui.Alignment.CenterEnd).testTag("app:utilities"), horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                if (phonePreference.enabled) tv.torrframe.phoneRemote.ui.PhoneRemoteShortcut {
+                if (phonePreference.enabled) tv.torrframe.phoneRemote.ui.PhoneRemoteShortcut(openDevices = { phoneDevices = true }) {
                     if (graph.phoneRemote.state.value.status == tv.torrframe.phoneRemote.server.PhoneRemoteStatus.Running) phoneQr = true
                     else openSettings(SettingsCategory.PhoneRemote)
                 }
@@ -279,7 +282,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
                                 if(lib.syncFailed)lib.syncFailure ?: 0 else null),
                             serverSettings = { openSettings(SettingsCategory.TorrServer) },
                             openList = { libraryList = it }, restoreListFocus = libraryReturnList,
-                            listFocusRestored = { libraryReturnList = null }) { detail = it }
+                            listFocusRestored = { libraryReturnList = null }, remove = { hash, done -> library.remove(hash, done) }) { detail = it }
                         else {
                             // Independent navigation, shared catalog repository/cache and saved user lists.
                             val catalog: CatalogViewModel = viewModel(key = "library-list:${list.name}", factory = factory)
@@ -327,6 +330,12 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
     LaunchedEffect(restoreSettingsFocus) {
         if (restoreSettingsFocus) { withFrameNanos { }; settingsFocus.requestFocus(); restoreSettingsFocus = false }
     }
+    if (clearingLibrary) Confirm(stringResource(R.string.library_clear_title), stringResource(R.string.library_clear_message),
+        { clearingLibrary = false }, confirmLabel = stringResource(R.string.library_delete), destructive = true, backButton = true) {
+        clearingLibrary = false
+        library.clear { detail = null; library.closeFiles(); section = "Library"; libraryList = null }
+    }
+    if (phoneDevices && !startupCovered) tv.torrframe.phoneRemote.ui.PhoneRemoteDevices(graph.phoneRemote.sessions) { phoneDevices = false }
     if (phoneQr && !startupCovered) tv.torrframe.phoneRemote.ui.PhoneRemoteQrDialog(graph.phoneRemote) { phoneQr = false }
     LaunchedEffect(Unit) { initialFocus.requestFocus() }
     LaunchedEffect(section) { if (section !in listOf("Search", "Library")) section = "Library" }

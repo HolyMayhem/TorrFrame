@@ -39,6 +39,12 @@ export function Library({
           <Icon name="refresh" size={18} />
           <span>{busy ? "…" : t("Обновить")}</span>
         </Button>
+        <Button kind="danger" disabled={disabled || !state.library.length} onClick={() => void actions.confirm(
+          t("Очистить медиатеку?", "Clear the library?"),
+          t("Все раздачи на TorrServe и их история просмотра будут удалены. Избранное и «Смотреть позже» сохранятся.", "All torrents on TorrServe and their playback history will be removed. Favorites and Watch later will be kept.")
+        ).then(ok => { if (ok) return run("library.clear", { confirmed: true }); })}>
+          <Icon name="trash" size={18} />{t("Очистить", "Clear")}
+        </Button>
       </div>
       <form
         className="search-form"

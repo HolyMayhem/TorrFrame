@@ -19,7 +19,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** A five-second hold is separate from the usual short OK; repeats never restart the timer. */
+/** A three-second hold is separate from the usual short OK; repeats never restart the timer. */
 @Composable internal fun Modifier.holdClick(motion: TvButtonMotion, enabled: Boolean, hold: () -> Unit, action: () -> Unit): Modifier {
     val activate = motion.activate
     val interactions = motion.interactions
@@ -57,14 +57,14 @@ import kotlinx.coroutines.launch
                 keyPress = PressInteraction.Press(androidx.compose.ui.geometry.Offset.Zero).also { interactions.tryEmit(it) }
                 beganAt = event.nativeKeyEvent.downTime
                 timer = scope.launch {
-                    delay((5_000 - (android.os.SystemClock.uptimeMillis() - beganAt)).coerceAtLeast(0))
+                    delay((3_000 - (android.os.SystemClock.uptimeMillis() - beganAt)).coerceAtLeast(0))
                     if (keyHeld && focused && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
                         fired = true; currentActivate(); currentHold()
                     }
                 }
             } else if (event.type == KeyEventType.KeyUp) {
                 val valid = enabled && keyHeld && !fired && !event.nativeKeyEvent.isCanceled
-                val longClick = valid && android.os.SystemClock.uptimeMillis() - beganAt >= 5_000
+                val longClick = valid && android.os.SystemClock.uptimeMillis() - beganAt >= 3_000
                 cancel(released = !event.nativeKeyEvent.isCanceled)
                 if (longClick) { currentActivate(); currentHold() }
                 else if (valid) { currentActivate(); currentAction() }
@@ -82,7 +82,7 @@ import kotlinx.coroutines.launch
                     var longClick = false
                     val startedAt = android.os.SystemClock.uptimeMillis()
                     val pending = launch {
-                        delay(5_000)
+                        delay(3_000)
                         if (focused && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
                             longClick = true; currentActivate(); currentHold()
                         }
@@ -92,7 +92,7 @@ import kotlinx.coroutines.launch
                         pending.cancel()
                         if (released && !longClick && focused && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
                             currentActivate()
-                            if (android.os.SystemClock.uptimeMillis() - startedAt >= 5_000) currentHold() else currentAction()
+                            if (android.os.SystemClock.uptimeMillis() - startedAt >= 3_000) currentHold() else currentAction()
                         }
                     } finally {
                         pending.cancel()

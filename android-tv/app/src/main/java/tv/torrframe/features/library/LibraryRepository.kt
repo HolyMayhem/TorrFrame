@@ -25,7 +25,7 @@ class LibraryRepository(val store: LibraryStore, private val api: TorrServerApi,
             syncRequests[key]?.takeUnless { it.task.isCompleted }?.also { it.users++ }
                 ?: Sync(scope.async(start = CoroutineStart.LAZY) {
                     server.requireRunning()
-                    Diagnostics.timed("library_load") { store.putAll(api.at(key.first).list()) }
+                    adding.withLock { Diagnostics.timed("library_load") { store.putAll(api.at(key.first).list()) } }
                 }).also { syncRequests[key] = it }
         }
         try { request.task.await() }
@@ -64,14 +64,14 @@ class LibraryRepository(val store: LibraryStore, private val api: TorrServerApi,
         val value = metadata.resolve(sources, settings.state.value, force) ?: return false
         return store.metadata(hash, value, ticket)
     }
-    suspend fun files(hash: String): List<TorrentFile> {
+    suspend fun files(hash: String): List<TorrentFile> = adding.withLock {
         server.requireRunning()
         val torrent = withTimeout(60_000) {
             var t = api.get(hash)
             while (t.files.isEmpty()) { delay(1000); t = api.get(hash) }
             t
         }
-        store.put(torrent); enrich(hash); return store.item(hash)?.files.orEmpty().filter { it.isVideo }
+        store.put(torrent); enrich(hash); store.item(hash)?.files.orEmpty().filter { it.isVideo }
     }
     suspend fun group(hash: String): LibraryItem? = store.list().groupedLibrary().find { hash in it.torrentHashes }
     suspend fun groupFiles(hash: String): List<TorrentFile> {
@@ -85,17 +85,25 @@ class LibraryRepository(val store: LibraryStore, private val api: TorrServerApi,
         if (result.isEmpty()) failure?.let { throw it }
         return result
     }
-    suspend fun removeGroup(hash: String) {
+    suspend fun removeGroup(hash: String) = adding.withLock {
+        server.requireRunning()
         val members = group(hash)?.torrentHashes.orEmpty()
-        for (member in members) remove(member)
+        val present = api.list().map { it.hash }.toSet()
+        for (member in members) {
+            if (member in present) api.remove(member)
+            store.remove(member)
+        }
     }
     suspend fun clear() = adding.withLock {
         server.requireRunning()
-        // Include torrents added outside TorrFrame and keep successfully removed rows consistent on partial failure.
-        val hashes = (api.list().map { it.hash } + store.list().map { it.hash }).distinct()
-        for (hash in hashes) remove(hash)
+        val present = api.list().map { it.hash }.toSet()
+        val hashes = (present + store.list().map { it.hash }).toList()
+        for (hash in hashes) {
+            if (hash in present) api.remove(hash)
+            store.remove(hash)
+        }
     }
-    suspend fun remove(hash: String) {
+    suspend fun remove(hash: String) = adding.withLock {
         server.requireRunning(); api.remove(hash); store.remove(hash)
     }
 }

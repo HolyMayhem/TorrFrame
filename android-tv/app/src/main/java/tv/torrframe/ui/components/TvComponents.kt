@@ -52,30 +52,36 @@ import tv.torrframe.ui.theme.*
 import tv.torrframe.core.models.LibraryItem
 
 @Composable fun TvAction(label: String, enabled: Boolean = true, modifier: Modifier = Modifier,
-    primary: Boolean = false, selected: Boolean = false, translate: Boolean = true, action: () -> Unit) {
+    primary: Boolean = false, selected: Boolean = false, translate: Boolean = true, destructive: Boolean = false, @androidx.annotation.DrawableRes icon: Int? = null, action: () -> Unit) {
     val shape = CircleShape
     val motion = rememberTvButtonMotion(enabled,
-        container = if(primary) Accent else if(selected) SurfaceSecondary else Surface,
-        content = if(primary) OnAccent else TextPrimary,
-        outline = if(primary || selected) Accent.copy(alpha = .6f) else Outline, shape = shape)
+        container = if(destructive) Color(0xffa32232) else if(primary) Accent else if(selected) SurfaceSecondary else Surface,
+        content = if(destructive) Color.White else if(primary) OnAccent else TextPrimary,
+        outline = if(destructive) Color(0xffdc4657) else if(primary || selected) Accent.copy(alpha = .6f) else Outline, shape = shape,
+        focusedContainer = if(destructive) Color(0xffd93246) else Accent, focusedContent = if(destructive) Color.White else OnAccent)
     Button(onClick = { motion.activate(); action() }, enabled = enabled, modifier = modifier.heightIn(min = TvDimensions.actionHeight).then(motion.modifier).then(motion.pointerClick(enabled, action = action)),
         shape = ButtonDefaults.shape(shape),
         interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
-        TvText(label, modifier = motion.contentModifier, style = MaterialTheme.typography.labelLarge, translate = translate)
+        Row(modifier = motion.contentModifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            icon?.let { Image(painterResource(it), contentDescription = null,
+                colorFilter = ColorFilter.tint(LocalContentColor.current), modifier = Modifier.size(18.dp).testTag("action:icon")) }
+            TvText(label, style = MaterialTheme.typography.labelLarge, translate = translate)
+        }
     }
 }
 @Composable fun TvIconAction(@androidx.annotation.DrawableRes icon: Int, label: String, modifier: Modifier = Modifier,
-    enabled: Boolean = true, primary: Boolean = false, onHold: (() -> Unit)? = null, action: () -> Unit) {
+    enabled: Boolean = true, primary: Boolean = false, onHold: (() -> Unit)? = null, onLongClick: (() -> Unit)? = null, action: () -> Unit) {
     val shape = CircleShape
     val motion = rememberTvButtonMotion(enabled,
         container = if (primary) Accent else Surface, content = if (primary) OnAccent else TextPrimary,
         outline = Color.Transparent, shape = shape, focusedContainer = SurfaceSecondary,
         focusedContent = TextPrimary, focusedOutline = TextPrimary.copy(alpha = .8f))
     Button(onClick = { motion.activate(); action() }, enabled = enabled,
+        onLongClick = onLongClick?.let { { motion.activate(); it() } },
         modifier = modifier.size(TvDimensions.actionHeight).then(motion.modifier).then(
-            if (onHold == null) motion.pointerClick(enabled, action = action) else Modifier.holdClick(motion, enabled, onHold, action)),
+            if (onHold == null) motion.pointerClick(enabled, onLongClick = onLongClick, action = action) else Modifier.holdClick(motion, enabled, onHold, action)),
         shape = ButtonDefaults.shape(shape), contentPadding = PaddingValues(0.dp),
         interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
         scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
@@ -225,20 +231,20 @@ import tv.torrframe.core.models.LibraryItem
         values.forEach { value -> TvAction(value, selected = value == selected) { onSelect(value) } }
     }
 }
-@Composable fun Poster(item: LibraryItem, modifier: Modifier = Modifier, focused: () -> Unit = {}, open: () -> Unit) {
+@Composable fun Poster(item: LibraryItem, modifier: Modifier = Modifier, focused: () -> Unit = {}, onLongClick: (() -> Unit)? = null, open: () -> Unit) {
     val sounds = tv.torrframe.ui.sound.rememberUiSounds()
     var imageFailed by remember(item.metadata?.poster) { mutableStateOf(false) }
     val shape = RoundedCornerShape(TvDimensions.cardRadius)
     var hasFocus by remember { mutableStateOf(false) }
-    Card(onClick = { sounds?.play(tv.torrframe.ui.sound.UiSound.Select); open() }, modifier = modifier.onFocusChanged { hasFocus = it.isFocused; if(it.isFocused) focused() },
+    Card(onClick = { sounds?.play(tv.torrframe.ui.sound.UiSound.Select); open() }, onLongClick = onLongClick, modifier = modifier.onFocusChanged { hasFocus = it.isFocused; if(it.isFocused) focused() },
         shape = CardDefaults.shape(shape),
         colors = CardDefaults.colors(containerColor = Color.Transparent, contentColor = TextPrimary,
             focusedContainerColor = Color.Transparent, focusedContentColor = TextPrimary),
-        border = CardDefaults.border(),
+        border = CardDefaults.border(border = Border.None, focusedBorder = Border.None, pressedBorder = Border.None),
         scale = CardDefaults.scale(focusedScale = if (LocalAnimationsEnabled.current) 1.03f else 1f, pressedScale = 1f)) {
         Column {
             Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(SurfaceSecondary, shape).clip(shape)
-                .border(2.dp, if (hasFocus) TextPrimary else Color.Transparent, shape), contentAlignment = Alignment.Center) {
+                .border(2.dp, if (hasFocus) Accent else Color.Transparent, shape), contentAlignment = Alignment.Center) {
                 if (item.metadata?.poster?.isNotBlank() == true && !imageFailed) AsyncImage(item.metadata.poster,
                     contentDescription = item.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, onError = { imageFailed = true })
                 else Text(item.title.take(1).uppercase(), fontSize = 56.sp, color = Muted)
@@ -254,15 +260,17 @@ import tv.torrframe.core.models.LibraryItem
     }
 }
 @Composable fun Message(value: String) { if(value.isNotBlank()) TvText(value, color = Muted, modifier = Modifier.padding(vertical = 8.dp)) }
-@Composable fun Confirm(title: String, text: String, dismiss: () -> Unit, confirmLabel: String = "Remove", russian: Boolean = false, confirm: () -> Unit) {
+@Composable fun Confirm(title: String, text: String, dismiss: () -> Unit, confirmLabel: String = "Remove", russian: Boolean = false, destructive: Boolean = false, backButton: Boolean = false, confirm: () -> Unit) {
     val focus = remember { FocusRequester() }
     Dialog(onDismissRequest = dismiss) {
         Column(Modifier.width(480.dp).background(Surface, RoundedCornerShape(24.dp)).padding(28.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)) {
             TvText(title, style = MaterialTheme.typography.headlineSmall); TvText(text, color = Muted)
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                TvAction(stringResource(R.string.dialog_cancel), modifier = Modifier.focusRequester(focus), action = dismiss)
-                TvAction(confirmLabel, action = confirm)
+            Row(Modifier.fillMaxWidth().testTag("dialog:confirm:actions"),
+                horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                if (backButton) TvBackAction(Modifier.focusRequester(focus).testTag("dialog:confirm:back"), dismiss)
+                else TvAction(stringResource(R.string.dialog_cancel), modifier = Modifier.focusRequester(focus), action = dismiss)
+                TvAction(confirmLabel, modifier = Modifier.height(TvDimensions.actionHeight).testTag("dialog:confirm:delete"), destructive = destructive, action = confirm)
             }
         }; LaunchedEffect(Unit) { focus.requestFocus() }
     }

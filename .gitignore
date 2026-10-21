@@ -37,3 +37,11 @@ android-tv/phone-remote-web/tests/
 /.vscode/
 /.cbmignore
 android-tv/phone-remote-web/public/brand-mark.png
+
+# Temporary editor files and local logs
+*.log
+*.tmp
+*.bak
+*.orig
+*~
+*.swp

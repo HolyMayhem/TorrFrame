@@ -3,7 +3,6 @@
     <string name="settings_title">Настройки</string>
     <string name="settings_search">Jackett</string>
     <string name="settings_torrserver">TorrServer</string>
-    <string name="settings_save">Сохранить</string>
     <string name="dialog_done">Готово</string>
     <string name="dialog_cancel">Отмена</string>
     <string name="toggle_on">Включено</string>
@@ -21,7 +20,6 @@
     <string name="server_remote_hint">Подключение к внешнему серверу. Его запуском и остановкой управляет владелец сервера.</string>
     <string name="server_local_port">Порт встроенного сервера</string>
     <string name="server_default_url">Восстановить адрес по умолчанию</string>
-    <string name="server_default_hint">http://localhost:8090 · встроенный сервер</string>
     <string name="server_check">Проверить подключение</string>
     <string name="server_connected">Подключено</string>
     <string name="server_connecting">Подключение…</string>
@@ -156,7 +154,6 @@
     <string name="settings_operation_failed">Не удалось выполнить операцию. Проверьте адрес и параметры подключения.</string>
     <string name="settings_jackett_connected">Подключение к Jackett установлено.</string>
     <string name="settings_metadata_cleared">Кеш метаданных очищен. Информация сохранённых фильмов оставлена.</string>
-    <string name="settings_update_repo">Репозиторий GitHub приложения Android TV</string>
     <string name="settings_check_server_update">Проверить обновление TorrServer</string>
     <string name="settings_check_app_update">Проверить обновление приложения</string>
     <string name="settings_download_update">Скачать %1$s</string>
@@ -195,7 +192,6 @@
     <string name="phone_address">Адрес: %1$s</string>
     <string name="phone_qr">Показать QR-код</string>
     <string name="phone_devices">Подключённые устройства</string>
-    <string name="phone_revoke">Отозвать доступ</string>
     <string name="phone_no_devices">Сопряжённых устройств пока нет.</string>
     <string name="phone_close">Закрыть</string>
     <string name="phone_qr_instruction">Подключите телефон к той же локальной сети и отсканируйте QR камерой. Ссылка одноразовая и действует 2 минуты.</string>
@@ -207,7 +203,6 @@
     <string name="phone_no_playback">На телевизоре сейчас нет активного плеера.</string>
     <string name="phone_open_tv">Откройте TorrFrame на телевизоре, затем повторите запуск фильма. Android ограничивает открытие экрана из фонового приложения.</string>
     <string name="phone_operation_failed">Операция не выполнена. Проверьте настройки и подключение.</string>
-    <string name="metadata_edit">Изменить метаданные</string>
     <string name="metadata_query">Название для поиска</string>
     <string name="metadata_find">Найти метаданные</string>
     <string name="metadata_rename">Название фильма</string>
@@ -361,4 +356,18 @@
     <string name="ui_sounds">Звуки интерфейса</string>
     <string name="developer_unlocked">Режим разработчика активирован</string>
     <string name="developer_locked">Режим разработчика отключён</string>
+    <string name="library_clear_title">Очистить медиатеку?</string>
+    <string name="library_clear_message">Все раздачи на подключённом TorrServe и их история просмотра будут удалены. Избранное и «Смотреть позже» сохранятся.</string>
+    <string name="library_remove_title">Удалить из медиатеки?</string>
+    <string name="library_remove_message">«%1$s»: будут удалены все раздачи этого фильма и их история просмотра.</string>
+    <string name="library_delete">Удалить</string>
+    <string name="library_source_manual">Вручную</string>
+    <string name="player_subtitle_position">Отступ субтитров снизу</string>
+    <string name="about_support">Поддержать TorrFrame</string>
+    <string name="about_support_hint">Сказать спасибо и помочь развитию приложения. Наведите камеру телефона на QR-код.</string>
+    <string name="about_contact">Обратная связь</string>
+    <string name="about_contact_hint">Есть идея или нашли ошибку? Напишите разработчику в Telegram.</string>
+    <string name="library_source_unknown">Источник не сохранён</string>
+    <string name="phone_unpair">Отвязать</string>
+    <string name="phone_devices_hint">Устройства с доступом к Phone Remote. После отвязки потребуется подключиться заново.</string>
 </resources>

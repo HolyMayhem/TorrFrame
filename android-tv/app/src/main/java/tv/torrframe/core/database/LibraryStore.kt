@@ -54,15 +54,16 @@ class LibraryStore(context: Context, databaseName: String = "library.sqlite") : 
         val progress = readableDatabase.rawQuery("SELECT hash,file_id,position,duration,updated_at FROM playback" + if (hash != null) " WHERE hash=?" else "", args).use { c ->
             buildMap { while (c.moveToNext()) put(c.getString(0) to c.getInt(1), Triple(c.getLong(2), c.getLong(3), c.getLong(4))) }
         }
+        val latest = progress.entries.groupBy { it.key.first }.mapValues { (_, rows) -> rows.maxBy { it.value.third } }
         return readableDatabase.rawQuery("SELECT * FROM library" + (if (hash != null) " WHERE hash=?" else "") + " ORDER BY added_at DESC", args).use { c ->
             buildList { while (c.moveToNext()) {
                 val identity = c.getString(0)
                 val files = JSONArray(c.getString(4)).files().map { file ->
                     val saved = progress[identity to file.id]
-                    file.copy(hash = identity, source = origins[identity] ?: "Manual",
+                    file.copy(hash = identity, source = origins[identity] ?: "Unknown",
                         position = saved?.first ?: 0, duration = saved?.second ?: 0, updatedAt = saved?.third ?: 0)
                 }
-                val recent = progress.filterKeys { it.first == identity }.maxByOrNull { it.value.third }
+                val recent = latest[identity]
                 add(LibraryItem(identity, c.getString(1), c.getLong(2),
                     c.getString(3)?.let { Metadata.from(JSONObject(it)) }, files,
                     recent?.value?.first ?: 0, recent?.value?.second ?: 0, recent?.key?.second ?: 0))

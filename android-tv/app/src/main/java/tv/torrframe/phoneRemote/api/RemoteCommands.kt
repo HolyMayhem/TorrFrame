@@ -84,10 +84,13 @@ class RemoteCommands(private val graph: AppGraph) {
             "catalog.browse", "catalog.details", "catalog.related", "catalog.lists", "catalog.toggle" -> catalog.execute(type, args)
             "settings.players" -> JSONObject().put("items", JSONArray(graph.externalPlayers.available().map { JSONObject().put("component", it.component).put("label", it.label) }))
             "library.sync" -> { graph.library.sync(); JSONObject() }
-            "library.remove" -> { confirmed(args); graph.library.remove(hash(args)); JSONObject() }
+            "library.remove" -> { confirmed(args); graph.library.removeGroup(hash(args)); JSONObject() }
+            "library.clear" -> { confirmed(args); graph.library.clear(); JSONObject() }
             "library.files" -> {
-                val hash = hash(args); val files = graph.library.files(hash)
-                JSONObject().put("files", JSONArray(files.map { it.json() })).put("preferredId", tv.torrframe.features.player.preferredVideo(graph.store.item(hash), files)?.id ?: JSONObject.NULL)
+                val hash = hash(args); val files = graph.library.groupFiles(hash)
+                val preferred = tv.torrframe.features.player.preferredVideo(graph.library.group(hash), files)
+                JSONObject().put("files", JSONArray(files.map { it.json() })).put("preferredId", preferred?.id ?: JSONObject.NULL)
+                    .put("preferredHash", preferred?.hash ?: JSONObject.NULL)
             }
             "library.play" -> {
                 if (!graph.server.foreground) throw ApplicationActionFailure(R.string.phone_open_tv)
@@ -168,7 +171,7 @@ class RemoteCommands(private val graph: AppGraph) {
             next
         }
     }
-    companion object { val supported = setOf("catalog.browse", "catalog.details", "catalog.related", "catalog.lists", "catalog.toggle", "settings.players", "library.magnet", "server.lan", "search", "library.add", "library.sync", "library.remove", "library.files", "library.play",
+    companion object { val supported = setOf("catalog.browse", "catalog.details", "catalog.related", "catalog.lists", "catalog.toggle", "settings.players", "library.magnet", "server.lan", "search", "library.add", "library.sync", "library.clear", "library.remove", "library.files", "library.play",
         "metadata.refresh", "metadata.reset", "metadata.rename", "metadata.search", "metadata.select", "settings.update", "settings.testJackett", "settings.clearMetadataCache",
         "server.connect", "server.boot", "server.start", "server.stop", "server.restart", "server.check", "server.diagnose", "engine.get", "engine.save", "engine.reset",
         "playback.command", "updates.server", "updates.check", "updates.download", "updates.install") }

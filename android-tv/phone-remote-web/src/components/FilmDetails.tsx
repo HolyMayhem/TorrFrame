@@ -30,12 +30,13 @@ export function FilmDetails({
     const response = await run<{
       files: VideoFile[];
       preferredId: number | null;
+      preferredHash: string | null;
     }>("library.files", {
       hash: item.hash,
     });
     if (response) {
       const preferred = response.files.find(
-        (file) => file.id === response.preferredId,
+        (file) => file.id === response.preferredId && (!response.preferredHash || file.hash === response.preferredHash),
       );
       if (preferred) await play(preferred);
       else setFiles(response.files);
@@ -43,7 +44,7 @@ export function FilmDetails({
   };
   const play = async (file: VideoFile) => {
     const response = await run("library.play", {
-      hash: item.hash,
+      hash: file.hash || item.hash,
       fileId: file.id,
     });
     if (response) {
@@ -55,7 +56,7 @@ export function FilmDetails({
     if (
       await actions.confirm(
         t("Удалить фильм?"),
-        t("Раздача и её история просмотра будут удалены из общей медиатеки."),
+        t("Все раздачи этого фильма и их история просмотра будут удалены из медиатеки.", "All torrents for this title and their playback history will be removed from the library."),
       )
     ) {
       const response = await run("library.remove", {
@@ -107,7 +108,7 @@ export function FilmDetails({
             {item.metadata?.overview || item.sourceTitle}
           </p>
           <Button
-            kind="primary wide"
+            kind="wide"
             disabled={disabled}
             onClick={() => void watch()}
           >
@@ -122,11 +123,12 @@ export function FilmDetails({
                 files.map((file) => (
                   <button
                     className="file-row"
-                    key={file.id}
+                    key={`${file.hash}:${file.id}`}
                     disabled={disabled}
                     onClick={() => void play(file)}
                   >
-                    <span>{file.path}</span>
+                    <span className="file-info"><span>{file.path}</span><small className="muted">{file.source === "Jackett" ? "via Jackett" : file.source === "TorrentSearch" ? "via TorrentSearch" : file.source === "Manual" ? t("Вручную", "Manual") : t("Источник не сохранён", "Source not recorded")}</small>
+                      {(file.duration || 0) > 0 && <progress className="file-progress" max={1} value={file.watchedFraction || 0} aria-label={t("Просмотрено", "Watched")} />}</span>
                     <small>{size(file.length)}</small>
                     <Icon name="play" size={18} />
                   </button>

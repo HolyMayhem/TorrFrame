@@ -40,6 +40,10 @@ export function SettingsPage({
       ) : (
         <ServerSettings state={state} actions={actions} />
       )}
+      <div className="support-links">
+        <a className="button" href="https://pay.cloudtips.ru/p/8b994ba5" target="_blank" rel="noopener noreferrer">{t("Поддержать TorrFrame", "Support TorrFrame")}</a>
+        <a className="button" href="https://t.me/holymayhem" target="_blank" rel="noopener noreferrer">{t("Обратная связь", "Contact the developer")}</a>
+      </div>
     </>
   );
 }

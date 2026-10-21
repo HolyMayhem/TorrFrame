@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import tv.torrframe.ui.sound.UiDialog as Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.MaterialTheme
+import tv.torrframe.R
 import tv.torrframe.features.catalog.domain.*
 import tv.torrframe.ui.components.*
 import tv.torrframe.ui.theme.*
@@ -22,6 +23,7 @@ import tv.torrframe.ui.theme.*
     catalogText("Favorites", "Избранное") else catalogText("Watch later", "Смотреть позже")
 
 @Composable internal fun CatalogListMenu(item: CatalogItem, state: CatalogUi, dismiss: () -> Unit,
+    torrentSearch: (() -> Unit)? = null, jackettSearch: (() -> Unit)? = null,
     choose: (CatalogUserList) -> Unit) {
     val first = remember { FocusRequester() }
     val back = remember { FocusRequester() }
@@ -40,13 +42,24 @@ import tv.torrframe.ui.theme.*
                         CatalogUserList.WatchLater -> if (added) catalogText("Remove from watch later", "Удалить из «Смотреть позже»") else catalogText("Watch later", "Смотреть позже")
                     }
                     TvAction(label, enabled = state.listsReady && !state.listBusy,
+                        icon = if (list == CatalogUserList.Favorites) {
+                            if (added) R.drawable.ic_favorite_filled else R.drawable.ic_favorite_outline
+                        } else R.drawable.ic_watch_later,
                         modifier = Modifier.fillMaxWidth().then(if (index == 0) Modifier.focusRequester(first) else Modifier)
                             .testTag("catalog:list-menu:${list.name}")) { choose(list) }
+                }
+                torrentSearch?.let { action ->
+                    TvAction("TorrentSearch", icon = R.drawable.ic_search, translate = false,
+                        modifier = Modifier.fillMaxWidth().testTag("catalog:list-menu:torrentsearch"), action = action)
+                }
+                jackettSearch?.let { action ->
+                    TvAction("Jackett", icon = R.drawable.ic_search, translate = false,
+                        modifier = Modifier.fillMaxWidth().testTag("catalog:list-menu:jackett"), action = action)
                 }
                 TvBackAction(Modifier.focusRequester(back).testTag("catalog:list-menu:back"), dismiss)
             }
         }
-        LaunchedEffect(state.listsReady, state.listBusy) {
+        LaunchedEffect(state.listsReady, state.listBusy, jackettSearch != null) {
             withFrameNanos { }
             if (state.listsReady && !state.listBusy) first.requestFocus() else back.requestFocus()
         }

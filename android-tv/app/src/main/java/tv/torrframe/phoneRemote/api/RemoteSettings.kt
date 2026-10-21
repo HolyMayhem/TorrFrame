@@ -20,6 +20,7 @@ internal object RemoteSettings {
         val player = merge(JSONObject(current.builtInPlayer.encode()), if (edits.has("builtInPlayer")) edits.getJSONObject("builtInPlayer") else null)
         require(player.getDouble("speed").toFloat() in PlayerPreferences.SPEEDS)
         require(player.getInt("subtitleSize") in PlayerPreferences.SUBTITLE_SIZES)
+        require(player.getInt("subtitleMargin") in PlayerPreferences.SUBTITLE_MARGINS)
         require(player.getString("aspect") in VideoAspect.entries.map { it.name })
         require(player.getString("decoder") in AudioDecoder.entries.map { it.name })
         require(player.getString("subtitleColor") in SubtitleColor.entries.map { it.name })

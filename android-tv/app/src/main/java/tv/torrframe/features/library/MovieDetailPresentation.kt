@@ -104,17 +104,33 @@ import java.util.Locale
     Button(onClick = { motion.activate(); action() }, enabled = enabled,
         modifier = modifier.heightIn(min = 48.dp).then(motion.modifier).then(motion.pointerClick(enabled, action = action)),
         interactionSource = motion.interactions, colors = motion.colors, border = motion.border,
-        shape = ButtonDefaults.shape(shape), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+        shape = ButtonDefaults.shape(shape), contentPadding = PaddingValues(0.dp),
         scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            TvText(number.toString().padStart(2, '0'), Modifier.width(24.dp),
-                style = MaterialTheme.typography.labelLarge, translate = false)
-            TvText(file.path.substringAfterLast('/'), Modifier.weight(1f), maxLines = 2,
-                overflow = TextOverflow.Ellipsis, translate = false)
-            TvText(file.path.substringAfterLast('.', "").uppercase(Locale.ROOT),
-                style = MaterialTheme.typography.labelLarge, translate = false)
-            Image(painterResource(R.drawable.ic_play), contentDescription = null,
-                colorFilter = ColorFilter.tint(LocalContentColor.current), modifier = Modifier.size(18.dp).then(motion.contentModifier))
+        Column(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                TvText(number.toString().padStart(2, '0'), Modifier.width(24.dp),
+                    style = MaterialTheme.typography.labelLarge, translate = false)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TvText(file.path.substringAfterLast('/'), maxLines = 2,
+                        overflow = TextOverflow.Ellipsis, translate = false)
+                    TvText(when (file.source) {
+                        "Jackett" -> "via Jackett"
+                        "TorrentSearch" -> "via TorrentSearch"
+                        "Manual" -> stringResource(R.string.library_source_manual)
+                        else -> stringResource(R.string.library_source_unknown)
+                    }, color = LocalContentColor.current.copy(alpha = .6f),
+                        style = MaterialTheme.typography.bodySmall, translate = false)
+                }
+                TvText(file.path.substringAfterLast('.', "").uppercase(Locale.ROOT),
+                    style = MaterialTheme.typography.labelLarge, translate = false)
+                Image(painterResource(R.drawable.ic_play), contentDescription = null,
+                    colorFilter = ColorFilter.tint(LocalContentColor.current), modifier = Modifier.size(18.dp).then(motion.contentModifier))
+            }
+            if (file.duration > 0) Box(Modifier.fillMaxWidth().height(3.dp).background(Muted.copy(alpha = .2f))
+                .testTag("movie:file-progress:${file.hash}:${file.id}")) {
+                Box(Modifier.fillMaxWidth(file.watchedFraction).height(3.dp).background(Accent))
+            }
         }
     }
 }

@@ -27,7 +27,9 @@ import tv.torrframe.ui.theme.TvDimensions
 @Composable fun LibraryScreen(state: LibraryUi, refresh: () -> Unit, search: () -> Unit, entryFocus: FocusRequester? = null,
     availability: LibraryAvailability = LibraryAvailability.Ready, serverSettings: () -> Unit = {},
     openList: ((CatalogUserList) -> Unit)? = null, restoreListFocus: CatalogUserList? = null,
-    listFocusRestored: () -> Unit = {}, open: (String) -> Unit) {
+    listFocusRestored: () -> Unit = {}, remove: (String, () -> Unit) -> Unit = { _, _ -> }, open: (String) -> Unit) {
+    var removing by remember { mutableStateOf<LibraryItem?>(null) }
+    var restorePoster by remember { mutableStateOf(false) }
     var filter by rememberSaveable { mutableStateOf("All") }
     var focused by rememberSaveable { mutableStateOf<String?>(null) }
     val requester = remember { FocusRequester() }; val grid = rememberLazyGridState()
@@ -107,7 +109,21 @@ import tv.torrframe.ui.theme.TvDimensions
             contentPadding = PaddingValues(8.dp), modifier = Modifier.weight(1f)) {
             items(items, key = { it.hash }) { item -> Poster(item,
                 if (item.hash == focused) Modifier.focusRequester(requester) else Modifier,
-                focused = { focused = item.hash }) { open(item.hash) } }
+                focused = { focused = item.hash }, onLongClick = { if (!state.busy) removing = item }) { open(item.hash) } }
+        }
+    }
+    removing?.let { item -> Confirm(stringResource(R.string.library_remove_title),
+        stringResource(R.string.library_remove_message, item.title),
+        { removing = null; restorePoster = true }, confirmLabel = stringResource(R.string.library_delete), destructive = true) {
+        removing = null
+        remove(item.hash) { focused = null; restorePoster = true }
+    } }
+    LaunchedEffect(restorePoster) {
+        if (restorePoster) {
+            withFrameNanos { }
+            if (items.any { it.hash == focused }) runCatching { requester.requestFocus() }.onFailure { fallback.requestFocus() }
+            else fallback.requestFocus()
+            restorePoster = false
         }
     }
     LaunchedEffect(Unit) { if(focused != null && restoreListFocus == null) { withFrameNanos { }; runCatching {

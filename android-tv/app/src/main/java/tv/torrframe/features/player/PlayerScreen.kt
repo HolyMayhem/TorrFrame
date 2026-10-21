@@ -116,7 +116,12 @@ import tv.torrframe.ui.theme.*
                         TvText(playbackTime(state.duration), color = Muted, translate = false)
                     }
                     PlayerSeekBar(state, controller)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().onPreviewKeyEvent { event ->
+                        if (panel == null && event.key == Key.DirectionDown) {
+                            if (event.type == KeyEventType.KeyDown) visible = false
+                            true
+                        } else false
+                    }, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         TvAction(stringResource(R.string.player_seek_back), enabled = state.seekable, modifier = Modifier.testTag("player:rewind")) { controller.seekBy(-10_000) }
                         TvAction(stringResource(if (state.playWhenReady) R.string.player_pause else R.string.player_play), enabled = state.connected,
                             primary = true, modifier = Modifier.width(140.dp).focusRequester(playFocus).testTag("player:play"), action = controller::toggle)
@@ -145,7 +150,6 @@ import tv.torrframe.ui.theme.*
             setProgress { controller.seekTo(it.toLong()); true }
         }
         .onFocusChanged { focused = it.isFocused }
-        .border(if (focused) 2.dp else 0.dp, if (focused) FocusBorderColor else Color.Transparent, RoundedCornerShape(12.dp))
         .onPreviewKeyEvent { event ->
             when (event.key) {
                 Key.DirectionLeft, Key.DirectionRight -> { if (event.type == KeyEventType.KeyDown) controller.seekBy(if (event.key == Key.DirectionLeft) -10_000 else 10_000); true }

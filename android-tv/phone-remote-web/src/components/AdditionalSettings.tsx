@@ -196,6 +196,8 @@ export function AdditionalSettings({
             [75, 100, 125, 150, 175].map((v) => [v, `${v}%`]),
             (value) => player("subtitleSize", Number(value)),
           )}
+          {select(t("Отступ субтитров снизу", "Subtitle bottom margin"), p.subtitleMargin ?? 4,
+            [2, 4, 6, 8, 10, 12, 16, 20].map(v => [v, `${v}%`]), value => player("subtitleMargin", Number(value)))}
           {select(
             t("Цвет субтитров", "Subtitle color"),
             p.subtitleColor,

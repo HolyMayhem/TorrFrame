@@ -58,7 +58,20 @@ class PlayerActivity : ComponentActivity() {
     private var future: ListenableFuture<MediaController>? = null
     private var video: PlayerView? = null
     private lateinit var frameRate: FrameRateMatcher
-    private var subtitleStyle: Pair<PlayerPreferences, Boolean>? = null
+    private var subtitleStyle: PlayerPreferences? = null
+    private var subtitles: SubtitleView? = null
+    private val cueListener = object : Player.Listener {
+        override fun onCues(cueGroup: androidx.media3.common.text.CueGroup) { renderCues() }
+    }
+    private fun renderCues() {
+        val margin = graph.settings.state.value.builtInPlayer.subtitleMargin / 100f
+        subtitles?.setCues(controller?.currentCues?.cues?.map { cue ->
+            cue.buildUpon().setLine(1f - margin, androidx.media3.common.text.Cue.LINE_TYPE_FRACTION)
+                .setLineAnchor(androidx.media3.common.text.Cue.ANCHOR_TYPE_END)
+                .setPosition(.5f).setPositionAnchor(androidx.media3.common.text.Cue.ANCHOR_TYPE_MIDDLE)
+                .setTextAlignment(android.text.Layout.Alignment.ALIGN_CENTER).build()
+        }.orEmpty())
+    }
     private var subtitleUrl by mutableStateOf(false)
     private val pickSubtitle = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         choosingSubtitle = false
@@ -87,21 +100,31 @@ class PlayerActivity : ComponentActivity() {
                         Box(Modifier.weight(1f)) {
                             PlayerScreen(state, settings.builtInPlayer, presentation, ::change,
                                 close = { graph.playback.stopHost(playbackHost); finish() }, file = ::openSubtitleFile, url = { subtitleUrl = true }) { controlsVisible ->
-                                AndroidView(factory = { context -> PlayerView(context).apply {
-                                    useController = false
-                                    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-                                    isFocusable = false
-                                    player = controller
-                                    video = this
-                                    subtitleStyle = null
-                                } }, modifier = Modifier.fillMaxSize(), update = {
-                                    it.player = controller
-                                    it.resizeMode = when (settings.builtInPlayer.aspect) {
-                                        VideoAspect.Fit -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                        VideoAspect.Zoom -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                        VideoAspect.Fill -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                                AndroidView(factory = { context -> android.widget.FrameLayout(context).apply {
+                                    val playerView = PlayerView(context).apply {
+                                        useController = false
+                                        descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                                        isFocusable = false
+                                        player = controller
+                                        subtitleView?.visibility = android.view.View.GONE
+                                        video = this
                                     }
-                                    applySubtitles(it, settings.builtInPlayer, controlsVisible)
+                                    addView(playerView, android.widget.FrameLayout.LayoutParams(-1, -1))
+                                    val captions = SubtitleView(context).apply { isFocusable = false }
+                                    addView(captions, android.widget.FrameLayout.LayoutParams(-1, -1))
+                                    subtitles = captions
+                                    subtitleStyle = null
+                                    renderCues()
+                                } }, modifier = Modifier.fillMaxSize(), update = {
+                                    video?.apply {
+                                        player = controller
+                                        resizeMode = when (settings.builtInPlayer.aspect) {
+                                            VideoAspect.Fit -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                            VideoAspect.Zoom -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                            VideoAspect.Fill -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                                        }
+                                    }
+                                    applySubtitles(settings.builtInPlayer)
                                 })
                             }
                         }
@@ -137,6 +160,7 @@ class PlayerActivity : ComponentActivity() {
                 if (!canStartMedia() || result.isCancelled) return@addListener
                 runCatching { result.get() }.onSuccess { player ->
                     controller = player; video?.player = player; presentation.attach(player)
+                    player.addListener(cueListener); renderCues()
                     player.addListener(object : Player.Listener {
                         override fun onRenderedFirstFrame() { Diagnostics.elapsed("playback_first_frame", began) }
                     })
@@ -176,6 +200,8 @@ class PlayerActivity : ComponentActivity() {
         controller?.let(::prepareMedia)
     }
     private fun disconnect() {
+        controller?.removeListener(cueListener)
+        subtitles?.setCues(emptyList())
         video?.player = null
         presentation.detach()
         future?.let(MediaController::releaseFuture); future = null; controller = null
@@ -199,11 +225,11 @@ class PlayerActivity : ComponentActivity() {
         }
     }
     private fun showMessage(resource: Int) { Toast.makeText(this, uiString(resource), Toast.LENGTH_LONG).show() }
-    private fun applySubtitles(view: PlayerView, preferences: PlayerPreferences, controlsVisible: Boolean) {
-        val key = preferences to controlsVisible
+    private fun applySubtitles(preferences: PlayerPreferences) {
+        val key = preferences
         if (subtitleStyle == key) return
         subtitleStyle = key
-        view.subtitleView?.apply {
+        subtitles?.apply {
             setStyle(CaptionStyleCompat(if (preferences.subtitleColor == SubtitleColor.Yellow) android.graphics.Color.YELLOW else android.graphics.Color.WHITE,
                 if (preferences.subtitleBackground) 0xCC000000.toInt() else android.graphics.Color.TRANSPARENT,
                 android.graphics.Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_OUTLINE, android.graphics.Color.BLACK,
@@ -211,8 +237,9 @@ class PlayerActivity : ComponentActivity() {
             setApplyEmbeddedStyles(preferences.embeddedSubtitleStyle)
             setApplyEmbeddedFontSizes(false)
             setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * preferences.subtitleSize / 100f)
-            setBottomPaddingFraction(if (controlsVisible) .32f else .08f)
+            setBottomPaddingFraction(preferences.subtitleMargin / 100f)
         }
+        renderCues()
     }
     override fun onStart() {
         super.onStart()

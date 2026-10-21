@@ -121,6 +121,13 @@ internal fun AudioDecoder.title() = if (this == AudioDecoder.Device) R.string.pl
             change { it.copy(subtitleSize = (it.subtitleSize + 25).coerceAtMost(175)) }
         }
     }
+    TvText(stringResource(R.string.player_subtitle_position), color = Muted)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        PlayerPreferences.SUBTITLE_MARGINS.forEach { margin ->
+            TvAction("$margin%", selected = preferences.subtitleMargin == margin, translate = false,
+                modifier = Modifier.testTag("player:subtitle:margin:$margin")) { change { it.copy(subtitleMargin = margin) } }
+        }
+    }
     TvText(stringResource(R.string.player_subtitle_color), color = Muted)
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         SubtitleColor.entries.forEach { color -> TvAction(stringResource(if (color == SubtitleColor.White) R.string.player_subtitle_white else R.string.player_subtitle_yellow), selected = color == preferences.subtitleColor) { change { it.copy(subtitleColor = color) } } }

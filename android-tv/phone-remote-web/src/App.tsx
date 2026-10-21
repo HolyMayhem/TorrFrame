@@ -66,7 +66,7 @@ export function App() {
     setItemHash(null);
     window.scrollTo({ top: 0, behavior: "instant" });
   };
-  const selected = remote.state?.library.find((item) => item.hash === itemHash);
+  const selected = remote.state?.library.find((item) => item.hash === itemHash || item.torrentHashes?.includes(itemHash || ""));
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);

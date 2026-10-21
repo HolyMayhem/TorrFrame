@@ -3,7 +3,6 @@
     <string name="settings_title">Settings</string>
     <string name="settings_search">Jackett</string>
     <string name="settings_torrserver">TorrServer</string>
-    <string name="settings_save">Save</string>
     <string name="dialog_done">Done</string>
     <string name="dialog_cancel">Cancel</string>
     <string name="toggle_on">On</string>
@@ -21,7 +20,6 @@
     <string name="server_remote_hint">Connected to an external server. Its owner controls starting and stopping it.</string>
     <string name="server_local_port">Built-in server port</string>
     <string name="server_default_url">Restore default address</string>
-    <string name="server_default_hint">http://localhost:8090 · built-in server</string>
     <string name="server_check">Check connection</string>
     <string name="server_connected">Connected</string>
     <string name="server_connecting">Connecting…</string>
@@ -156,7 +154,6 @@
     <string name="settings_operation_failed">Could not complete the operation. Check the address and connection settings.</string>
     <string name="settings_jackett_connected">Connected to Jackett.</string>
     <string name="settings_metadata_cleared">Metadata cache cleared. Information for saved films has been kept.</string>
-    <string name="settings_update_repo">Android TV app GitHub repository</string>
     <string name="settings_check_server_update">Check TorrServer update</string>
     <string name="settings_check_app_update">Check app update</string>
     <string name="settings_download_update">Download %1$s</string>
@@ -195,7 +192,6 @@
     <string name="phone_address">Address: %1$s</string>
     <string name="phone_qr">Show QR code</string>
     <string name="phone_devices">Connected devices</string>
-    <string name="phone_revoke">Revoke access</string>
     <string name="phone_no_devices">No paired devices yet.</string>
     <string name="phone_close">Close</string>
     <string name="phone_qr_instruction">Connect your phone to the same local network and scan the QR code with its camera. The link is single-use and valid for 2 minutes.</string>
@@ -207,7 +203,6 @@
     <string name="phone_no_playback">No active player on the TV.</string>
     <string name="phone_open_tv">Open TorrFrame on the TV, then try playing the film again. Android restricts opening screens from background apps.</string>
     <string name="phone_operation_failed">Operation failed. Check settings and connection.</string>
-    <string name="metadata_edit">Edit metadata</string>
     <string name="metadata_query">Search title</string>
     <string name="metadata_find">Find metadata</string>
     <string name="metadata_rename">Film title</string>
@@ -357,4 +352,18 @@
     <string name="ui_sounds">Interface sounds</string>
     <string name="developer_unlocked">Developer mode enabled</string>
     <string name="developer_locked">Developer mode disabled</string>
+    <string name="library_clear_title">Clear the library?</string>
+    <string name="library_clear_message">All torrents on the connected TorrServe and their playback history will be removed. Favorites and Watch later will be kept.</string>
+    <string name="library_remove_title">Remove from library?</string>
+    <string name="library_remove_message">“%1$s”: all torrents for this title and their playback history will be removed.</string>
+    <string name="library_delete">Delete</string>
+    <string name="library_source_manual">Manual</string>
+    <string name="player_subtitle_position">Subtitle bottom margin</string>
+    <string name="about_support">Support TorrFrame</string>
+    <string name="about_support_hint">Say thank you and help the app grow. Scan the QR code with your phone.</string>
+    <string name="about_contact">Contact the developer</string>
+    <string name="about_contact_hint">Have an idea or found a bug? Contact the developer on Telegram.</string>
+    <string name="library_source_unknown">Source not recorded</string>
+    <string name="phone_unpair">Unpair</string>
+    <string name="phone_devices_hint">Devices with access to Phone Remote. Unpaired devices must connect again to regain access.</string>
 </resources>
