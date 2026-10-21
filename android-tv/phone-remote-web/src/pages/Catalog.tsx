@@ -247,12 +247,12 @@ export function Catalog({
         >
           {t("Обзор", "Browse")}
         </Button>
-        <Button onClick={() => setList("Favorites")}>
+        {lists.some(item => item.favorite) && <Button onClick={() => setList("Favorites")}>
           {t("Избранное", "Favorites")}
-        </Button>
-        <Button onClick={() => setList("WatchLater")}>
+        </Button>}
+        {lists.some(item => item.watchLater) && <Button onClick={() => setList("WatchLater")}>
           {t("Смотреть позже", "Watch later")}
-        </Button>
+        </Button>}
       </div>
       {!list && !submitted && (
         <div className="field-grid">
@@ -336,6 +336,7 @@ export function Catalog({
           ["WatchLater", t("Смотреть позже", "Watch later"), preferences?.showWatchLater ?? true],
         ] as const).filter(([, , enabled]) => enabled).map(([id, title]) => {
           const saved = lists.filter(item => id === "Favorites" ? item.favorite : item.watchLater);
+          if (!saved.length) return null;
           return <Panel key={id} title={title}>
             {saved.length ? <div className="catalog-grid">{saved.slice(0, 6).map(card)}</div>
               : <p className="muted">{t("В подборке пока нет фильмов.", "No titles in this collection yet.")}</p>}

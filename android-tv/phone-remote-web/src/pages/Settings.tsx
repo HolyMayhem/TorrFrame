@@ -1,6 +1,6 @@
 import { AdditionalSettings } from "../components/AdditionalSettings";
 import { CatalogNetworkSettings } from "../components/CatalogNetworkSettings";
-import { t, webLanguage } from "../i18n";
+import { t, webLanguage, setWebLanguage } from "../i18n";
 import { useEffect, useState } from "react";
 import { request } from "../api";
 import { useAction, type Actions } from "../actions";
@@ -59,6 +59,11 @@ function AppSettings({
   }, [state.settings, edits, key]);
   const draft = { ...base, ...edits } as Settings;
   const changed = Object.keys(edits).length > 0 || key.length > 0;
+  const markDraft = actions.remote.setDraftDirty;
+  useEffect(() => {
+    markDraft("app-settings", changed);
+    return () => markDraft("app-settings", false);
+  }, [changed, markDraft]);
   const edit = (name: string, value: unknown) =>
     setEdits((prev) => ({ ...prev, [name]: value }));
   const save = async () => {
@@ -97,6 +102,14 @@ function AppSettings({
           </Button>
         </div>
       )}
+      <Panel title="Phone Remote">
+        <label className="field">
+          {t("Язык Phone Remote", "Phone Remote language")}
+          <select value={webLanguage()} onChange={event => setWebLanguage(event.target.value as "ru" | "en")}>
+            <option value="ru">Русский</option><option value="en">English</option>
+          </select>
+        </label>
+      </Panel>
       <Panel title="Jackett">
         <Toggle label={t("Использовать Jackett", "Use Jackett")} checked={draft.jackettEnabled}
           disabled={disabled} onChange={value => edit("jackettEnabled", value)} />
@@ -252,20 +265,8 @@ function AppSettings({
         providers={state.searchProviders}
       />
       <Panel title={t("Обновления приложения")}>
-        <label className="field">
-          {t("Репозиторий GitHub")}{" "}
-          <input
-            value={draft.updateRepository}
-            placeholder={t("владелец/репозиторий")}
-            maxLength={100}
-            onChange={(e) => edit("updateRepository", e.target.value)}
-          />
-        </label>
-        <p className="muted">
-          {t(
-            "Сначала сохраните репозиторий. Установка требует системного подтверждения на TV.",
-          )}{" "}
-        </p>
+        <p className="muted"><a href="https://github.com/HolyMayhem/TorrFrame/releases" target="_blank" rel="noreferrer">HolyMayhem/TorrFrame</a></p>
+        <p className="muted">{t("Установка требует подтверждения на TV.", "Installation requires confirmation on the TV.")}</p>
         <div className="button-row">
           <Button
             disabled={disabled || state.updates.busy || changed}
@@ -376,6 +377,13 @@ function ServerSettings({
     state.settings.torrServerUrl,
     state.settings.port,
   ]);
+  const changed = local !== state.settings.useLocalServer || address !== state.settings.torrServerUrl
+    || port !== String(state.settings.port) || Object.keys(edits).length > 0;
+  const markDraft = actions.remote.setDraftDirty;
+  useEffect(() => {
+    markDraft("server-settings", changed);
+    return () => markDraft("server-settings", false);
+  }, [changed, markDraft]);
   const connect = async () => {
     const result = await run<{ message: string }>("server.connect", {
       revision: state.settings.revision,

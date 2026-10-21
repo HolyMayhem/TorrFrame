@@ -34,9 +34,11 @@ import tv.torrframe.ui.theme.TvDimensions
     val localFallback = remember { FocusRequester() }
     val fallback = entryFocus ?: localFallback
     val listFocus = CatalogUserList.entries.associateWith { remember { FocusRequester() } }
-    LaunchedEffect(restoreListFocus) {
+    LaunchedEffect(restoreListFocus, state.savedLists) {
         restoreListFocus?.let { list ->
-            withFrameNanos { }; listFocus.getValue(list).requestFocus(); listFocusRestored()
+            withFrameNanos { }
+            if (list in state.savedLists) listFocus.getValue(list).requestFocus() else fallback.requestFocus()
+            listFocusRestored()
         }
     }
     val items = remember(state.items, filter) {
@@ -54,12 +56,12 @@ import tv.torrframe.ui.theme.TvDimensions
             }
             TvQuietAction("Refresh", enabled = !state.busy, modifier = Modifier.focusRequester(fallback), filled = true, action = refresh); TvQuietAction("Explore catalog", filled = true, action = search)
         }
-        if (state.items.isNotEmpty() || openList != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (state.items.isNotEmpty() || (openList != null && state.savedLists.isNotEmpty())) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             if (state.items.isNotEmpty()) listOf("All", "Movies", "TV Shows").forEach { value ->
                 TvQuietAction(value, selected = value == filter, underline = true) { filter = value }
             }
             Spacer(Modifier.weight(1f))
-            if (openList != null) CatalogUserList.entries.forEach { list ->
+            if (openList != null) CatalogUserList.entries.filter { it in state.savedLists }.forEach { list ->
                 TvQuietAction(stringResource(if (list == CatalogUserList.Favorites) R.string.library_favorites else R.string.library_watch_later),
                     translate = false,
                     modifier = Modifier.focusRequester(listFocus.getValue(list)).testTag("library:list:${list.name}")) { openList(list) }

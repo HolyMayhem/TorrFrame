@@ -113,7 +113,7 @@ export function AdditionalSettings({
           {select(
             t("Масштаб интерфейса", "Interface scale"),
             draft.uiScalePercent,
-            [70, 80, 90, 100, 110].map((v) => [v, `${v}%`]),
+            [70, 75, 80, 85, 90, 95, 100, 105, 110].map((v) => [v, `${v}%`]),
             (value) => edit("uiScalePercent", Number(value)),
           )}
         </div>

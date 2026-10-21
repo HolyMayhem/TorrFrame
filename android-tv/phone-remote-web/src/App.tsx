@@ -1,4 +1,4 @@
-import { t, useWebLanguage, setWebLanguage } from "./i18n";
+import { t, useWebLanguage } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { useRemote } from "./useRemote";
 import type { Actions } from "./actions";
@@ -9,6 +9,7 @@ import { Search } from "./pages/Search";
 import { Library } from "./pages/Library";
 import { RemotePage } from "./pages/Remote";
 import { SettingsPage } from "./pages/Settings";
+import { SyncIndicator } from "./components/SyncIndicator";
 import { CatalogNetworkContext } from "./components/CatalogImage";
 export function App() {
   const language = useWebLanguage();
@@ -66,24 +67,12 @@ export function App() {
     window.scrollTo({ top: 0, behavior: "instant" });
   };
   const selected = remote.state?.library.find((item) => item.hash === itemHash);
-  const languageSwitch = (
-    <select
-      className="language-switch"
-      aria-label="Language / Язык"
-      value={language}
-      onChange={(e) => setWebLanguage(e.target.value as "ru" | "en")}
-    >
-      <option value="ru">RU</option>
-      <option value="en">EN</option>
-    </select>
-  );
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
   if (!remote.state)
     return (
       <div className="pair-page">
-        {languageSwitch}
         <Brand />
         <div className="pair-card">
           <div className="pair-visual">
@@ -209,7 +198,7 @@ export function App() {
         <div className="main-column">
           <header className="topbar">
             <Brand />
-            {languageSwitch}
+            <SyncIndicator connected={remote.connected} phase={remote.syncPhase} />
             <div
               className={`connection-pill ${remote.connected ? "online" : ""}`}
             >

@@ -43,7 +43,11 @@ import tv.torrframe.ui.theme.*
     }
     val rows = CatalogSection.entries.associateWith { rememberLazyListState() }
     val personalRows = CatalogUserList.entries.associateWith { rememberLazyListState() }
-    val homeLists = if (state.filter == CatalogFilter.All) CatalogUserList.entries.filter {
+    // Failed loads remain accessible for retry; successfully empty lists take no space.
+    val availableLists = CatalogUserList.entries.filter { list ->
+        state.listError || state.userEntries.any { it.contains(list) }
+    }
+    val homeLists = if (state.filter == CatalogFilter.All) availableLists.filter {
         if (it == CatalogUserList.Favorites) showFavorites else showWatchLater
     } else emptyList()
     val personalFeeds = CatalogUserList.entries.associateWith { list ->
@@ -164,7 +168,7 @@ import tv.torrframe.ui.theme.*
                     .focusRequester(genreFocus).onFocusChanged { if (it.isFocused) focusedFilterName = "Genres" }
                     .focusProperties { up = entryFocus; if (hasPosters) down = firstPoster }
                     .testTag("catalog:genres")) { genrePicker = true }
-            CatalogUserList.entries.forEach { list ->
+            availableLists.forEach { list ->
                 val count = state.userEntries.count { it.contains(list) }
                 TvQuietAction(userListTitle(list) + "  $count", style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp),
                     modifier = Modifier.focusRequester(listFocus.getValue(list)).testTag("catalog:list:${list.name}")) {
@@ -233,7 +237,8 @@ import tv.torrframe.ui.theme.*
             val group = focusedSection
             val list = CatalogUserList.entries.firstOrNull { group == "list:${it.name}" }
             if (list != null && !homeCollection) {
-                withFrameNanos { }; listFocus.getValue(list).requestFocus()
+                withFrameNanos { }
+                if (list in availableLists) listFocus.getValue(list).requestFocus() else entryFocus.requestFocus()
                 restoreMore = false
                 return@LaunchedEffect
             }

@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAction, type Actions } from "../actions";
 import type { LibraryItem, MetadataChoice, VideoFile } from "../types";
 import { Button, Icon, Panel, Poster, Sheet, size, time } from "./Ui";
@@ -20,6 +20,12 @@ export function FilmDetails({
     [kind, setKind] = useState(item.metadata?.kind || "Movie"),
     [choices, setChoices] = useState<MetadataChoice[] | null>(null);
   const { run, busy, disabled } = useAction(actions);
+  const markDraft = actions.remote.setDraftDirty;
+  const renamed = editing && title !== item.title;
+  useEffect(() => {
+    markDraft("metadata-title", renamed);
+    return () => markDraft("metadata-title", false);
+  }, [renamed, markDraft]);
   const watch = async () => {
     const response = await run<{
       files: VideoFile[];

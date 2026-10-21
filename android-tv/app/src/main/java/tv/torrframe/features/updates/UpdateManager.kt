@@ -16,6 +16,7 @@ import java.security.MessageDigest
 import tv.torrframe.AppGraph
 import tv.torrframe.BuildConfig
 import tv.torrframe.R
+import tv.torrframe.core.network.ServiceFailure
 
 data class UpdateAsset(val url: String, val digest: String, val version: String)
 data class UpdatesUi(val busy: Boolean = false, val message: String = "", val serverVersion: String = "",
@@ -40,10 +41,13 @@ class UpdateManager(private val app: Application, private val graph: AppGraph) {
         mutable.update { it.copy(serverVersion = version, message = text(R.string.update_latest_server, version)) }
     }
     fun check() = action {
-        val repository = graph.settings.state.value.updateRepository
-        require(repository.matches(Regex("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"))) { text(R.string.update_set_repository) }
-        val release = release(repository); val version = release.getString("tag_name")
-        if(version.removePrefix("v") == BuildConfig.VERSION_NAME) {
+        mutable.update { it.copy(asset = null, downloaded = null) }
+        val release = try { release(AppReleases.REPOSITORY) } catch (e: ServiceFailure) {
+            if (e.status != 404) throw e
+            mutable.update { it.copy(message = text(R.string.update_no_release)) }; return@action
+        }
+        val version = release.getString("tag_name")
+        if(!AppReleases.isNewer(version, BuildConfig.VERSION_NAME)) {
             mutable.update { it.copy(asset = null, downloaded = null, message = text(R.string.update_current)) }; return@action
         }
         val assets = release.getJSONArray("assets")

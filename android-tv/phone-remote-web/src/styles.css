@@ -1465,18 +1465,6 @@ small {
   text-align: center;
 }
 
-.language-switch {
-  width: auto;
-  max-width: 80px;
-  padding: 6px 10px;
-  border-radius: 20px;
-  margin-left: auto;
-}
-.pair-page > .language-switch {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-}
 .catalog-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
@@ -1541,3 +1529,34 @@ small {
 .field-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+
+/* Shared sheet rhythm keeps actions, descriptions and follow-up sections apart. */
+.sheet-body > * + * { margin-top: 20px; }
+.sheet-body > .panel { margin-top: 28px; }
+.sheet-body > .button-row { margin-bottom: 28px; }
+.sheet-body > p { overflow-wrap: anywhere; line-height: 1.65; }
+.sheet-body .panel:last-child { margin-bottom: 0; }
+.brand img { border-radius: 0; }
+.topbar > .sync-indicator { margin-left: auto; }
+.sync-indicator { position: relative; flex-shrink: 0; color: var(--muted); }
+.sync-indicator .icon-button { position: relative; color: inherit; }
+.sync-indicator.changed { color: #e5bf74; }
+.sync-indicator.syncing { color: #add3fa; }
+.sync-indicator.done { color: #9bceaa; }
+.sync-indicator.failed, .sync-indicator.offline { color: #e3a6a6; }
+.sync-indicator.syncing svg { animation: spin 1.2s linear infinite; }
+.sync-draft-dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: currentColor; right: 4px; top: 4px; }
+.sync-help { position: absolute; z-index: 30; top: calc(100% + 10px); right: 0; width: 220px; max-width: 70vw; padding: 12px 14px; background: #25262c; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 30px #0006; color: #e5e5e9; font-size: 12px; line-height: 1.5; }
+@media (max-width: 380px) {
+  .topbar { padding-left: 16px; padding-right: 16px; gap: 8px; }
+  .brand { gap: 7px; }
+  .brand strong { font-size: 15px; }
+  .brand img { width: 30px; height: 30px; }
+  .connection-pill { padding: 7px 8px; font-size: 10px; }
+  .field-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { .sync-indicator.syncing svg { animation: none; } }
+
+.sheet-body select { max-width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: #131419; color: #f5f5f7; font: inherit; }
+.sheet-body .panel > select { width: 100%; }
+.search-form > .field { flex: 1; margin-bottom: 0; }

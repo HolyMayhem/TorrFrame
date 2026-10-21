@@ -6,15 +6,31 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import tv.torrframe.AppGraph
 import tv.torrframe.core.models.*
+import tv.torrframe.features.catalog.domain.CatalogUserList
 
 data class LibraryUi(val items: List<LibraryItem> = emptyList(), val busy: Boolean = false,
-    val message: String = "", val files: List<TorrentFile> = emptyList(), val fileHash: String? = null, val syncFailed: Boolean = false, val syncFailure: Int? = null)
+    val message: String = "", val files: List<TorrentFile> = emptyList(), val fileHash: String? = null, val syncFailed: Boolean = false, val syncFailure: Int? = null,
+    val savedLists: Set<CatalogUserList> = emptySet())
 class LibraryViewModel(private val graph: AppGraph) : ViewModel() {
     val initialLocalLoad = CompletableDeferred<Unit>()
     private val mutable = MutableStateFlow(LibraryUi())
     val state = mutable.asStateFlow()
     val metadataEditor get() = graph.metadataEditor
     init {
+        viewModelScope.launch {
+            try {
+                graph.ready.await()
+                graph.catalogUserLists.load()
+                graph.catalogUserLists.entries.collect { entries ->
+                    mutable.update { ui -> ui.copy(savedLists = CatalogUserList.entries.filter { list ->
+                        entries.any { it.contains(list) }
+                    }.toSet()) }
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                mutable.update { it.copy(message = friendly(e)) }
+            }
+        }
         viewModelScope.launch {
             try { graph.store.library.collect { items ->
                 mutable.update { it.copy(items = items) }; initialLocalLoad.complete(Unit)

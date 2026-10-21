@@ -7,7 +7,7 @@ import tv.torrframe.features.player.*
 /** Only explicitly editable preferences cross the API. Server changes use TorrServerActions. */
 internal object RemoteSettings {
     private val fields = setOf("jackettEnabled", "jackettUrl", "jackettKey", "metadataOrder", "aniListEnabled", "language", "resume",
-        "audioLanguage", "subtitleLanguage", "updateRepository", "uiLanguage", "uiTheme", "uiAccent",
+        "audioLanguage", "subtitleLanguage", "uiLanguage", "uiTheme", "uiAccent",
         "uiScalePercent", "uiSoundsEnabled", "animationsEnabled", "showNavigationHints", "playerMode", "externalPlayer", "builtInPlayer", "torrentSearch", "catalogNetwork")
     fun edit(current: Settings, edits: JSONObject): Settings {
         require(edits.keys().asSequence().all { it in fields })
@@ -44,7 +44,7 @@ internal object RemoteSettings {
         return current.copy(jackettEnabled = flag("jackettEnabled", current.jackettEnabled), jackettUrl = text("jackettUrl", current.jackettUrl, 4096), jackettKey = text("jackettKey", current.jackettKey, 4096),
             metadataOrder = MetadataPriority.normalized(order), aniListEnabled = flag("aniListEnabled", current.aniListEnabled), language = language,
             resume = flag("resume", current.resume), audioLanguage = text("audioLanguage", current.audioLanguage, 40),
-            subtitleLanguage = text("subtitleLanguage", current.subtitleLanguage, 40), updateRepository = text("updateRepository", current.updateRepository, 100),
+            subtitleLanguage = text("subtitleLanguage", current.subtitleLanguage, 40),
             uiLanguage = uiLanguage, uiTheme = theme, uiAccent = accent, uiScalePercent = scale,
             uiSoundsEnabled = flag("uiSoundsEnabled", current.uiSoundsEnabled),
             animationsEnabled = flag("animationsEnabled", current.animationsEnabled), showNavigationHints = flag("showNavigationHints", current.showNavigationHints),

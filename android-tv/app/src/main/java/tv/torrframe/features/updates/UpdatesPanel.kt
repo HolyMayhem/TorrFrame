@@ -5,13 +5,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import tv.torrframe.R
 import androidx.compose.ui.unit.dp
-import tv.torrframe.core.storage.Settings
 import tv.torrframe.ui.components.*
 
-@Composable fun UpdatesPanel(state: UpdatesUi, settings: Settings, edit: (String) -> Unit,
+@Composable fun UpdatesPanel(state: UpdatesUi,
     vm: UpdatesViewModel, install: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        EditField(stringResource(R.string.settings_update_repo), settings.updateRepository, russian = true, onValue = edit)
+        TvText(AppReleases.URL, translate = false)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             TvAction(stringResource(R.string.settings_check_server_update), !state.busy, action = vm::server)
             TvAction(stringResource(R.string.settings_check_app_update), !state.busy, action = vm::check)

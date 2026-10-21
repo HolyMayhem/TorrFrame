@@ -32,8 +32,8 @@ android {
         applicationId = "tv.torrframe"
         minSdk = 26
         targetSdk = 37
-        versionCode = 11
-        versionName = "0.1.10"
+        versionCode = 12
+        versionName = "1.0"
         buildConfigField("String", "TMDB_API_KEY", embeddedKey("TMDB", "TORRFRAME_TMDB_API_KEY", "TORRSERVE_TMDB_API_KEY"))
         buildConfigField("String", "OMDB_API_KEY", embeddedKey("OMDB", "TORRFRAME_OMDB_API_KEY", "TORRSERVE_OMDB_API_KEY"))
         buildConfigField("String", "KINOPOISK_API_KEY", embeddedKey("Kinopoisk", "TORRFRAME_KINOPOISK_API_KEY", "TORRSERVE_KINOPOISK_API_KEY"))

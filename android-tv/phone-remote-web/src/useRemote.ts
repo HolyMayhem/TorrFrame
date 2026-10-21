@@ -1,9 +1,11 @@
 import { t } from "./i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getOperation, getState, RemoteError, request, submit } from "./api";
+import { useSyncStatus } from "./useSyncStatus";
 import { applyEvent } from "./protocol";
 import type { Command, Operation, RemoteEvent, Snapshot } from "./types";
 export function useRemote() {
+  const { syncPhase, setDraftDirty, beginSync, finishSync } = useSyncStatus();
   const [state, setState] = useState<Snapshot | null>(null),
     [connected, setConnected] = useState(false),
     [pairRequired, setPairRequired] = useState(false),
@@ -198,71 +200,79 @@ export function useRemote() {
         throw new RemoteError(
           t("Дождитесь восстановления связи с телевизором."),
         );
-      const owner = requests.current;
-      const { operationId } = await submit(
-        type,
-        args,
-        current.csrf,
-        owner.signal,
-      );
-      if (owner.signal.aborted) throw new RemoteError(t("Операция отменена."));
-      return await new Promise<T>((resolve, reject) => {
-        let finished = false;
-        let poll: ReturnType<typeof setTimeout> | undefined;
-        const deadline = setTimeout(
-          () =>
-            finish(
-              undefined,
-              new RemoteError(
-                t(
-                  "Операция ещё выполняется. Проверьте её состояние на телевизоре.",
+      const syncing = beginSync(type);
+      let synced = false;
+      try {
+        const owner = requests.current;
+        const { operationId } = await submit(
+          type,
+          args,
+          current.csrf,
+          owner.signal,
+        );
+        if (owner.signal.aborted) throw new RemoteError(t("Операция отменена."));
+        const result = await new Promise<T>((resolve, reject) => {
+          let finished = false;
+          let poll: ReturnType<typeof setTimeout> | undefined;
+          const deadline = setTimeout(
+            () =>
+              finish(
+                undefined,
+                new RemoteError(
+                  t(
+                    "Операция ещё выполняется. Проверьте её состояние на телевизоре.",
+                  ),
                 ),
               ),
-            ),
-          type === "search" ? 245000 : 125000,
-        );
-        const cleanup = () => {
-          finished = true;
-          clearTimeout(deadline);
-          clearTimeout(poll);
-          listeners.current.delete(operationId);
-          pendingOperations.current.delete(cancel);
-        };
-        const finish = (op?: Operation, err?: Error) => {
-          if (finished) return;
-          if (err) {
+            type === "search" ? 245000 : 125000,
+          );
+          const cleanup = () => {
+            finished = true;
+            clearTimeout(deadline);
+            clearTimeout(poll);
+            listeners.current.delete(operationId);
+            pendingOperations.current.delete(cancel);
+          };
+          const finish = (op?: Operation, err?: Error) => {
+            if (finished) return;
+            if (err) {
+              cleanup();
+              reject(err);
+              return;
+            }
+            if (!op || op.status === "running") return;
             cleanup();
-            reject(err);
-            return;
-          }
-          if (!op || op.status === "running") return;
-          cleanup();
-          if (op.status === "completed") resolve(op.result as T);
-          else reject(new RemoteError(op.error || t("Операция отменена.")));
-        };
-        const check = async () => {
-          if (finished) return;
-          try {
-            const op = await getOperation(operationId, owner.signal);
-            finish(op);
-            if (!finished) poll = setTimeout(() => void check(), 2500);
-          } catch (e) {
-            if (e instanceof RemoteError && e.authorization)
-              finish(undefined, e);
-            else if (!finished) poll = setTimeout(() => void check(), 2500);
-          }
-        };
-        const cancel = () =>
-          finish(undefined, new RemoteError(t("Операция отменена.")));
-        pendingOperations.current.add(cancel);
-        listeners.current.set(operationId, (op) => {
-          if (op.status !== "running") void check();
+            if (op.status === "completed") resolve(op.result as T);
+            else reject(new RemoteError(op.error || t("Операция отменена.")));
+          };
+          const check = async () => {
+            if (finished) return;
+            try {
+              const op = await getOperation(operationId, owner.signal);
+              finish(op);
+              if (!finished) poll = setTimeout(() => void check(), 2500);
+            } catch (e) {
+              if (e instanceof RemoteError && e.authorization)
+                finish(undefined, e);
+              else if (!finished) poll = setTimeout(() => void check(), 2500);
+            }
+          };
+          const cancel = () =>
+            finish(undefined, new RemoteError(t("Операция отменена.")));
+          pendingOperations.current.add(cancel);
+          listeners.current.set(operationId, (op) => {
+            if (op.status !== "running") void check();
+          });
+          void check();
         });
-        void check();
-      });
+        // Read back the application-owned snapshot after persistence, including missed events.
+        if (syncing) await refresh();
+        synced = true;
+        return result;
+      } finally { if (syncing) finishSync(synced); }
     },
-    [],
+    [beginSync, finishSync, refresh],
   );
-  return { state, connected, pairRequired, error, command, refresh, pairCode };
+  return { state, connected, pairRequired, error, command, refresh, pairCode, syncPhase, setDraftDirty };
 }
 export type Remote = ReturnType<typeof useRemote>;

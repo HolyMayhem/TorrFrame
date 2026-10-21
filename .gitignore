@@ -22,3 +22,18 @@ android-tv/phone-remote-web/public/app-icon.png
 
 # IDE-generated copies of torrent-search sources
 android-tv/torrent-search/bin/
+
+# Local checks and internal documentation (kept on the developer machine)
+**/src/test/
+**/src/androidTest/
+android-tv/phone-remote-web/tests/
+/scripts/test-fixture/
+/scripts/run-native-tests.sh
+/scripts/profile-adb.sh
+/docs/*
+!/docs/assets/
+/README_ANDROID_TV.md
+/android-tv/app/src/main/java/tv/torrframe/onboarding/README.md
+/.vscode/
+/.cbmignore
+android-tv/phone-remote-web/public/brand-mark.png

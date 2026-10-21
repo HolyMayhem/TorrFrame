@@ -320,7 +320,7 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
         onSetup = { settingsOpen = false; graph.setup.restart() },
         dismiss = { settingsOpen = false; restoreSettingsFocus = true },
         phoneRemote = { tv.torrframe.phoneRemote.ui.PhoneRemoteSettings(graph) }) {
-        UpdatesPanel(update, set.draft, { value -> settings.edit { it.copy(updateRepository = value) } }, updates) {
+        UpdatesPanel(update, updates) {
             updates.installer()?.let { intent -> runCatching { context.startActivity(intent) }.onFailure { updates.installerFailed() } }
         }
     }

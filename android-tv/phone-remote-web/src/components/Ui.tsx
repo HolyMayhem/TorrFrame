@@ -24,6 +24,7 @@ export const icons = {
   close: "M6 6l12 12M18 6L6 18",
   refresh: "M20 7v5h-5M4 17v-5h5M19 12a7 7 0 0 0-12-5M5 12a7 7 0 0 0 12 5",
   tv: "M3 5h18v13H3zM8 22l4-4 4 4",
+  warning: "M12 8v5M12 17h.01M12 3L2 21h20z",
   check: "M5 12l4 4 10-10",
   back: "M15 5l-7 7 7 7",
   trash: "M3 6h18M8 6V3h8v3M6 6l1 15h10l1-15M10 10v7M14 10v7",
@@ -55,7 +56,7 @@ export function Icon({
 export function Brand() {
   return (
     <div className="brand">
-      <img src="/app-icon.png" width="36" height="36" alt="" />
+      <img src="/brand-mark.png" width="36" height="36" alt="" />
       <div>
         <strong>TorrFrame</strong>
         <small>Phone Remote</small>
@@ -147,7 +148,7 @@ export function Sheet({
             {notice}
           </div>
         )}
-        {children}
+        <div className="sheet-body">{children}</div>
       </div>
     </dialog>
   );

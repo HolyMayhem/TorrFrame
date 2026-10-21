@@ -167,7 +167,7 @@
     <string name="settings_license_info">TorrServer by YouROK. Kotlin, AndroidX, OkHttp and Coil are distributed under Apache-2.0.</string>
     <string name="update_failed">Could not check or download the update. Check your connection and try again.</string>
     <string name="update_latest_server">Latest TorrServer: %1$s. The built-in server updates with the APK; an external server is updated by its owner.</string>
-    <string name="update_set_repository">Enter the Android TV app GitHub repository as owner/repository and save the settings.</string>
+    <string name="update_no_release">Check complete. No updates have been published yet.</string>
     <string name="update_current">The app is up to date.</string>
     <string name="update_missing_apk">No compatible ARM APK was found in the latest release.</string>
     <string name="update_missing_digest">The release does not include a SHA-256 checksum for the APK.</string>
