@@ -45,3 +45,6 @@ android-tv/phone-remote-web/public/brand-mark.png
 *.orig
 *~
 *.swp
+
+# Website source lives in its own private repository.
+/TorrFrame-Website/
