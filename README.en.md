@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/torrframe-icon-rounded.png" width="128" height="128" alt="TorrFrame app icon">
+  <img src="icons/torrframe-metallic-film-icon.png" width="256" height="128" alt="TorrFrame app icon">
 </p>
 
 <h1 align="center">TorrFrame</h1>
