@@ -3,6 +3,8 @@ package tv.torrframe.onboarding
 import android.widget.Toast
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import tv.torrframe.core.telemetry.TelemetryConsent
+import tv.torrframe.features.settings.TelemetryInvitation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -20,6 +22,9 @@ import tv.torrframe.core.server.ServerState
     val preference by graph.phonePreferences.state.collectAsStateWithLifecycle()
     val connection by graph.connection.state.collectAsStateWithLifecycle()
     val server by graph.server.state.collectAsStateWithLifecycle()
+    val consent by graph.telemetry.consent.collectAsStateWithLifecycle()
+    var offer by rememberSaveable { mutableStateOf(false) }
+    var skipped by rememberSaveable { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableIntStateOf(0) }
     var useLocal by rememberSaveable { mutableStateOf(settings.useLocalServer) }
@@ -43,8 +48,29 @@ import tv.torrframe.core.server.ServerState
             } finally { saving = false }
         }
     }
+    LaunchedEffect(enabled, progress.step, consent) {
+        if (enabled && progress.step == SetupStep.Finished && consent == TelemetryConsent.Unasked && !skipped && !offer) {
+            offer = graph.telemetry.claimOffer()
+        }
+    }
+    fun chooseTelemetry(enabled: Boolean) {
+        change {
+            if (!graph.telemetry.choose(enabled)) throw ApplicationActionFailure(R.string.setup_operation_failed)
+            graph.setup.next()
+        }
+    }
+    fun skipSetup() {
+        skipped = true
+        graph.scope.launch { graph.telemetry.claimOffer() }
+        graph.setup.finish()
+    }
     fun complete() {
         if (progress.step != SetupStep.Server) { graph.setup.next(); return }
+        if (consent == TelemetryConsent.Loading) return
+        if (consent == TelemetryConsent.Unasked) {
+            graph.setup.back()
+            return
+        }
         val target = if (useLocal) ServerAddress.local(settings.port) else
             runCatching { ServerAddress.normalize(address) }.getOrElse { error = R.string.server_invalid_url; return }
         val changed = useLocal != settings.useLocalServer || target != settings.torrServerUrl
@@ -86,12 +112,24 @@ import tv.torrframe.core.server.ServerState
         if (progress.saveFailed) R.string.setup_save_failed else error,
         SetupChoices(settings.uiLanguage, settings.uiTheme, settings.uiAccent, preference.enabled, useLocal, address),
         SetupCallbacks(
-            next = ::complete, back = graph.setup::back, skip = graph.setup::finish,
+            next = ::complete, back = graph.setup::back, skip = ::skipSetup,
             language = { language -> change { graph.settings.update { it.copy(uiLanguage = language) } } },
             theme = { theme -> change { graph.settings.update { it.copy(uiTheme = theme) } } },
             accent = { accent -> change { graph.settings.update { it.copy(uiAccent = accent) } } },
             phone = { enabled -> change { graph.phoneRemote.initialize(); graph.phoneRemote.enabled(enabled) } },
-            local = { useLocal = it; error = 0 }, address = { address = it; error = 0 }),
+            local = { useLocal = it; error = 0 }, address = { address = it; error = 0 },
+            telemetry = ::chooseTelemetry),
         serverStatus = status,
+        privacyReady = consent != TelemetryConsent.Loading,
         remote = { SetupPhoneCard(graph.phoneRemote, preference.enabled) })
+    if (enabled && offer && progress.step == SetupStep.Finished) TelemetryInvitation(
+        choose = { value ->
+            offer = false
+            graph.scope.launch {
+                if (!graph.telemetry.choose(value))
+                    Toast.makeText(graph.app, graph.app.uiString(R.string.setup_operation_failed), Toast.LENGTH_SHORT).show()
+            }
+        },
+        dismiss = { offer = false })
+
 }

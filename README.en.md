@@ -114,3 +114,7 @@ Quiet interface sounds and the startup sound can be turned off with **Interface 
 TorrFrame is an independent app using [TorrServer](https://github.com/YouROK/TorrServer), data from [TMDB](https://www.themoviedb.org/), the public [CUB](https://tmdb.cub.best/) catalog, and work from [TorrentSearch](https://github.com/prajwalch/TorrentSearch).
 
 Thank you to their authors and contributors. These projects and services are distributed under their own terms and licenses. Third-party licenses are available in **Settings → About**.
+
+## Privacy
+
+TorrFrame offers opt-in usage statistics. Sharing stays off until you explicitly agree. Open **Settings → Privacy** to preview the report, stop sharing, or reset the installation ID. [Data collected and how analytics works](telemetry/README.md).

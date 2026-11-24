@@ -1,0 +1,17 @@
+{
+  "name": "torrframe-telemetry-local",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-23",
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true, "html_handling": "none" },
+  "dev": { "ip": "127.0.0.1", "port": 8787 },
+  "vars": { "ENVIRONMENT": "development", "LATEST_BUILD": "12", "DAILY_LIMIT": "1000" },
+  "d1_databases": [{ "binding": "DB", "database_name": "torrframe-analytics-local", "database_id": "9cf15dbd-4c32-49ab-989b-457e53339426" }],
+  "ratelimits": [
+    { "name": "INGRESS", "namespace_id": "8111", "simple": { "limit": 180, "period": 60 } },
+    { "name": "INSTALLATION", "namespace_id": "8112", "simple": { "limit": 8, "period": 60 } },
+    { "name": "ADMIN", "namespace_id": "8113", "simple": { "limit": 30, "period": 60 } }
+  ]
+}

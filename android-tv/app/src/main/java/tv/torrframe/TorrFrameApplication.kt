@@ -1,5 +1,6 @@
 package tv.torrframe
 
+import tv.torrframe.core.telemetry.TelemetryFeature
 import tv.torrframe.core.localization.uiString
 import android.app.Application
 import kotlinx.coroutines.*
@@ -33,6 +34,9 @@ class AppGraph(val app: Application) {
     val developer = tv.torrframe.features.developer.DeveloperControls(developerPreferences.getBoolean("unlocked", BuildConfig.DEBUG))
     val networkDiagnostics = tv.torrframe.core.network.NetworkDiagnostics()
     val settings = SettingsStore(app)
+    val telemetry = tv.torrframe.core.telemetry.TelemetryController(app, scope) {
+        settings.state.value.let { it.uiLanguage to it.uiTheme }
+    }
     val uiSounds = tv.torrframe.ui.sound.UiSounds(app) { ready.isCompleted && !ready.isCancelled && settings.state.value.uiSoundsEnabled }
     val http = Http(beforeRequest = developer::beforeRequest, diagnostics = networkDiagnostics,
         dnsOverride = tv.torrframe.core.network.TmdbDns(),
@@ -44,22 +48,35 @@ class AppGraph(val app: Application) {
             { imagePreferences.edit { putString("preferredHost", it) } }), networkDiagnostics)
     val serverWebAddress = ServerWebAddressMonitor(app, settings, scope)
     val store = LibraryStore(app)
-    val api = TorrServerApi(http) { settings.state.value.torrServerUrl }
+    val api = TorrServerApi(http, onInteraction = { endpoint ->
+        val current = settings.state.value
+        val builtin = current.useLocalServer && endpoint == current.torrServerUrl
+        telemetry.record(if (builtin) TelemetryFeature.BuiltinTorrServer else TelemetryFeature.ExternalTorrServer)
+    }) { settings.state.value.torrServerUrl }
     // Keep process health checks real even while user-facing API failures are simulated.
     private val localApi = TorrServerApi(Http(http.client)) { "http://127.0.0.1:${settings.state.value.port}" }
     val connection = ServerConnection(api, settings.state, scope)
     val server = ServerController(app, localApi, scope, settings)
-    val jackett = JackettClient(http)
+    val jackett = JackettClient(http) { telemetry.record(TelemetryFeature.Jackett) }
     val jackettSearch = tv.torrserve.torrentsearch.engine.TorrentSearchEngine(listOf(
         tv.torrframe.features.search.JackettSearchProvider(jackett) { settings.state.value }))
     val torrentSearchNetwork = tv.torrframe.features.torrentsearch.data.TorrentSearchNetwork(http)
     val torrentSearch = tv.torrserve.torrentsearch.engine.TorrentSearchEngine(tv.torrserve.torrentsearch.provider.builtinProviders(torrentSearchNetwork))
     val tmdb = tv.torrframe.core.network.TmdbClient(http)
     val catalogCache = tv.torrframe.features.catalog.data.SqliteCatalogCache(app)
-    val catalogUserLists = tv.torrframe.features.catalog.data.SqliteCatalogUserLists(app)
+    val catalogUserLists = tv.torrframe.features.catalog.data.SqliteCatalogUserLists(app, onToggle = { list ->
+        telemetry.record(if (list == tv.torrframe.features.catalog.domain.CatalogUserList.Favorites)
+            TelemetryFeature.Favorites else TelemetryFeature.WatchLater)
+    })
     val catalog = tv.torrframe.features.catalog.data.ConfiguredCatalogRepository(
         { settings.state.value.catalogNetwork }, http, tmdb,
-        tv.torrframe.features.developer.DeveloperCatalogCache(catalogCache, developer), scope)
+        tv.torrframe.features.developer.DeveloperCatalogCache(catalogCache, developer), scope) { origin ->
+        when (origin) {
+            tv.torrframe.features.catalog.domain.CatalogOrigin.Tmdb -> telemetry.record(TelemetryFeature.Tmdb)
+            tv.torrframe.features.catalog.domain.CatalogOrigin.Cub -> telemetry.record(TelemetryFeature.Cub)
+            else -> Unit
+        }
+    }
     val metadataProviders = MetadataProviders(http, tmdb)
     val metadata = MetadataResolver(metadataProviders, store) { developer.state.value.bypassMetadata(it) }
     val phonePreferences = tv.torrframe.phoneRemote.settings.PhoneRemotePreferences(app)
@@ -88,6 +105,7 @@ class AppGraph(val app: Application) {
             try {
                 setup.initialize(settings.hasStoredSettings())
                 settings.load(); ready.complete(Unit)
+                launch { telemetry.initialize() }
                 launch { settings.state.map { it.uiSoundsEnabled }.distinctUntilChanged().collect { uiSounds.settingsChanged() } }
                 if (settings.state.value.startOnBoot && settings.state.value.useLocalServer) {
                     try { LocalServerService.start(app) }
@@ -120,6 +138,7 @@ class AppGraph(val app: Application) {
                     runCatching {
                         ready.await()
                         if (visible > 0) {
+                            telemetry.foreground(true)
                             uiSounds.foreground(true)
                             server.foreground(true)
                             if (settings.state.value.needsLocalService) {
@@ -133,7 +152,7 @@ class AppGraph(val app: Application) {
                     }
                 }
             }
-            override fun onActivityStopped(activity: Activity) { visible--; if(visible == 0) { uiSounds.foreground(false); server.foreground(false); connection.foreground(false) } }
+            override fun onActivityStopped(activity: Activity) { visible--; if(visible == 0) { telemetry.foreground(false); uiSounds.foreground(false); server.foreground(false); connection.foreground(false) } }
             override fun onActivityCreated(activity: Activity, state: Bundle?) {}
             override fun onActivityDestroyed(activity: Activity) {}
             override fun onActivityPaused(activity: Activity) {}

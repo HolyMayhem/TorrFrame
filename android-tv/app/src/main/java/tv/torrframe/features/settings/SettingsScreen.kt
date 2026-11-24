@@ -55,7 +55,7 @@ enum class SettingsCategory(val title: Int) {
     PhoneRemote(R.string.phone_title), TorrServer(R.string.settings_torrserver), Search(R.string.settings_search),
     TorrentSearch(R.string.settings_torrent_search), Catalog(R.string.catalog_network_title),
     Metadata(R.string.settings_metadata), Playback(R.string.settings_playback), Updates(R.string.settings_updates),
-    Appearance(R.string.settings_appearance), About(R.string.settings_about), Developer(R.string.settings_developer)
+    Appearance(R.string.settings_appearance), Privacy(R.string.telemetry_privacy), About(R.string.settings_about), Developer(R.string.settings_developer)
 }
 
 @Composable fun SettingsScreen(state: SettingsUi, server: ServerState, vm: SettingsViewModel,
@@ -209,6 +209,7 @@ enum class SettingsCategory(val title: Int) {
                                                     tv.torrframe.features.developer.DeveloperSettings(vm.developer, onSetup)
                                                 }
                                             }
+                                            SettingsCategory.Privacy -> item { TelemetrySettings(vm.telemetry) }
                                             SettingsCategory.About -> item {
                                                 SettingsGroup(stringResource(category!!.title)) {
                                                     Text(stringResource(R.string.settings_about_text, BuildConfig.VERSION_NAME), color = Muted)

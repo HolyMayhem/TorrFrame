@@ -14,6 +14,9 @@ fun embeddedKey(property: String, environment: String, legacyEnvironment: String
     require(value.isNotBlank()) { "Configure $environment or metadata-keys.properties before building." }
     return "\"" + value.trim().replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
+fun telemetryEndpointValue(variable: String): String = providers.environmentVariable(variable).orNull.orEmpty()
+    .takeIf { it.length <= 512 && it.all { char -> char.code in 33..126 && char != '"' && char != '\\' } }.orEmpty()
+
 val supportedServerAbis = mapOf(
     "arm64-v8a" to "27fc76161b1fcab64b6f71bb7d62ff7178061624a957f4dcbe66c566f5b54a42",
     "armeabi-v7a" to "816a44e35f6e8802eb52bfa65263da44611b4b36e62b0b517decaf20f2ac5689",
@@ -41,7 +44,11 @@ android {
         testInstrumentationRunner = providers.gradleProperty("playerSmokeRunner").orNull ?: "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
+        debug {
+            buildConfigField("String", "TELEMETRY_ENDPOINT", "\"${telemetryEndpointValue("TORRFRAME_TELEMETRY_DEBUG_URL")}\"")
+        }
         release {
+            buildConfigField("String", "TELEMETRY_ENDPOINT", "\"${telemetryEndpointValue("TORRFRAME_TELEMETRY_URL")}\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

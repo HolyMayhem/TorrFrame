@@ -24,7 +24,7 @@ import kotlin.time.Duration.Companion.seconds
 private val SessionKey = AttributeKey<RemoteSession>("phone-session")
 const val PHONE_COOKIE = "ts_phone_session"
 class PhoneRemoteServer(val guard: RequestGuard, private val sessions: SessionManager,
-    private val pairing: PairingManager, private val backend: RemoteBackend, private val assets: WebAssets) {
+    private val pairing: PairingManager, private val backend: RemoteBackend, private val assets: WebAssets, private val onConnection: () -> Unit = {}) {
     private var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     private val calls = kotlinx.coroutines.sync.Semaphore(16)
     private val sockets = AtomicInteger()
@@ -102,10 +102,14 @@ class PhoneRemoteServer(val guard: RequestGuard, private val sessions: SessionMa
                     val grant = sessions.create(request.optString("device", "Телефон"))
                     call.response.headers.append(HttpHeaders.SetCookie, "$PHONE_COOKIE=${grant.cookie}; Path=/api; HttpOnly; SameSite=Strict; Max-Age=604800")
                     call.json(HttpStatusCode.OK, JSONObject().put("paired", true))
+                    onConnection()
                 } catch (e: Exception) { if (e is CancellationException && e !is TimeoutCancellationException) throw e; call.failure(HttpStatusCode.BadRequest, "pair_failed") }
             }
             get("/api/state") {
-                try { call.json(HttpStatusCode.OK, backend.snapshot(call.attributes[SessionKey])) }
+                try {
+                    call.json(HttpStatusCode.OK, backend.snapshot(call.attributes[SessionKey]))
+                    onConnection()
+                }
                 catch (e: Exception) { if (e is CancellationException && e !is TimeoutCancellationException) throw e; call.failure(HttpStatusCode.ServiceUnavailable, "state_unavailable") }
             }
             post("/api/commands") {

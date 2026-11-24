@@ -39,10 +39,11 @@ data class SetupChoices(val language: String, val theme: String, val accent: Str
     val phoneEnabled: Boolean, val useLocal: Boolean, val serverAddress: String)
 data class SetupCallbacks(val next: () -> Unit, val back: () -> Unit, val skip: () -> Unit,
     val language: (String) -> Unit, val theme: (String) -> Unit, val accent: (String) -> Unit,
-    val phone: (Boolean) -> Unit, val local: (Boolean) -> Unit, val address: (String) -> Unit)
+    val phone: (Boolean) -> Unit, val local: (Boolean) -> Unit, val address: (String) -> Unit,
+    val telemetry: (Boolean) -> Unit = {})
 
 @Composable fun SetupWizard(step: SetupStep?, enabled: Boolean, busy: Boolean, error: Int,
-    choices: SetupChoices, actions: SetupCallbacks, serverStatus: Int, remote: @Composable () -> Unit) {
+    choices: SetupChoices, actions: SetupCallbacks, serverStatus: Int, privacyReady: Boolean = true, remote: @Composable () -> Unit) {
     val motion = LocalAnimationsEnabled.current
     val duration = if (motion) 260 else 0
     val visible = enabled && step != null && step != SetupStep.Finished
@@ -112,6 +113,7 @@ data class SetupCallbacks(val next: () -> Unit, val back: () -> Unit, val skip: 
                                 SetupStep.Language -> R.string.setup_language_title
                                 SetupStep.Appearance -> R.string.setup_appearance_title
                                 SetupStep.PhoneRemote -> R.string.setup_phone_title
+                                SetupStep.Privacy -> R.string.telemetry_privacy
                                 SetupStep.Server -> R.string.setup_server_title
                                 else -> R.string.setup_welcome_title
                             }), style = MaterialTheme.typography.headlineMedium)
@@ -146,6 +148,11 @@ data class SetupCallbacks(val next: () -> Unit, val back: () -> Unit, val skip: 
                                         }
                                     }
                                 }
+                                SetupStep.Privacy -> {
+                                    TvText(stringResource(R.string.telemetry_description), color = Muted)
+                                    TvText(stringResource(R.string.telemetry_later), color = Muted,
+                                        style = MaterialTheme.typography.labelLarge)
+                                }
                                 SetupStep.Server -> {
                                     TvText(stringResource(R.string.setup_server_body), color = Muted)
                                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -173,7 +180,12 @@ data class SetupCallbacks(val next: () -> Unit, val back: () -> Unit, val skip: 
                         else TvAction(stringResource(R.string.setup_back), !busy,
                             modifier = Modifier.testTag("setup:back"), action = actions.back)
                         Spacer(Modifier.weight(1f))
-                        TvAction(stringResource(when {
+                        if (lastStep == SetupStep.Privacy) {
+                            TvAction(stringResource(R.string.telemetry_accept), !busy && privacyReady,
+                                modifier = Modifier.testTag("setup:privacy:accept")) { actions.telemetry(true) }
+                            TvAction(stringResource(R.string.telemetry_decline), !busy && privacyReady,
+                                modifier = Modifier.focusRequester(primary).testTag("setup:privacy:decline")) { actions.telemetry(false) }
+                        } else TvAction(stringResource(when {
                             welcome -> R.string.setup_start
                             lastStep == SetupStep.Server -> R.string.setup_finish
                             else -> R.string.setup_next
@@ -182,8 +194,8 @@ data class SetupCallbacks(val next: () -> Unit, val back: () -> Unit, val skip: 
                 }
             }
         }
-        LaunchedEffect(visible, lastStep) {
-            if (visible) { withFrameNanos { }; primary.requestFocus() }
+        LaunchedEffect(visible, lastStep, privacyReady) {
+            if (visible && (lastStep != SetupStep.Privacy || privacyReady)) { withFrameNanos { }; primary.requestFocus() }
         }
     }
 }

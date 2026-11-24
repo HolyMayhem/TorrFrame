@@ -1,0 +1,24 @@
+{
+  "name": "torrframe-telemetry",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.local.jsonc --ip 127.0.0.1 --local",
+    "migrate:local": "wrangler d1 migrations apply DB --config wrangler.local.jsonc --local",
+    "check": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs",
+    "dry-run": "wrangler deploy --dry-run --config wrangler.local.jsonc",
+    "deploy": "node scripts/deploy.mjs"
+  },
+  "dependencies": {
+    "jose": "6.2.14"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261029.1",
+    "esbuild": "0.28.2",
+    "miniflare": "5.20261023.3-beta",
+    "typescript": "7.0.2",
+    "wrangler": "4.156.0"
+  }
+}

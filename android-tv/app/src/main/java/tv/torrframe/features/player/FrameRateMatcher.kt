@@ -1,12 +1,32 @@
 package tv.torrframe.features.player
 
 import android.view.Window
+import android.hardware.display.DisplayManager
+import android.os.Handler
+import android.os.Looper
 import kotlin.math.abs
 import kotlin.math.round
 
 /** Same-resolution display-mode matching, adapted from Just Player's Utils.handleFrameRate (Unlicense).
  * Modern seamless Surface frame-rate hints remain Media3's responsibility. No network re-probing. */
-class FrameRateMatcher(private val window: Window) {
+class FrameRateMatcher(private val window: Window, private val onConfirmed: () -> Unit = {}) {
+    private val displays = window.context.getSystemService(DisplayManager::class.java)
+    private var pending: Pair<Int, Int>? = null
+    private val listener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) = Unit
+        override fun onDisplayRemoved(displayId: Int) { if (pending?.first == displayId) stopObserving() }
+        override fun onDisplayChanged(displayId: Int) {
+            val match = pending ?: return
+            if (match.first == displayId && displays?.getDisplay(displayId)?.mode?.modeId == match.second) {
+                stopObserving()
+                onConfirmed()
+            }
+        }
+    }
+    private fun stopObserving() {
+        if (pending != null) displays?.unregisterDisplayListener(listener)
+        pending = null
+    }
     private val originalMode = window.attributes.preferredDisplayModeId
     private var lastRate = -1f
     private var applied = false
@@ -20,11 +40,15 @@ class FrameRateMatcher(private val window: Window) {
             it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight
         }.map { it.modeId to it.refreshRate }, current.modeId) ?: return
         if (mode != current.modeId) {
+            stopObserving()
+            pending = display.displayId to mode
+            displays?.registerDisplayListener(listener, Handler(Looper.getMainLooper()))
             window.attributes = window.attributes.apply { preferredDisplayModeId = mode }
             applied = true
         }
     }
     fun restore() {
+        stopObserving()
         if (applied) window.attributes = window.attributes.apply { preferredDisplayModeId = originalMode }
         applied = false; lastRate = -1f
     }
