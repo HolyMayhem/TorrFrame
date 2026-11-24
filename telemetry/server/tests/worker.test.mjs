@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { build } from "esbuild";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 
-const bundled = await build({ entryPoints: ["src/index.ts"], bundle: true, format: "esm", write: false, platform: "neutral" });
+const bundled = await build({ entryPoints: ["src/http.ts"], bundle: true, format: "esm", write: false, platform: "neutral" });
 const worker = await import("data:text/javascript;base64," + Buffer.from(bundled.outputFiles[0].contents).toString("base64"));
 const DAY = 86400000;
 const now = Date.parse("2026-11-25T12:01:00Z");
@@ -202,4 +202,12 @@ test("production password requires HTTPS and protects each route with an indepen
   assert.equal((await worker.handle(request("/admin/", auth), { ...production, ADMIN:deny }, now)).status, 429);
   assert.equal((await worker.handle(request("/admin/", credential), { ...production, ADMIN:deny }, now)).status, 200);
   assert.equal((await worker.handle(request("/admin/api/stats", credential), { ...production, ADMIN:deny }, now)).status, 429);
+});
+
+test("does not expose the Hub RPC methods on the original HTTP handler", async () => {
+  for (const path of ["/HubAnalytics/snapshot", "/admin/api/snapshot", "/admin/api/HubAnalytics/health"]) {
+    const response = await admin(path);
+    assert.equal(response.status, 404);
+    assert.doesNotMatch(await response.text(), /installations/);
+  }
 });
