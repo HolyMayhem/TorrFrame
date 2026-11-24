@@ -56,9 +56,11 @@ class RemoteCommands(private val graph: AppGraph) {
                 } else {
                     val config = TorrentSearchConfiguration(graph)
                     val options = config.options()
-                    val target = config.prepare(SearchTarget(query, args.optString("originalTitle"),
+                    val requested = SearchTarget(query, args.optString("originalTitle"),
                         args.optInt("year").takeIf { it in 1800..2200 }, if (filter == "TV Shows") MediaType.Series else MediaType.Movie,
-                        args.optInt("tmdbId").takeIf { it > 0 }), options)
+                        args.optInt("tmdbId").takeIf { it > 0 })
+                    val target = if (graph.torrentSearch.activeProviders(requested, options).isEmpty()) requested
+                        else config.prepare(requested, options)
                     val page = graph.torrentSearch.search(target, options).last()
                     JSONObject().put("partial", page.sources.any { it.phase in listOf(SourcePhase.Failed, SourcePhase.TimedOut) })
                         .put("sources", JSONArray(page.sources.map { JSONObject().put("name", it.name).put("phase", it.phase.name).put("count", it.count) }))
@@ -110,6 +112,14 @@ class RemoteCommands(private val graph: AppGraph) {
             "metadata.select" -> { graph.metadataEditor.select(hash(args), get(matches, session, value(args, "handle"))); JSONObject() }
             "settings.update" -> { updateSettings(args); JSONObject() }
             "settings.testJackett" -> { require(graph.settings.state.value.jackettEnabled) { "Jackett is disabled." }; graph.jackett.test(graph.settings.state.value); JSONObject() }
+            "settings.testJacRed" -> { graph.jacRed.test(graph.settings.state.value.jacRed); JSONObject() }
+            "settings.dpi.run" -> {
+                val query = value(args, "query", 160).trim().also { require(it.isNotEmpty()) }
+                val mediaType = MediaType.valueOf(args.optString("mediaType", "Movie"))
+                val diagnostic = AdaptiveDiagnostic.valueOf(args.getString("diagnostic"))
+                graph.adaptiveDiagnostics.run(SearchTarget(query, type = mediaType), diagnostic).json()
+            }
+            "settings.dpi.reset" -> { graph.adaptiveSearch.resetStrategies(); JSONObject() }
             "settings.clearMetadataCache" -> { confirmed(args); graph.store.clearCache(); JSONObject() }
             "server.connect" -> {
                 val local = args.getBoolean("local"); val port = args.optInt("port", graph.settings.state.value.port)
@@ -172,7 +182,7 @@ class RemoteCommands(private val graph: AppGraph) {
         }
     }
     companion object { val supported = setOf("catalog.browse", "catalog.details", "catalog.related", "catalog.lists", "catalog.toggle", "settings.players", "library.magnet", "server.lan", "search", "library.add", "library.sync", "library.clear", "library.remove", "library.files", "library.play",
-        "metadata.refresh", "metadata.reset", "metadata.rename", "metadata.search", "metadata.select", "settings.update", "settings.testJackett", "settings.clearMetadataCache",
+        "metadata.refresh", "metadata.reset", "metadata.rename", "metadata.search", "metadata.select", "settings.update", "settings.testJackett", "settings.testJacRed", "settings.dpi.run", "settings.dpi.reset", "settings.clearMetadataCache",
         "server.connect", "server.boot", "server.start", "server.stop", "server.restart", "server.check", "server.diagnose", "engine.get", "engine.save", "engine.reset",
         "playback.command", "updates.server", "updates.check", "updates.download", "updates.install") }
 }

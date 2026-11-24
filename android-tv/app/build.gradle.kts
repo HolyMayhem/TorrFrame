@@ -28,6 +28,14 @@ android {
     // Source code and generated R/BuildConfig use the TorrFrame namespace.
     namespace = "tv.torrframe"
     compileSdk = 37
+    ndkVersion = "29.0.14206865"
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+    sourceSets["main"].assets.srcDir(rootProject.file("../third-party/byedpi/notices"))
     defaultConfig {
         applicationId = "tv.torrframe"
         minSdk = 26

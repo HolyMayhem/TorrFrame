@@ -1,19 +1,29 @@
 import { useEffect, useState } from "react";
-import type { Actions } from "../actions";
-import type { Settings, SearchOptions, PlayerPreferences } from "../types";
+import { useAction, type Actions } from "../actions";
+import type { Settings, SearchOptions, PlayerPreferences, SearchProvider, JacRedMode, AdaptiveStatus } from "../types";
 import { CollapsiblePanel as Panel, Toggle, Button } from "./Ui";
+import { AdaptiveSearchSettings } from "./AdaptiveSearchSettings";
 import { t } from "../i18n";
 export function AdditionalSettings({
   draft,
   edit,
   actions,
   providers,
+  jacRedKey,
+  savedJacRedUrl,
+  hasUnsavedChanges,
+  adaptive,
 }: {
   draft: Settings;
   edit: (key: string, value: unknown) => void;
   actions: Actions;
-  providers: { id: string; name: string }[];
+  providers: SearchProvider[];
+  jacRedKey?: string;
+  savedJacRedUrl: string;
+  hasUnsavedChanges: boolean;
+  adaptive?: AdaptiveStatus;
 }) {
+  const { run, disabled } = useAction(actions);
   const [players, setPlayers] = useState<
     { component: string; label: string }[]
   >([]);
@@ -36,6 +46,13 @@ export function AdditionalSettings({
     edit("builtInPlayer", { ...p, [key]: value });
   const search = (key: keyof SearchOptions, value: unknown) =>
     edit("torrentSearch", { ...s, [key]: value });
+  const selectedSources = s.sources ?? providers.filter((p) => p.enabledByDefault !== false).map((p) => p.id);
+  const setSource = (id: string, enabled: boolean) =>
+    search("sources", enabled ? [...selectedSources, id] : selectedSources.filter((source) => source !== id));
+  const hasJacRed = providers.some((p) => p.id === "jacred");
+  const jacRedMode = draft.jacRedMode ?? (draft.jacRedUrl ? "Custom" : "Auto");
+  const customJacRed = jacRedMode === "Custom";
+  const jacRedKeyStored = draft.jacRedKeyConfigured && draft.jacRedUrl?.trim() === savedJacRedUrl;
   function select(
     label: string,
     value: string | number,
@@ -256,25 +273,75 @@ export function AdditionalSettings({
           </Button>
         </div>
         <div className="chips">
-          {providers.map((provider) => (
+          {providers.filter((provider) => provider.id !== "jacred").map((provider) => (
             <label className="check-label" key={provider.id}>
               <input
                 type="checkbox"
-                checked={s.sources == null || s.sources.includes(provider.id)}
-                onChange={(e) => {
-                  const sources = s.sources ?? providers.map((p) => p.id);
-                  search(
-                    "sources",
-                    e.target.checked
-                      ? [...sources, provider.id]
-                      : sources.filter((id) => id !== provider.id),
-                  );
-                }}
+                checked={selectedSources.includes(provider.id)}
+                onChange={(e) => setSource(provider.id, e.target.checked)}
               />
               {provider.name}
             </label>
           ))}
         </div>
+        {hasJacRed && (
+          <>
+            <Toggle label={t("Использовать JacRed", "Use JacRed")}
+              checked={selectedSources.includes("jacred")}
+              onChange={(value) => setSource("jacred", value)} />
+            <label className="field">
+              {t("Сервер JacRed", "JacRed server")}
+              <select value={jacRedMode} onChange={(event) => edit("jacRedMode", event.target.value as JacRedMode)}>
+                <option value="Auto">{t("Автоматически", "Automatic")}</option>
+                <option value="JacBlack">jac.black</option>
+                <option value="RuJacBlack">ru.jac.black</option>
+                <option value="Custom">{t("Свой сервер", "Custom server")}</option>
+              </select>
+            </label>
+            {customJacRed && (
+              <>
+                <label className="field">
+                  {t("Адрес JacRed", "JacRed address")}
+                  <input type="url" value={draft.jacRedUrl ?? ""}
+                    placeholder="http://192.168.1.10:9117" autoCapitalize="none"
+                    autoCorrect="off" spellCheck={false}
+                    onChange={(event) => edit("jacRedUrl", event.target.value)} />
+                </label>
+                <label className="field">
+                  {t("API-ключ JacRed (необязательно)", "JacRed API key (optional)")}
+                  <input type="password" autoComplete="new-password" value={jacRedKey ?? ""}
+                    placeholder={jacRedKey === ""
+                      ? t("Ключ будет удалён при сохранении", "The key will be cleared on save")
+                      : jacRedKeyStored ? t("Ключ сохранён", "Key saved") : undefined}
+                    onChange={(event) => edit("jacRedKey", event.target.value)} />
+                </label>
+              </>
+            )}
+            <div className="button-row">
+              <Button disabled={disabled || hasUnsavedChanges || (customJacRed && !draft.jacRedUrl?.trim())}
+                onClick={() => void run("settings.testJacRed").then((result) => {
+                  if (result) actions.notify(t("Подключение к JacRed установлено.", "Connected to JacRed."));
+                })}>
+                {t("Проверить сохранённое подключение", "Test saved connection")}
+              </Button>
+              {customJacRed && (jacRedKey || (jacRedKeyStored && jacRedKey !== "")) && (
+                <Button onClick={() => edit("jacRedKey", "")}>
+                  {t("Удалить ключ", "Clear key")}
+                </Button>
+              )}
+              <Button onClick={() => {
+                if (!selectedSources.includes("jacred")) setSource("jacred", true);
+                edit("jacRedMode", "Auto");
+                edit("jacRedUrl", "");
+                edit("jacRedKey", "");
+              }}>
+                {t("Сбросить JacRed", "Reset JacRed")}
+              </Button>
+            </div>
+          </>
+        )}
+        <AdaptiveSearchSettings mode={draft.adaptiveMode ?? "Auto"} onMode={(mode) => edit("adaptiveMode", mode)}
+          actions={actions} state={adaptive} unsaved={hasUnsavedChanges} />
         {multi(t("Разрешение", "Resolution"), "resolutions", [
           "480p",
           "720p",

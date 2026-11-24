@@ -5,42 +5,63 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.*
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.tv.material3.MaterialTheme
+import tv.torrframe.R
+import tv.torrframe.core.storage.JacRedMode
+import tv.torrframe.features.torrentsearch.data.JacRedSearchProvider
 import tv.torrframe.ui.components.*
 import tv.torrframe.ui.theme.Muted
 import tv.torrserve.torrentsearch.model.*
+import tv.torrserve.torrentsearch.provider.SearchProvider
 import java.util.Locale
 
 @Composable private fun text(en:String,ru:String)=if(LocalUiLanguage.current=="ru")ru else en
 
-internal fun LazyListScope.torrentSearchSettingsItems(s:TorrentSearchOptions, providers:List<Pair<String,String>>,
-    change:((TorrentSearchOptions)->TorrentSearchOptions)->Unit) {
+internal fun LazyListScope.torrentSearchSettingsItems(state: SettingsUi, vm: SettingsViewModel) {
+    val s = state.draft.torrentSearch
+    val providers = vm.torrentProviders
+    val change = vm::torrentSearch
+    fun select(provider: SearchProvider, enabled: Boolean) = change { current ->
+        val sources = current.enabledProviders ?: providers.filter { it.enabledByDefault }.map { it.id }.toSet()
+        current.copy(enabledProviders = if (enabled) sources + provider.id else sources - provider.id)
+    }
     item("ts:hint") { TvText(text("Saved automatically. Applied when starting or repeating a search.",
         "Сохраняется автоматически. Применяется при запуске или повторе поиска."),color=Muted) }
     item("ts:sources") {
         Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
             TvText(text("Sources","Источники"),style=MaterialTheme.typography.titleLarge)
             FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                TvAction(text("Enable all","Включить все"),modifier=Modifier.testTag("ts:all")) { change { it.copy(enabledProviders=null) } }
+                TvAction(text("Enable all","Включить все"),modifier=Modifier.testTag("ts:all")) {
+                    change { it.copy(enabledProviders = null) }
+                }
                 TvAction(text("Disable all","Отключить все"),modifier=Modifier.testTag("ts:none")) { change { it.copy(enabledProviders=emptySet()) } }
             }
         }
     }
-    providers.forEach { (id,name) -> item("ts:source:$id") {
-        val label=name+when(id){"ytsmx"->text(" · movies"," · фильмы");"eztvx"->text(" · series"," · сериалы");else->""}
-        TvToggle(label,s.enabledProviders?.contains(id)!=false,Modifier.testTag("ts:source:$id")) { enabled ->
-            change { current ->
-                val sources=current.enabledProviders ?: providers.map { it.first }.toSet()
-                current.copy(enabledProviders=if(enabled)sources+id else sources-id)
+    providers.forEach { provider ->
+        val id = provider.id
+        item("ts:source:$id") {
+            if (id == JacRedSearchProvider.ID) {
+                JacRedSettingsPanel(state, provider.isEnabled(s), { select(provider, it) }, vm)
+            } else {
+                val label = provider.name + when (id) {
+                    "ytsmx" -> text(" · movies", " · фильмы")
+                    "eztvx" -> text(" · series", " · сериалы")
+                    else -> ""
+                }
+                TvToggle(label, provider.isEnabled(s), Modifier.testTag("ts:source:$id")) { select(provider, it) }
             }
         }
-    } }
+    }
+    adaptiveSearchSettingsItems(state, vm)
     item("ts:resolution") {
         SettingsGroup(text("Video resolution","Разрешение видео")) {
             MultiChoices(TorrentSearchOptions.RESOLUTIONS,s.resolutions,"resolution") { values -> change { it.copy(resolutions=values) } }
@@ -98,6 +119,38 @@ internal fun LazyListScope.torrentSearchSettingsItems(s:TorrentSearchOptions, pr
         }
     }
     item("ts:reset") { TvAction(text("Restore TorrentSearch defaults","Сбросить настройки TorrentSearch"),modifier=Modifier.testTag("ts:reset")) { change { TorrentSearchOptions() } } }
+}
+
+@Composable private fun JacRedSettingsPanel(state: SettingsUi, enabled: Boolean, select: (Boolean) -> Unit, vm: SettingsViewModel) {
+    val connection = state.draft.jacRed
+    SettingsGroup("JacRed") {
+        TvToggle(stringResource(R.string.jacred_enabled), enabled, Modifier.testTag("ts:source:jacred"), select)
+        TvText(stringResource(R.string.jacred_server), color = Muted)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            JacRedMode.entries.forEach { mode ->
+                val label = when (mode) {
+                    JacRedMode.Auto -> stringResource(R.string.jacred_automatic)
+                    JacRedMode.Custom -> stringResource(R.string.jacred_custom)
+                    else -> requireNotNull(mode.publicUrl).removePrefix("https://")
+                }
+                val active = mode == connection.mode
+                TvAction(label, selected = active, modifier = Modifier.testTag("jacred:mode:${mode.name}").semantics { selected = active }) {
+                    vm.jacRedMode(mode)
+                }
+            }
+        }
+        if (connection.mode == JacRedMode.Custom) {
+            EditField(stringResource(R.string.jacred_address), connection.url, keyboardType = KeyboardType.Uri, onValue = vm::jacRedEndpoint)
+            EditField(stringResource(R.string.jacred_api_key), connection.apiKey, secret = true, onValue = vm::jacRedKey)
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            TvAction(stringResource(R.string.settings_test_connection), enabled = connection.configured,
+                modifier = Modifier.testTag("jacred:test"), action = vm::testJacRed)
+            TvAction(stringResource(R.string.jacred_reset), modifier = Modifier.testTag("jacred:reset"), action = vm::resetJacRed)
+        }
+        val status = if (state.jacRedTesting) R.string.jacred_checking else state.jacRedStatus
+        status?.let { TvText(stringResource(it), color = Muted) }
+    }
 }
 
 @Composable private fun MultiChoices(values:List<String>,selected:Set<String>,tag:String,change:(Set<String>)->Unit) {

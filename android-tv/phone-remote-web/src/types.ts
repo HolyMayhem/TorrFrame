@@ -34,11 +34,17 @@ export interface LibraryItem {
   lastFileId: number;
   files: VideoFile[];
 }
+export type AdaptiveMode = "Off" | "Auto" | "Forced";
+export type AdaptiveStatus = { status: "Idle" | "Starting" | "Running" | "Failed"; busy: boolean };
 export interface Settings {
+  adaptiveMode?: AdaptiveMode;
   revision: number;
   jackettEnabled: boolean;
   jackettUrl: string;
   jackettKeyConfigured: boolean;
+  jacRedMode: JacRedMode;
+  jacRedUrl: string;
+  jacRedKeyConfigured: boolean;
   metadataOrder: string[];
   aniListEnabled: boolean;
   language: string;
@@ -63,6 +69,12 @@ export interface Settings {
   builtInPlayer: PlayerPreferences;
   torrentSearch: SearchOptions;
   catalogNetwork: CatalogNetworkSettings;
+}
+export type JacRedMode = "Auto" | "JacBlack" | "RuJacBlack" | "Custom";
+export interface SearchProvider {
+  id: string;
+  name: string;
+  enabledByDefault?: boolean;
 }
 export interface CatalogNetworkSettings {
   route: "Direct" | "Auto" | "Proxy";
@@ -129,7 +141,8 @@ export interface Snapshot {
   playback: Playback;
   updates: Updates;
   operations: Operation[];
-  searchProviders: { id: string; name: string }[];
+  searchProviders: SearchProvider[];
+  adaptive?: AdaptiveStatus;
   catalogRevision?: number;
 }
 export interface RemoteEvent {
@@ -162,6 +175,9 @@ export type Command =
   | "metadata.select"
   | "settings.update"
   | "settings.testJackett"
+  | "settings.testJacRed"
+  | "settings.dpi.run"
+  | "settings.dpi.reset"
   | "settings.clearMetadataCache"
   | "server.connect"
   | "server.boot"

@@ -267,6 +267,10 @@ function AppSettings({
         edit={edit}
         actions={actions}
         providers={state.searchProviders}
+        jacRedKey={typeof edits.jacRedKey === "string" ? edits.jacRedKey : undefined}
+        savedJacRedUrl={base.jacRedUrl}
+        hasUnsavedChanges={changed}
+        adaptive={state.adaptive}
       />
       <Panel title={t("Обновления приложения")}>
         <p className="muted"><a href="https://github.com/HolyMayhem/TorrFrame/releases" target="_blank" rel="noreferrer">HolyMayhem/TorrFrame</a></p>

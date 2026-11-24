@@ -12,9 +12,12 @@ class TorrentSearchEngine(val providers: List<SearchProvider>, private val sourc
     private val concurrency: Int = 4, private val maxResults: Int = 1500,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default) {
     private data class Event(val source: SourceState, val batch: List<TorrentResult> = emptyList())
+    fun activeProviders(target: SearchTarget, options: TorrentSearchOptions) =
+        providers.filter { target.type in it.types && it.isEnabled(options) && it.configured }
+
     fun search(target: SearchTarget, options: TorrentSearchOptions? = null): Flow<SearchSnapshot> = flow {
         val config=options?.normalized() ?: TorrentSearchOptions(sourceTimeoutMs=sourceTimeout)
-        val active = providers.filter { target.type in it.types && (config.enabledProviders==null || it.id in config.enabledProviders) }
+        val active = activeProviders(target, config)
         val sources = active.associate { it.id to SourceState(it.id, it.name) }.toMutableMap()
         val results = linkedMapOf<String, TorrentResult>()
         emit(SearchSnapshot(sources = sources.values.toList()))
@@ -26,8 +29,8 @@ class TorrentSearchEngine(val providers: List<SearchProvider>, private val sourc
                     send(Event(SourceState(provider.id, provider.name, SourcePhase.Searching)))
                     try {
                         withTimeout(config.sourceTimeoutMs) {
-                            target.queries(config.titleMode).forEach { query ->
-                                val batch = provider.search(query, target.type).filter { it.title.isNotBlank() && (it.magnet?.let(TorrentIdentity::hash) != null || TorrentIdentity.web(it.detailsUrl) != null || TorrentIdentity.web(it.torrentUrl) != null) }
+                            provider.searchBatches(target, config.titleMode, config.sourceTimeoutMs).collect { rows ->
+                                val batch = rows.filter { it.title.isNotBlank() && (it.magnet?.let(TorrentIdentity::hash) != null || TorrentIdentity.web(it.detailsUrl) != null || TorrentIdentity.web(it.torrentUrl) != null) }
                                 count += batch.size
                                 send(Event(SourceState(provider.id, provider.name, SourcePhase.Searching, count), batch))
                             }

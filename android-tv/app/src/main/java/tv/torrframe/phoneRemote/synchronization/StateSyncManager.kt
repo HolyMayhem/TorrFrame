@@ -45,6 +45,11 @@ class StateSyncManager(private val graph: AppGraph, parent: CoroutineScope, sess
         scope.launch { graph.settings.state.collect { val (revision, settings) = graph.settings.snapshot(); emit("settings.updated", RemoteJson.settings(settings, revision)) } }
         scope.launch { combine(graph.server.state, graph.connection.state) { _, _ -> RemoteJson.server(graph).toString() }
             .distinctUntilChanged().collect { emit("torrserver.updated", JSONObject(it)) } }
+        scope.launch {
+            combine(graph.adaptiveSearch.process.status, graph.adaptiveDiagnostics.busy) { status, busy ->
+                RemoteJson.adaptive(status, busy)
+            }.collect { emit("adaptive.updated", it) }
+        }
         scope.launch { graph.playback.state.collect { emit("playback.updated", RemoteJson.playback(it)) } }
         scope.launch { graph.updates.state.collect { emit("updates.updated", RemoteJson.updates(graph)) } }
         scope.launch { operations.changes.collect { emit("operation.updated", it) } }
@@ -62,9 +67,12 @@ class StateSyncManager(private val graph: AppGraph, parent: CoroutineScope, sess
         val startSequence = sequence
         val (revision, settings) = graph.settings.snapshot()
         return JSONObject().put("v", 1).put("epoch", epoch).put("sequence", startSequence)
-            .put("searchProviders", org.json.JSONArray(graph.torrentSearch.providers.map { JSONObject().put("id", it.id).put("name", it.name) }))
+            .put("searchProviders", org.json.JSONArray(graph.torrentSearch.providers.map {
+                JSONObject().put("id", it.id).put("name", it.name).put("enabledByDefault", it.enabledByDefault)
+            }))
             .put("csrf", session.csrf).put("device", RemoteJson.device()).put("settings", RemoteJson.settings(settings, revision))
             .put("library", RemoteJson.library(graph.store.list())).put("server", RemoteJson.server(graph))
+            .put("adaptive", RemoteJson.adaptive(graph.adaptiveSearch.process.status.value, graph.adaptiveDiagnostics.busy.value))
             .put("playback", RemoteJson.playback(graph.playback.state.value)).put("updates", RemoteJson.updates(graph))
             .put("operations", org.json.JSONArray(operations.summaries(session)))
     }

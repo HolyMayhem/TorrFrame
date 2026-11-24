@@ -48,3 +48,6 @@ android-tv/phone-remote-web/public/brand-mark.png
 
 # Website source lives in its own private repository.
 /TorrFrame-Website/
+
+# Android NDK intermediate build state
+/android-tv/app/.cxx/

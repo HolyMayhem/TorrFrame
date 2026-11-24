@@ -6,9 +6,9 @@ import tv.torrframe.features.player.*
 
 /** Only explicitly editable preferences cross the API. Server changes use TorrServerActions. */
 internal object RemoteSettings {
-    private val fields = setOf("jackettEnabled", "jackettUrl", "jackettKey", "metadataOrder", "aniListEnabled", "language", "resume",
+    private val fields = setOf("jackettEnabled", "jackettUrl", "jackettKey", "jacRedMode", "jacRedUrl", "jacRedKey", "metadataOrder", "aniListEnabled", "language", "resume",
         "audioLanguage", "subtitleLanguage", "uiLanguage", "uiTheme", "uiAccent",
-        "uiScalePercent", "uiSoundsEnabled", "animationsEnabled", "showNavigationHints", "playerMode", "externalPlayer", "builtInPlayer", "torrentSearch", "catalogNetwork")
+        "uiScalePercent", "uiSoundsEnabled", "animationsEnabled", "showNavigationHints", "playerMode", "externalPlayer", "builtInPlayer", "torrentSearch", "catalogNetwork", "adaptiveMode")
     fun edit(current: Settings, edits: JSONObject): Settings {
         require(edits.keys().asSequence().all { it in fields })
         fun text(key: String, old: String, limit: Int) = if (edits.has(key)) edits.getString(key).also { require(it.length <= limit) } else old
@@ -42,6 +42,11 @@ internal object RemoteSettings {
         val mode = text("playerMode", current.playerMode.name, 10); require(mode in PlayerMode.entries.map { it.name })
         val order = edits.optJSONArray("metadataOrder")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: current.metadataOrder
         val network = catalogNetwork(current.catalogNetwork, if (edits.has("catalogNetwork")) edits.getJSONObject("catalogNetwork") else null)
+        val nextJacRed = current.jacRed.updated(
+            address = if (edits.has("jacRedUrl")) edits.get("jacRedUrl") as String else current.jacRed.url,
+            key = if (edits.has("jacRedKey")) edits.get("jacRedKey") as String else null)
+        val jacRed = if (edits.has("jacRedMode")) nextJacRed.copy(mode = JacRedMode.valueOf(edits.get("jacRedMode") as String))
+            else nextJacRed
         return current.copy(jackettEnabled = flag("jackettEnabled", current.jackettEnabled), jackettUrl = text("jackettUrl", current.jackettUrl, 4096), jackettKey = text("jackettKey", current.jackettKey, 4096),
             metadataOrder = MetadataPriority.normalized(order), aniListEnabled = flag("aniListEnabled", current.aniListEnabled), language = language,
             resume = flag("resume", current.resume), audioLanguage = text("audioLanguage", current.audioLanguage, 40),
@@ -50,7 +55,9 @@ internal object RemoteSettings {
             uiSoundsEnabled = flag("uiSoundsEnabled", current.uiSoundsEnabled),
             animationsEnabled = flag("animationsEnabled", current.animationsEnabled), showNavigationHints = flag("showNavigationHints", current.showNavigationHints),
             playerMode = PlayerMode.valueOf(mode), externalPlayer = text("externalPlayer", current.externalPlayer, 500),
-            builtInPlayer = PlayerPreferences.decode(player.toString()), torrentSearch = options, catalogNetwork = network)
+            builtInPlayer = PlayerPreferences.decode(player.toString()), torrentSearch = options, jacRed = jacRed, catalogNetwork = network,
+            adaptiveMode = if (edits.has("adaptiveMode")) tv.torrframe.features.torrentsearch.data.AdaptiveMode.valueOf(edits.getString("adaptiveMode"))
+            else current.adaptiveMode)
     }
     private fun catalogNetwork(current: tv.torrframe.core.network.CatalogNetworkSettings, edits: JSONObject?): tv.torrframe.core.network.CatalogNetworkSettings {
         if (edits == null) return current

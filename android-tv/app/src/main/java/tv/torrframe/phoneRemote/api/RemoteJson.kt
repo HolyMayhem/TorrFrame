@@ -13,8 +13,14 @@ import tv.torrframe.core.storage.Settings
 import tv.torrframe.features.player.PlaybackSnapshot
 
 object RemoteJson {
+    fun adaptive(status: tv.torrframe.features.torrentsearch.data.DpiProcessState, busy: Boolean) =
+        JSONObject().put("status", status.name).put("busy", busy)
+
     fun settings(value: Settings, revision: Long) = JSONObject().put("revision", revision)
         .put("jackettEnabled", value.jackettEnabled).put("jackettUrl", value.jackettUrl).put("jackettKeyConfigured", value.jackettKey.isNotBlank())
+        .put("adaptiveMode", value.adaptiveMode.name)
+        .put("jacRedMode", value.jacRed.mode.name).put("jacRedUrl", value.jacRed.url)
+        .put("jacRedKeyConfigured", value.jacRed.apiKey.isNotBlank())
         .put("metadataOrder", JSONArray(value.metadataOrder)).put("aniListEnabled", value.aniListEnabled)
         .put("language", value.language).put("resume", value.resume).put("audioLanguage", value.audioLanguage)
         .put("subtitleLanguage", value.subtitleLanguage).put("uiLanguage", value.uiLanguage)

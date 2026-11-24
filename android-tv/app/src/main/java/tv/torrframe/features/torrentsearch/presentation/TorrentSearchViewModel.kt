@@ -43,7 +43,7 @@ class TorrentSearchViewModel(private val engine: TorrentSearchEngine, private va
             try {
                 val searchEngine = if (source == TorrentSearchSource.Jackett) requireNotNull(jackettEngine) else engine
                 val config=options().let { if (source == TorrentSearchSource.Jackett) it.copy(enabledProviders=setOf("jackett")) else it }.normalized()
-                val queryTarget=if(searchEngine.providers.any { target.type in it.types && config.enabledProviders?.contains(it.id)!=false })prepare(target,config)else target
+                val queryTarget = if (searchEngine.activeProviders(target, config).isNotEmpty()) prepare(target, config) else target
                 if(version!=generation)return@launch
                 mutable.update { it.copy(options=config,queries=queryTarget.queries(config.titleMode)) }
                 searchEngine.search(queryTarget,config).collect { snapshot -> if (version == generation) mutable.update { it.copy(snapshot=snapshot,starting=false) } }

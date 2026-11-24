@@ -10,6 +10,9 @@ import tv.torrframe.core.storage.SettingsStore
 import tv.torrframe.core.database.LibraryStore
 import tv.torrframe.core.server.*
 import tv.torrframe.features.search.JackettClient
+import tv.torrframe.features.torrentsearch.data.AdaptiveSearchDiagnostics
+import tv.torrframe.features.torrentsearch.data.AdaptiveSearchNetwork
+import tv.torrframe.features.torrentsearch.data.ByeDpiProcess
 import tv.torrframe.features.metadata.*
 import tv.torrframe.features.library.LibraryRepository
 import coil3.ImageLoader
@@ -52,8 +55,17 @@ class AppGraph(val app: Application) {
     val jackett = JackettClient(http)
     val jackettSearch = tv.torrserve.torrentsearch.engine.TorrentSearchEngine(listOf(
         tv.torrframe.features.search.JackettSearchProvider(jackett) { settings.state.value }))
-    val torrentSearchNetwork = tv.torrframe.features.torrentsearch.data.TorrentSearchNetwork(http)
-    val torrentSearch = tv.torrserve.torrentsearch.engine.TorrentSearchEngine(tv.torrserve.torrentsearch.provider.builtinProviders(torrentSearchNetwork))
+    val adaptiveSearch = AdaptiveSearchNetwork(app, http, ByeDpiProcess(app, scope)) { settings.state.value.adaptiveMode }
+    val torrentSearchNetwork = tv.torrframe.features.torrentsearch.data.TorrentSearchNetwork(http, adaptiveSearch)
+    private val jacRedRouting = app.getSharedPreferences("jacred-routing", Application.MODE_PRIVATE)
+    val jacRed = tv.torrframe.features.torrentsearch.data.JacRedSearchProvider(http, { settings.state.value.jacRed },
+        preferredUrl = { jacRedRouting.getString("lastSuccessfulUrl", null) },
+        rememberUrl = { url -> jacRedRouting.edit { putString("lastSuccessfulUrl", url) } }, adaptive = adaptiveSearch)
+    val torrentSearch = tv.torrserve.torrentsearch.engine.TorrentSearchEngine(
+        tv.torrserve.torrentsearch.provider.builtinProviders(torrentSearchNetwork) + jacRed)
+    val adaptiveDiagnostics = AdaptiveSearchDiagnostics(torrentSearch, { settings.state.value }) {
+        jacRedRouting.getString("lastSuccessfulUrl", null)
+    }
     val tmdb = tv.torrframe.core.network.TmdbClient(http)
     val catalogCache = tv.torrframe.features.catalog.data.SqliteCatalogCache(app)
     val catalogUserLists = tv.torrframe.features.catalog.data.SqliteCatalogUserLists(app)

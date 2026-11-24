@@ -17,6 +17,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import tv.torrframe.core.server.ServerAddress
 import tv.torrserve.torrentsearch.model.TorrentSearchOptions
+import tv.torrframe.features.torrentsearch.data.AdaptiveMode
 
 data class Settings(val jackettUrl: String = "", val jackettKey: String = "",
     val metadataOrder: List<String> = MetadataPriority.defaultOrder, val language: String = "ru-RU",
@@ -33,7 +34,9 @@ data class Settings(val jackettUrl: String = "", val jackettKey: String = "",
     val playerMode: tv.torrframe.features.player.PlayerMode = tv.torrframe.features.player.PlayerMode.Internal,
     val externalPlayer: String = "",
     val builtInPlayer: tv.torrframe.features.player.PlayerPreferences = tv.torrframe.features.player.PlayerPreferences(),
-    val jackettEnabled: Boolean = false, val uiSoundsEnabled: Boolean = true) {
+    val jackettEnabled: Boolean = false, val uiSoundsEnabled: Boolean = true,
+    val jacRed: JacRedSettings = JacRedSettings(),
+    val adaptiveMode: AdaptiveMode = AdaptiveMode.Auto) {
     val jackettConfigured get() = jackettUrl.isNotBlank() && jackettKey.isNotBlank()
     val needsLocalService get() = useLocalServer && (lanAccess || startOnBoot)
     val serverBindAddress get() = if (lanAccess) "0.0.0.0" else "127.0.0.1"
@@ -95,6 +98,15 @@ class SettingsStore(context: Context) {
             animationsEnabled = prefs.getBoolean("animationsEnabled", true),
             uiSoundsEnabled = prefs.getBoolean("uiSoundsEnabled", true),
             torrentSearch = TorrentSearchSettingsCodec.decode(prefs.getString("torrentSearch", null)),
+            adaptiveMode = AdaptiveMode.entries.firstOrNull { it.name == prefs.getString("torrentSearchAdaptiveMode", null) }
+                ?: AdaptiveMode.Auto,
+            jacRed = runCatching {
+                val address = prefs.getString("jacRedUrl", "").orEmpty()
+                val storedMode = prefs.getString("jacRedMode", null)
+                val legacy = JacRedSettings(address)
+                legacy.updated(key = decode(prefs.getString("jacRedKey", "")),
+                    mode = JacRedMode.entries.firstOrNull { it.name == storedMode } ?: legacy.mode)
+            }.getOrDefault(JacRedSettings(mode = JacRedMode.Custom)),
             catalogNetwork = tv.torrframe.core.network.CatalogNetworkSettings.decode(prefs.getString("catalogNetwork", null), decode(prefs.getString("cubToken", ""))),
             uiAccent = UiAccent.normalized(prefs.getString("uiAccent", UiAccent.DEFAULT)))
         mutableRevision.value = prefs.getLong("revision", 0)
@@ -123,7 +135,8 @@ class SettingsStore(context: Context) {
         val address = ServerAddress.normalize(s.torrServerUrl)
         require(!s.useLocalServer || ServerAddress.isLocal(address, s.port)) { "Адрес встроенного сервера должен соответствовать локальному порту." }
         val revision = mutableRevision.value + 1
-        val next = s.copy(torrServerUrl = address, metadataOrder = MetadataPriority.normalized(s.metadataOrder))
+        val next = s.copy(torrServerUrl = address, metadataOrder = MetadataPriority.normalized(s.metadataOrder),
+            jacRed = s.jacRed.updated(key = s.jacRed.apiKey))
         val previous = persisted.takeUnless { full || prefs.getLong("revision", 0) != mutableRevision.value }
         val editor = prefs.edit()
         editor.putLong("revision", revision)
@@ -145,6 +158,10 @@ class SettingsStore(context: Context) {
         write(previous?.uiSoundsEnabled, next.uiSoundsEnabled) { editor.putBoolean("uiSoundsEnabled", next.uiSoundsEnabled) }
         write(previous?.animationsEnabled, next.animationsEnabled) { editor.putBoolean("animationsEnabled", next.animationsEnabled) }
         write(previous?.torrentSearch, next.torrentSearch) { editor.putString("torrentSearch", TorrentSearchSettingsCodec.encode(next.torrentSearch)) }
+        write(previous?.adaptiveMode, next.adaptiveMode) { editor.putString("torrentSearchAdaptiveMode", next.adaptiveMode.name) }
+        write(previous?.jacRed?.url, next.jacRed.url) { editor.putString("jacRedUrl", next.jacRed.url) }
+        write(previous?.jacRed?.apiKey, next.jacRed.apiKey) { editor.putString("jacRedKey", encode(next.jacRed.apiKey)) }
+        write(previous?.jacRed?.mode, next.jacRed.mode) { editor.putString("jacRedMode", next.jacRed.mode.name) }
         write(previous?.catalogNetwork?.copy(cubToken = ""), next.catalogNetwork.copy(cubToken = "")) { editor.putString("catalogNetwork", next.catalogNetwork.encode()) }
         write(previous?.catalogNetwork?.cubToken, next.catalogNetwork.cubToken) { editor.putString("cubToken", encode(next.catalogNetwork.cubToken)) }
         write(previous?.language, next.language) { editor.putString("language", next.language) }

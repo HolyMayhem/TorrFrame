@@ -31,6 +31,9 @@ export function applyEvent(
     case "updates.updated":
       next.updates = event.data as Snapshot["updates"];
       break;
+    case "adaptive.updated":
+      next.adaptive = event.data as Snapshot["adaptive"];
+      break;
     case "operation.updated":
       break;
     default:

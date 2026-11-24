@@ -150,7 +150,7 @@ enum class SettingsCategory(val title: Int) {
                                                     TvAction(stringResource(R.string.settings_test_connection), enabled = s.jackettEnabled, action = vm::test)
                                                 }
                                             }
-                                            SettingsCategory.TorrentSearch -> torrentSearchSettingsItems(s.torrentSearch, vm.torrentProviders, vm::torrentSearch)
+                                            SettingsCategory.TorrentSearch -> torrentSearchSettingsItems(state, vm)
                                             SettingsCategory.Catalog -> item { CatalogNetworkSettingsPanel(s.catalogNetwork, vm::catalogNetwork) }
                                             SettingsCategory.Metadata -> item {
                                                 SettingsGroup(stringResource(category!!.title)) {

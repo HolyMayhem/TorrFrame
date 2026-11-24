@@ -32,11 +32,11 @@ class Http(client: OkHttpClient = OkHttpClient.Builder()
         catalogRouting?.let { addInterceptor(it) }
     }.build()
     suspend fun bytes(request: Request, service: String, limit: Int = 4 * 1024 * 1024): ByteArray = exchange(request, service, limit).data
-    suspend fun exchange(request: Request, service: String, limit: Int = 4 * 1024 * 1024, manualRedirects: Boolean = false): HttpReply {
+    suspend fun exchange(request: Request, service: String, limit: Int = 4 * 1024 * 1024, manualRedirects: Boolean = false, requestClient: OkHttpClient = client): HttpReply {
         try { beforeRequest(service) }
         catch (e: ServiceFailure) { diagnostics?.failure(request.url.host, e, simulated = true); throw e }
         return suspendCancellableCoroutine { continuation ->
-            val call = (if(manualRedirects) client.newBuilder().followRedirects(false).build() else client).newCall(request)
+            val call = (if(manualRedirects) requestClient.newBuilder().followRedirects(false).build() else requestClient).newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {

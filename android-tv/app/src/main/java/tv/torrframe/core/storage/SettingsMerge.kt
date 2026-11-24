@@ -5,6 +5,8 @@ object SettingsMerge {
     fun rebase(draft: Settings, base: Settings, current: Settings) = current.copy(
         catalogNetwork = tv.torrframe.core.network.CatalogNetworkSettings.rebase(draft.catalogNetwork, base.catalogNetwork, current.catalogNetwork),
         torrentSearch = tv.torrserve.torrentsearch.model.TorrentSearchOptions.rebase(draft.torrentSearch, base.torrentSearch, current.torrentSearch),
+        adaptiveMode = if (draft.adaptiveMode != base.adaptiveMode) draft.adaptiveMode else current.adaptiveMode,
+        jacRed = if (draft.jacRed != base.jacRed) draft.jacRed else current.jacRed,
         jackettEnabled = if (draft.jackettEnabled != base.jackettEnabled) draft.jackettEnabled else current.jackettEnabled,
         jackettUrl = if (draft.jackettUrl != base.jackettUrl) draft.jackettUrl else current.jackettUrl,
         jackettKey = if (draft.jackettKey != base.jackettKey) draft.jackettKey else current.jackettKey,

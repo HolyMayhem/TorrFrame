@@ -7,12 +7,20 @@ import java.util.Locale
 
 enum class MediaType { Movie, Series }
 data class SearchTarget(val title: String, val originalTitle: String = "", val year: Int? = null, val type: MediaType = MediaType.Movie, val tmdbId: Int? = null) {
-    fun queries(mode: SearchTitleMode = SearchTitleMode.Both): List<String> {
+    fun titles(mode: SearchTitleMode): List<String> {
         fun clean(value: String) = value.replace(Regex("[\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim().take(160)
         val original = clean(originalTitle).ifBlank { clean(title) }
         val local = clean(title)
+        return when (mode) {
+            SearchTitleMode.Original -> listOf(original)
+            SearchTitleMode.Russian -> listOf(local.ifBlank { original })
+            SearchTitleMode.Both -> listOf(original, local)
+        }.filter { it.isNotBlank() }.distinctBy { it.lowercase(Locale.ROOT) }
+    }
+
+    fun queries(mode: SearchTitleMode = SearchTitleMode.Both): List<String> {
         val dated: (String) -> String = { name -> if (name.isBlank()) "" else if (year != null && !Regex("\\b$year\\b").containsMatchIn(name)) "$name $year" else name }
-        val names=when(mode) { SearchTitleMode.Original->listOf(original);SearchTitleMode.Russian->listOf(local.ifBlank { original });SearchTitleMode.Both->listOf(original,local) }
+        val names = titles(mode)
         return (names.map(dated) + if (type == MediaType.Series) names else emptyList())
             .filter { it.isNotBlank() }.distinctBy { it.lowercase(Locale.ROOT) }
     }
