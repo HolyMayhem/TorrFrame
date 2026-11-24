@@ -1,6 +1,6 @@
 # TorrFrame Analytics
 
-TorrFrame предлагает добровольно поделиться агрегированной статистикой в мастере настройки и в **Настройки → Конфиденциальность**. До явного согласия клиент не создаёт идентификатор и не отправляет запросы. Существующая установка получает одно предложение, которое можно закрыть. Предпросмотр показывает отчёт локально. До согласия поле идентификатора в предпросмотре равно `null`.
+TorrFrame предлагает добровольно поделиться агрегированной статистикой в мастере настройки и в блоке **Конфиденциальность** внизу страницы **Настройки → О приложении**. До явного согласия клиент не создаёт идентификатор и не отправляет запросы. Существующая установка получает одно предложение, которое можно закрыть. Предпросмотр показывает отчёт локально. До согласия поле идентификатора в предпросмотре равно `null`.
 
 ## Архитектура
 
@@ -12,7 +12,7 @@ TorrFrame предлагает добровольно поделиться аг�
 
 **Отключение** прекращает сбор, отменяет запросы и удаляет локальный ID и очередь. Повторное согласие создаёт новый UUID. **Сброс ID** очищает очередь и выдаёт новый UUID при сохранении согласия. Отмена не отзывает уже принятые сервером запросы. Отправленные записи очищаются по сроку хранения.
 
-Worker `torrframe-telemetry` хранит данные в отдельной D1 `torrframe-analytics`. Статическая панель и API статистики закрыты Cloudflare Access, причём Worker также проверяет подпись, issuer, audience и срок жизни JWT. Для локального запуска применяется отдельная авторизация на loopback. Worker определяет страну только через `request.cf.country`. Cloudflare как сетевой посредник технически обрабатывает IP при соединении. TorrFrame Analytics не читает IP в Worker и не сохраняет IP, User-Agent, заголовки и исходные тела запросов. Workers Observability отключён в конфигурации.
+Worker `torrframe-telemetry` хранит данные в отдельной D1 `torrframe-analytics`. Панель и API статистики требуют авторизации. При использовании Cloudflare Access Worker проверяет подпись, issuer, audience и срок жизни JWT. Альтернативный режим использует выделенный пароль через HTTPS. Для локального запуска применяется отдельная авторизация на loopback. Worker определяет страну только через `request.cf.country`. Cloudflare как сетевой посредник технически обрабатывает IP при соединении. TorrFrame Analytics не читает IP в Worker и не сохраняет IP, User-Agent, заголовки и исходные тела запросов. Workers Observability отключён в конфигурации.
 
 ## Поля heartbeat
 
@@ -86,14 +86,20 @@ Android-проверки запускаются через `./scripts/build-loca
 ## Развёртывание нового production
 
 1. В отдельном проекте Workers Free проверьте доступность квот аккаунта. Локально войдите в Wrangler и создайте **новую** D1 командой `npx wrangler d1 create torrframe-analytics`.
-2. Скопируйте `wrangler.production.example.json` в игнорируемый `wrangler.production.json`. Внесите ID новой D1 и выделенный домен. Сохраните имя `torrframe-telemetry`, отключённые `workers_dev`, preview URLs и Observability.
-3. В Cloudflare Zero Trust создайте приложение Access для `/admin` и `/admin/*` на выделенном хосте. Допустите только владельца и разрешённых администраторов. `/v1/heartbeat` и `/health` доступны без Access. Укажите домен команды в `ACCESS_ISSUER` и audience приложения в `ACCESS_AUDIENCE`.
-4. Примените миграцию `npm run deploy -- migrate`. Выполните `npm run deploy -- dry-run` для проверки отдельной конфигурации.
-5. Разверните новый Worker с `npm run deploy -- publish`. Сразу задайте выделенный секрет `npx wrangler secret put IDENTITY_HMAC_SECRET --config wrangler.production.json`. Пока секрет отсутствует, heartbeat возвращает `503` и запись не выполняется.
-6. Проверьте `/health`, отказ на `/admin/api/stats` без Access и вход в панель. Затем проверьте приём только явно согласованного тестового heartbeat. Синтетические наборы в production не импортируйте.
+2. Скопируйте `wrangler.production.example.json` в игнорируемый `wrangler.production.json`. Внесите ID новой D1. Для своего домена замените `routes[0].pattern`. Для бесплатного адреса `torrframe-telemetry.<поддомен-аккаунта>.workers.dev` удалите `routes` и установите `workers_dev: true`. Сохраните имя Worker, отключённые preview URLs и Observability.
+3. Выберите один способ входа в панель. Для Cloudflare Access создайте приложение Zero Trust для `/admin` и `/admin/*`. Допустите только владельца и разрешённых администраторов. Укажите домен команды в `ACCESS_ISSUER` и audience в `ACCESS_AUDIENCE`. Для входа по паролю удалите эти две переменные, задайте `ADMIN_AUTH_MODE: "password"` и добавьте `ADMIN_CREDENTIAL_SHA256` в `secrets.required`. `/v1/heartbeat` и `/health` доступны без входа в панель.
+4. Создайте отдельный JSON-файл секретов с правами `0600` вне репозитория. Поле `IDENTITY_HMAC_SECRET` содержит новый случайный секрет. В режиме пароля добавьте `ADMIN_CREDENTIAL_SHA256`, рассчитанный по примеру ниже. Примените миграцию `npm run deploy -- migrate` и проверьте конфигурацию командой `npm run deploy -- dry-run /закрытый/путь/worker-secrets.json`.
+5. Разверните Worker командой `npm run deploy -- publish /закрытый/путь/worker-secrets.json`. Обязательные секреты загружаются вместе с версией Worker.
+6. Проверьте `/health`, отказ на `/admin/api/stats` для гостя и вход в панель. Затем проверьте приём только явно согласованного тестового heartbeat. Синтетические наборы в production не импортируйте.
 7. Соберите Release с `TORRFRAME_TELEMETRY_URL=https://<выделенный-хост>/v1/heartbeat`. Установите `LATEST_BUILD` равным номеру актуальной опубликованной сборки. При изменении схемы согласуйте версии клиента и Worker, снимите резервную копию, примените миграцию, затем обновите Worker и клиент.
 
-Управление администраторами и их аутентификацией остаётся в Cloudflare Access. Worker не хранит production-пароли администратора. Действующий Worker и база TorrServe-Silicon не входят в эту процедуру.
+В режиме пароля браузер запрашивает логин `admin` и отдельный случайный пароль из 64 шестнадцатеричных символов, созданный командой `openssl rand -hex 32`. В Worker помещается только SHA-256 от строки `Basic ` и Base64-кодировки `admin:<пароль>`. Неудачные попытки с заголовком авторизации лимитируются отдельно от запросов статистики. Локальный пароль применяется только на loopback. Действующий Worker и база TorrServe-Silicon не входят в эту процедуру.
+
+Чтобы получить хеш нового пароля, передайте его из приватного файла с одной строкой. Для смены пароля передайте результат в `npx wrangler secret put ADMIN_CREDENTIAL_SHA256 --config wrangler.production.json` через stdin и обновите локальную копию `worker-secrets.json`, если используете её при деплое. Секрет идентификаторов при этом сохраняется.
+
+```sh
+node --input-type=module -e 'import { createHash } from "node:crypto"; import { readFileSync } from "node:fs"; const p = readFileSync(0, "utf8").trim(); if (!/^[0-9a-f]{64}$/.test(p)) throw Error("Expected a 64-character hex password"); console.log(createHash("sha256").update("Basic " + Buffer.from("admin:" + p).toString("base64")).digest("hex"));' < /закрытый/путь/admin-password
+```
 
 ### Бесплатные квоты, нагрузка и резервное копирование
 

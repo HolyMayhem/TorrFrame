@@ -117,4 +117,4 @@ Thank you to their authors and contributors. These projects and services are dis
 
 ## Privacy
 
-TorrFrame offers opt-in usage statistics. Sharing stays off until you explicitly agree. Open **Settings → Privacy** to preview the report, stop sharing, or reset the installation ID. [Data collected and how analytics works](telemetry/README.md).
+TorrFrame offers opt-in usage statistics. Sharing stays off until you explicitly agree. Scroll to **Privacy** at the bottom of **Settings → About** to preview the report, stop sharing, or reset the installation ID. [Data collected and how analytics works](telemetry/README.md).

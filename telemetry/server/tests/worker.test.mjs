@@ -1,6 +1,6 @@
 import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { build } from "esbuild";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
@@ -177,4 +177,29 @@ test("admin assets, statistics and production fail closed without authorized cre
   assert.equal((await worker.handle(new Request("http://example.com/admin/",{headers:{Authorization:auth}}),env,now)).status,401);
   assert.equal((await post(fixture(),now,{...env,ENVIRONMENT:"production"})).status,400);
   assert.equal((await post(fixture(),now,{...env,IDENTITY_HMAC_SECRET:""})).status,503);
+});
+
+test("production password requires HTTPS and protects each route with an independent credential", async () => {
+  const credential = "Basic " + btoa("admin:" + "a".repeat(64));
+  const ADMIN_CREDENTIAL_SHA256 = createHash("sha256").update(credential).digest("hex");
+  const production = { ...env, ENVIRONMENT:"production", ADMIN_AUTH_MODE:"password", ADMIN_CREDENTIAL_SHA256 };
+  const request = (path, authorization, protocol = "https") => new Request(`${protocol}://analytics.test${path}`,
+    { headers: authorization ? { Authorization:authorization } : {} });
+  for (const path of ["/admin", "/admin/", "/admin/index.html", "/admin/app.js", "/admin/styles.css", "/admin/brand.png", "/admin/api/stats"]) {
+    const missing = await worker.handle(request(path), production, now);
+    assert.equal(missing.status, 401);
+    assert.equal(missing.headers.get("WWW-Authenticate"), 'Basic realm="TorrFrame Analytics"');
+    assert.equal(missing.headers.get("Cache-Control"), "no-store");
+    assert.equal((await worker.handle(request(path, auth), production, now)).status, 401);
+    const verified = await worker.handle(request(path, credential), production, now);
+    assert.equal(verified.status, 200);
+    assert.equal(verified.headers.get("Cache-Control"), "no-store");
+    assert.equal((await worker.handle(request(path, credential), { ...production, ADMIN_CREDENTIAL_SHA256:undefined }, now)).status, 401);
+  }
+  const plaintext = await worker.handle(request("/admin/", credential, "http"), production, now);
+  assert.equal(plaintext.status, 401);
+  assert.equal(plaintext.headers.get("WWW-Authenticate"), null);
+  assert.equal((await worker.handle(request("/admin/", auth), { ...production, ADMIN:deny }, now)).status, 429);
+  assert.equal((await worker.handle(request("/admin/", credential), { ...production, ADMIN:deny }, now)).status, 200);
+  assert.equal((await worker.handle(request("/admin/api/stats", credential), { ...production, ADMIN:deny }, now)).status, 429);
 });

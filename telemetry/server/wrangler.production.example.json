@@ -5,6 +5,7 @@
   "workers_dev": false,
   "preview_urls": false,
   "observability": { "enabled": false },
+  "secrets": { "required": ["IDENTITY_HMAC_SECRET"] },
   "routes": [{ "pattern": "analytics.example.com", "custom_domain": true }],
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true, "html_handling": "none" },
   "triggers": { "crons": ["20 1,7,13,19 * * *"] },

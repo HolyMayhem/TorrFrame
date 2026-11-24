@@ -3,6 +3,7 @@ package tv.torrframe.core.telemetry
 import android.content.ContextWrapper
 import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
+import android.view.KeyEvent
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -47,7 +48,10 @@ class TelemetryPrivacyDeviceTest {
     private fun exists(tag: String) = tv.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
     private fun focusAndClick(tag: String) {
         node(tag).performSemanticsAction(SemanticsActions.RequestFocus).assertIsFocused()
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        press(KeyEvent.KEYCODE_DPAD_CENTER)
+    }
+    private fun press(key: Int) {
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(key)
         tv.waitForIdle()
     }
     private fun capture(name: String) {
@@ -58,7 +62,7 @@ class TelemetryPrivacyDeviceTest {
         screenshot.recycle()
     }
 
-    @Test fun privacyCanBeOpenedByRemoteAndPreviewWithoutGeneratingIdentity() {
+    @Test fun aboutShowsPrivacyAndPreviewWithoutChangingConsent() {
         tv.waitUntil(20_000) { listOf("setup:skip","telemetry:offer:decline","nav:Settings").any(::exists) }
         if (exists("setup:skip")) focusAndClick("setup:skip")
         tv.waitUntil(16_000) { exists("telemetry:offer:decline") || exists("nav:Settings") }
@@ -68,21 +72,29 @@ class TelemetryPrivacyDeviceTest {
         }
         tv.waitUntil(16_000) { exists("nav:Settings") }
         focusAndClick("nav:Settings")
-        val category = "settings:category:Privacy"
+        val category = "settings:category:About"
         node("settings:categories").performScrollToNode(hasTestTag(category))
         focusAndClick(category)
         val graph = (tv.activity.application as TorrFrameApplication).graph
-        tv.waitUntil(5000) { exists("telemetry:toggle") }
-        org.junit.Assume.assumeTrue(graph.telemetry.consent.value != TelemetryConsent.Enabled)
-        tv.waitUntil(5000) { graph.telemetry.consent.value != TelemetryConsent.Enabled }
-        node("telemetry:reset").assertIsNotEnabled()
-        node("telemetry:preview").performSemanticsAction(SemanticsActions.RequestFocus)
-        tv.waitForIdle()
-        capture("telemetry-privacy.png")
-        focusAndClick("telemetry:preview")
+        node("settings:setup").performSemanticsAction(SemanticsActions.RequestFocus).assertIsFocused()
+        repeat(10) {
+            if (tv.onAllNodes(hasTestTag("telemetry:toggle") and isFocused()).fetchSemanticsNodes().isEmpty()) {
+                press(KeyEvent.KEYCODE_DPAD_DOWN)
+            }
+        }
+        node("telemetry:toggle").assertIsDisplayed().assertIsFocused()
+        val consent = graph.telemetry.consent.value
+        if (consent == TelemetryConsent.Enabled) node("telemetry:reset").assertIsEnabled()
+        else node("telemetry:reset").assertIsNotEnabled()
+        press(KeyEvent.KEYCODE_DPAD_DOWN)
+        node("telemetry:preview").assertIsFocused()
+        capture("telemetry-about.png")
+        press(KeyEvent.KEYCODE_DPAD_CENTER)
         tv.waitUntil(5000) { tv.onAllNodes(hasText("installationID", substring=true)).fetchSemanticsNodes().isNotEmpty() }
-        tv.onNode(hasText("\"installationID\": null",substring=true)).assertExists()
-        capture("telemetry-preview.png")
+        assertEquals(consent, graph.telemetry.consent.value)
+        if (consent != TelemetryConsent.Enabled) {
+            tv.onNode(hasText("\"installationID\": null",substring=true)).assertExists()
+        }
     }
 }
 

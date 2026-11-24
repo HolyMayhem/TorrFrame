@@ -12,6 +12,8 @@ interface Env {
   ADMIN: Limiter;
   IDENTITY_HMAC_SECRET?: string;
   LOCAL_ADMIN_PASSWORD?: string;
+  ADMIN_AUTH_MODE?: "access" | "password";
+  ADMIN_CREDENTIAL_SHA256?: string;
   ACCESS_ISSUER?: string;
   ACCESS_AUDIENCE?: string;
   ENVIRONMENT: "production" | "development";
@@ -34,21 +36,41 @@ const assets = new Map([
   ["/admin/app.js","/admin/app.js"], ["/admin/styles.css","/admin/styles.css"], ["/admin/brand.png","/admin/brand.png"],
 ]);
 let access: { issuer: string; keys: ReturnType<typeof createRemoteJWKSet> } | undefined;
-async function admin(request: Request, env: Env, host: string): Promise<boolean> {
-  if (env.ENVIRONMENT === "development" && ["localhost","127.0.0.1","[::1]"].includes(host)) {
+function equalCredential(actual: string, expected: string): boolean {
+  if (actual.length !== expected.length) return false;
+  let unequal = 0;
+  for (let n = 0; n < expected.length; n++) unequal |= actual.charCodeAt(n) ^ expected.charCodeAt(n);
+  return unequal === 0;
+}
+function adminRealm(env: Env, url: URL): string | undefined {
+  if (env.ENVIRONMENT === "development" && ["localhost","127.0.0.1","[::1]"].includes(url.hostname))
+    return "Local TorrFrame Analytics";
+  if (env.ENVIRONMENT === "production" && env.ADMIN_AUTH_MODE === "password" && url.protocol === "https:")
+    return "TorrFrame Analytics";
+}
+async function admin(request: Request, env: Env, url: URL, realm: string | undefined): Promise<boolean> {
+  if (realm && env.ENVIRONMENT === "development") {
     const secret = env.LOCAL_ADMIN_PASSWORD;
     if (!secret || secret.length < 24) return false;
-    const expected = "Basic " + btoa("admin:" + secret);
-    const actual = request.headers.get("Authorization") ?? "";
-    if (actual.length !== expected.length) return false;
-    let unequal = 0;
-    for (let n = 0; n < expected.length; n++) unequal |= actual.charCodeAt(n) ^ expected.charCodeAt(n);
-    return unequal === 0;
+    return equalCredential(request.headers.get("Authorization") ?? "", "Basic " + btoa("admin:" + secret));
+  }
+  if (env.ENVIRONMENT !== "production" || url.protocol !== "https:") return false;
+  if (env.ADMIN_AUTH_MODE === "password") {
+    const expected = env.ADMIN_CREDENTIAL_SHA256;
+    const authorization = request.headers.get("Authorization");
+    if (!expected || !/^[0-9a-f]{64}$/.test(expected) || !authorization) return false;
+    const credential = /^Basic ([A-Za-z0-9+/]{94}==)$/i.exec(authorization)?.[1];
+    if (credential) {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("Basic " + credential));
+      const actual = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+      if (equalCredential(actual, expected)) return true;
+    }
+    await limit(env.ADMIN, "authentication");
+    return false;
   }
   const token = request.headers.get("Cf-Access-Jwt-Assertion");
   const issuer = env.ACCESS_ISSUER;
-  if (env.ENVIRONMENT !== "production" || !token || !env.ACCESS_AUDIENCE ||
-      !issuer || !/^https:\/\/[a-z0-9-]+\.cloudflareaccess\.com$/.test(issuer)) return false;
+  if (!token || !env.ACCESS_AUDIENCE || !issuer || !/^https:\/\/[a-z0-9-]+\.cloudflareaccess\.com$/.test(issuer)) return false;
   try {
     if (access?.issuer !== issuer) access = { issuer, keys: createRemoteJWKSet(new URL(issuer + "/cdn-cgi/access/certs")) };
     const { payload } = await jwtVerify(token, access.keys, {
@@ -83,9 +105,10 @@ export async function handle(request: Request, env: Env, now = Date.now()): Prom
     const stats = url.pathname === "/admin/api/stats";
     if (!asset && !stats) throw new HttpError(404, "Not found");
     if (request.method !== "GET") throw new HttpError(405, "GET required");
-    if (!await admin(request, env, url.hostname))
+    const realm = adminRealm(env, url);
+    if (!await admin(request, env, url, realm))
       return json({ error: "Authorization required" }, 401,
-        env.ENVIRONMENT === "development" ? { "WWW-Authenticate": 'Basic realm="Local TorrFrame Analytics"' } : {});
+        realm ? { "WWW-Authenticate": `Basic realm="${realm}"` } : {});
     if (stats) {
       await limit(env.ADMIN, "statistics");
       return json({ ...await statistics(env.DB, url, now, env.LATEST_BUILD), testEnvironment: env.ENVIRONMENT === "development" });
