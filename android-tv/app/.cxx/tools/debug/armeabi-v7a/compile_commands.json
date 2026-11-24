@@ -1,0 +1,47 @@
+[
+{
+  "directory": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a",
+  "command": "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi26 --sysroot=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DTORRFRAME_PROXY -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIE -O2 -o CMakeFiles/byedpi_exec.dir/launcher.c.o -c /Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/src/main/cpp/launcher.c",
+  "file": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/src/main/cpp/launcher.c"
+},
+{
+  "directory": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a",
+  "command": "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi26 --sysroot=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DTORRFRAME_PROXY -Dmain=byedpi_main -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIE -O2 -o CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/main.c.o -c /Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/main.c",
+  "file": "/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/main.c"
+},
+{
+  "directory": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a",
+  "command": "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi26 --sysroot=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DTORRFRAME_PROXY -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIE -O2 -o CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/conev.c.o -c /Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/conev.c",
+  "file": "/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/conev.c"
+},
+{
+  "directory": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a",
+  "command": "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi26 --sysroot=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DTORRFRAME_PROXY -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIE -O2 -o CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/proxy.c.o -c /Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/proxy.c",
+  "file": "/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/proxy.c"
+},
+{
+  "directory": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a",
+  "command": "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi26 --sysroot=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DTORRFRAME_PROXY -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIE -O2 -o CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/desync.c.o -c /Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/desync.c",
+  "file": "/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/desync.c"
+},
+{
+  "directory": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a",
+  "command": "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi26 --sysroot=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DTORRFRAME_PROXY -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIE -O2 -o CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/mpool.c.o -c /Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/mpool.c",
+  "file": "/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/mpool.c"
+},
+{
+  "directory": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a",
+  "command": "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi26 --sysroot=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DTORRFRAME_PROXY -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIE -O2 -o CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/extend.c.o -c /Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/extend.c",
+  "file": "/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/extend.c"
+},
+{
+  "directory": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a",
+  "command": "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi26 --sysroot=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DTORRFRAME_PROXY -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIE -O2 -o CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/packets.c.o -c /Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/packets.c",
+  "file": "/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/packets.c"
+},
+{
+  "directory": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a",
+  "command": "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi26 --sysroot=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -Dtorrframe_dpi_EXPORTS -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIC -o CMakeFiles/torrframe_dpi.dir/package_slot.c.o -c /Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/src/main/cpp/package_slot.c",
+  "file": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/src/main/cpp/package_slot.c"
+}
+]

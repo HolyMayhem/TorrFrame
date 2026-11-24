@@ -1,0 +1,33 @@
+{
+  "buildFiles": [
+    "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/m2l155w6/armeabi-v7a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/m2l155w6/armeabi-v7a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "byedpi_exec::@6890427a1f51a3e7e1df": {
+      "artifactName": "byedpi_exec",
+      "abi": "armeabi-v7a",
+      "output": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/m2l155w6/armeabi-v7a/bin/byedpi_exec",
+      "runtimeFiles": []
+    },
+    "torrframe_dpi::@6890427a1f51a3e7e1df": {
+      "artifactName": "torrframe_dpi",
+      "abi": "armeabi-v7a",
+      "output": "/Users/holymayhem/Library/Caches/TorrFrameAndroidTV/build/app/intermediates/cxx/Debug/m2l155w6/obj/armeabi-v7a/libtorrframe_dpi.so",
+      "runtimeFiles": []
+    }
+  }
+}

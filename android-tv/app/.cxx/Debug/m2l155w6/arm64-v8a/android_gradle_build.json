@@ -1,0 +1,45 @@
+{
+  "buildFiles": [
+    "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/m2l155w6/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/m2l155w6/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "byedpi_exec::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "arm64-v8a",
+      "artifactName": "byedpi_exec",
+      "output": "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/m2l155w6/arm64-v8a/bin/byedpi_exec",
+      "runtimeFiles": []
+    },
+    "torrframe_dpi::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "arm64-v8a",
+      "artifactName": "torrframe_dpi",
+      "output": "/Users/holymayhem/Library/Caches/TorrFrameAndroidTV/build/app/intermediates/cxx/Debug/m2l155w6/obj/arm64-v8a/libtorrframe_dpi.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [
+    "c"
+  ],
+  "cppFileExtensions": []
+}

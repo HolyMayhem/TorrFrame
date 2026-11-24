@@ -1,0 +1,12 @@
+# ninja log v5
+0	47	1795478254544006564	CMakeFiles/byedpi_exec.dir/launcher.c.o	58348e01228cf178
+0	75	1795478254571790662	CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/conev.c.o	c3cc55ada1278947
+1	88	1795478254584889666	CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/mpool.c.o	8907204aa6f7f4b7
+1	100	1795478254596567291	CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/extend.c.o	3a50d12a3794b879
+1	111	1795478254607852206	CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/proxy.c.o	84f2a26f55892361
+1	113	1795478254609845296	CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/desync.c.o	72d52f50869467e9
+1	120	1795478254617368573	CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/packets.c.o	fe1c61f71a16654a
+0	128	1795478254624156472	CMakeFiles/byedpi_exec.dir/Users/holymayhem/Documents/Code/TorrFrame/third-party/byedpi/main.c.o	2bcb3a2e8632a29a
+128	169	1795478254665408617	bin/byedpi_exec	3e5fca73b5038a29
+169	192	1795478254690319538	CMakeFiles/torrframe_dpi.dir/package_slot.c.o	2c54be24eb03173c
+192	241	1795478254739389169	/Users/holymayhem/Library/Caches/TorrFrameAndroidTV/adaptive-clean.WnFr8I/app/intermediates/cxx/Debug/e351r4u5/obj/armeabi-v7a/libtorrframe_dpi.so	cd276abf4b3428da

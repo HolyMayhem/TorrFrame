@@ -1,0 +1,18 @@
+                        -H/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/src/main/cpp
+-DCMAKE_SYSTEM_NAME=Android
+-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+-DCMAKE_SYSTEM_VERSION=26
+-DANDROID_PLATFORM=android-26
+-DANDROID_ABI=armeabi-v7a
+-DCMAKE_ANDROID_ARCH_ABI=armeabi-v7a
+-DANDROID_NDK=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865
+-DCMAKE_ANDROID_NDK=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865
+-DCMAKE_TOOLCHAIN_FILE=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/ndk/29.0.14206865/build/cmake/android.toolchain.cmake
+-DCMAKE_MAKE_PROGRAM=/Users/holymayhem/Documents/Code/TorrFrame/.tools/sdk/cmake/3.22.1/bin/ninja
+-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=/Users/holymayhem/Library/Caches/TorrFrameAndroidTV/build/app/intermediates/cxx/Debug/m2l155w6/obj/armeabi-v7a
+-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=/Users/holymayhem/Library/Caches/TorrFrameAndroidTV/build/app/intermediates/cxx/Debug/m2l155w6/obj/armeabi-v7a
+-DCMAKE_BUILD_TYPE=Debug
+-B/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/m2l155w6/armeabi-v7a
+-GNinja
+                        Build command args: []
+                        Version: 2

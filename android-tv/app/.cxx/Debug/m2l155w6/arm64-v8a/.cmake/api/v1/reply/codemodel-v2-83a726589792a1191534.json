@@ -1,0 +1,69 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "torrframe_dpi",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "byedpi_exec::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-byedpi_exec-Debug-a0327a9acb5266738690.json",
+					"name" : "byedpi_exec",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "torrframe_dpi::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-torrframe_dpi-Debug-d35ac2a0776faa6b7c06.json",
+					"name" : "torrframe_dpi",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/m2l155w6/arm64-v8a",
+		"source" : "/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/src/main/cpp"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

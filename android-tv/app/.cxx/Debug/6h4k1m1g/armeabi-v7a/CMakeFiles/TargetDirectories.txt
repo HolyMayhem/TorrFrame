@@ -1,0 +1,4 @@
+/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a/CMakeFiles/byedpi_exec.dir
+/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a/CMakeFiles/torrframe_dpi.dir
+/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/holymayhem/Documents/Code/TorrFrame/android-tv/app/.cxx/Debug/6h4k1m1g/armeabi-v7a/CMakeFiles/rebuild_cache.dir
