@@ -68,7 +68,9 @@ internal fun LazyListScope.adaptiveSearchSettingsItems(state: SettingsUi, vm: Se
         report.sources.forEach { source ->
             item("dpi:source:${source.name}") {
                 SettingsGroup(source.name) {
-                    ProbeLine(stringResource(report.firstMode.label), source.first)
+                    val label = if (source.secureDirect != null) R.string.dpi_system_dns else report.firstMode.label
+                    ProbeLine(stringResource(label), source.first)
+                    source.secureDirect?.let { ProbeLine(stringResource(R.string.dpi_secure_dns), it, showDns = false) }
                     source.second?.let { ProbeLine("ByeDPI", it) }
                 }
             }
@@ -77,7 +79,7 @@ internal fun LazyListScope.adaptiveSearchSettingsItems(state: SettingsUi, vm: Se
 }
 
 @androidx.compose.runtime.Composable
-private fun ProbeLine(mode: String, probe: SearchProbe) {
+private fun ProbeLine(mode: String, probe: SearchProbe, showDns: Boolean = true) {
     val routes = probe.routes.map { route ->
         when (route) {
             SearchRoute.ByeDpi -> "ByeDPI"
@@ -89,6 +91,8 @@ private fun ProbeLine(mode: String, probe: SearchProbe) {
     val result = if (probe.ok) stringResource(R.string.dpi_available) else when (probe.error) {
         SearchProbeError.Timeout -> stringResource(R.string.dpi_timeout)
         SearchProbeError.Dns -> stringResource(R.string.dpi_dns)
+        SearchProbeError.Tcp -> stringResource(R.string.dpi_tcp)
+        SearchProbeError.Socks -> stringResource(R.string.dpi_socks)
         SearchProbeError.Tls -> stringResource(R.string.dpi_tls)
         SearchProbeError.Http -> stringResource(R.string.dpi_http, probe.httpStatus ?: 0)
         SearchProbeError.Response -> stringResource(R.string.dpi_response)
@@ -96,7 +100,8 @@ private fun ProbeLine(mode: String, probe: SearchProbe) {
         SearchProbeError.Local -> stringResource(R.string.dpi_local_error)
         else -> stringResource(R.string.dpi_network_error)
     }
-    TvText(stringResource(R.string.dpi_result, mode, routes, result, probe.count, probe.millis), translate = false)
+    val routeLabel = if (showDns && probe.secureDnsUsed) "$routes · ${stringResource(R.string.dpi_secure_dns)}" else routes
+    TvText(stringResource(R.string.dpi_result, mode, routeLabel, result, probe.count, probe.millis), translate = false)
     if (strategies.isNotBlank()) TvText(strategies, color = Muted, translate = false)
 }
 

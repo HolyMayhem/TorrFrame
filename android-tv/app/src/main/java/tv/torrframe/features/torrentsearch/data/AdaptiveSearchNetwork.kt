@@ -6,20 +6,24 @@ import android.os.SystemClock
 import androidx.core.content.edit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.Dns
-import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import tv.torrframe.core.network.Http
 import tv.torrframe.core.network.HttpReply
 import tv.torrframe.core.network.ServiceFailure
+import tv.torrframe.core.network.TmdbDns
 import tv.torrframe.core.storage.JacRedMode
 import tv.torrframe.core.storage.JacRedSettings
 import java.io.EOFException
 import java.io.InterruptedIOException
+import java.net.ConnectException
 import java.net.InetAddress
+import java.net.NoRouteToHostException
 import java.net.Proxy
 import java.net.SocketException
 import java.net.UnknownHostException
@@ -34,15 +38,24 @@ import kotlin.coroutines.coroutineContext
 
 enum class AdaptiveMode { Off, Auto, Forced }
 enum class SearchRoute { Direct, Local, ByeDpi }
+internal enum class SearchDnsMode { Fallback, System, Secure }
+
+// Start with the sources where the system resolver returned a block-page IP.
+internal val secureDnsSources = mapOf("rutorinfo" to "rutor.info", "nonameclub" to "nnmclub.to")
+private val secureDnsHosts = secureDnsSources.values.toSet()
+
 
 internal class SearchMeasurement(
     val mode: AdaptiveMode,
     val jacRed: JacRedSettings,
     val jacRedPreferred: String?,
     val retune: Boolean,
+    val dnsMode: SearchDnsMode = SearchDnsMode.Fallback,
     val routes: MutableSet<SearchRoute> = linkedSetOf(),
     val strategies: MutableSet<DpiStrategy> = linkedSetOf()
 ) : AbstractCoroutineContextElement(Key) {
+    var secureDnsUsed = false
+    var failurePhase: SearchProbeError? = null
     companion object Key : CoroutineContext.Key<SearchMeasurement>
 }
 
@@ -50,6 +63,7 @@ class AdaptiveSearchNetwork(
     context: Context,
     private val http: Http,
     val process: ByeDpiProcess,
+    private val secureLookup: Dns = Dns(TmdbDns(hosts = secureDnsHosts)::lookupSecure),
     private val mode: () -> AdaptiveMode
 ) {
     private val memory = context.getSharedPreferences("torrentsearch-dpi-strategies", Context.MODE_PRIVATE)
@@ -84,13 +98,42 @@ class AdaptiveSearchNetwork(
         val activeGeneration = generation
         val host = request.url.host
         val bucket = if (JacRedMode.publicUrls.any { it.removePrefix("https://").trimEnd('/') == host }) "jacred-public" else host
-        suspend fun fetch(client: okhttp3.OkHttpClient, route: SearchRoute, strategy: DpiStrategy? = null): HttpReply {
+        val dnsMode = measurement?.dnsMode ?: SearchDnsMode.Fallback
+        val eligibleForSecureDns = !allowLocal && request.url.isHttps && request.url.port == 443 && host in secureDnsHosts
+        suspend fun lookupSecure(): List<InetAddress> {
+            measurement?.secureDnsUsed = true
+            return try {
+                runInterruptible(Dispatchers.IO) {
+                    secureLookup.lookup(host).filter(InetAddress::isPublicSearchAddress)
+                        .ifEmpty { throw UnknownHostException(host) }
+                }
+            } catch (error: UnknownHostException) {
+                throw ServiceFailure(service, cause = error)
+            }
+        }
+        suspend fun recoverDns(error: ServiceFailure): List<InetAddress>? {
+            if (!eligibleForSecureDns || dnsMode != SearchDnsMode.Fallback || !error.canTrySecureDns()) return null
+            return try { lookupSecure() } catch (_: ServiceFailure) { null }
+        }
+        suspend fun fetch(
+            client: OkHttpClient, route: SearchRoute, strategy: DpiStrategy? = null, addresses: List<InetAddress>? = null
+        ): HttpReply {
+            measurement?.failurePhase = null
             throttle(bucket, service)
             measurement?.routes?.add(route)
             strategy?.let { measurement?.strategies?.add(it) }
+            val trace = measurement?.let { SearchConnectionTrace() }
+            val configured = if (addresses == null && trace == null) client else client.newBuilder().apply {
+                if (addresses != null) dns { name -> if (name == host) addresses else client.dns.lookup(name) }
+                if (trace != null) {
+                    eventListenerFactory { call -> client.eventListenerFactory.create(call) + trace }
+                    fastFallback(false)
+                }
+            }.build()
             try {
-                return http.exchange(request, service, limit, manualRedirects, client)
+                return http.exchange(request, service, limit, manualRedirects, configured)
             } catch (error: ServiceFailure) {
+                measurement?.failurePhase = trace?.phase
                 if (error.status == 429 || error.status in 500..599 && error.retryAfterMillis != null) {
                     backoff(bucket, error)
                 }
@@ -110,32 +153,63 @@ class AdaptiveSearchNetwork(
                 return fetch(local, SearchRoute.Local)
             }
         }
+        var secureAddresses = if (eligibleForSecureDns && dnsMode == SearchDnsMode.Secure) lookupSecure() else null
         if (selected == AdaptiveMode.Off) {
-            return fetch(if (measurement == null) http.client else testClient, SearchRoute.Direct)
+            return fetch(if (measurement == null) http.client else testClient, SearchRoute.Direct, addresses = secureAddresses)
         }
 
         val key = strategyKey("$host:${request.url.port}")
         val previous = if (measurement?.retune == true) null else key?.let(::remembered)
-        if (selected == AdaptiveMode.Auto && previous == null) {
+        val strategies = (listOfNotNull(previous) + DpiStrategy.entries).distinct()
+        val tryDirectFirst = selected == AdaptiveMode.Auto && (previous == null || eligibleForSecureDns)
+        val direct = if (measurement == null) quickClient else testClient
+        if (tryDirectFirst) {
             try {
-                return fetch(if (measurement == null) quickClient else testClient, SearchRoute.Direct)
+                return fetch(direct, SearchRoute.Direct)
             } catch (error: ServiceFailure) {
-                if (!error.canTryAnotherRoute()) throw error
+                secureAddresses = recoverDns(error)
+                if (secureAddresses == null && !error.canTryAnotherRoute()) throw error
+            }
+            if (secureAddresses != null) {
+                try {
+                    return fetch(direct, SearchRoute.Direct, addresses = secureAddresses)
+                } catch (error: ServiceFailure) {
+                    if (!error.canTryAnotherRoute()) throw error
+                }
             }
         }
-        val canReturnToDirect = selected == AdaptiveMode.Auto && previous != null
-        val strategies = (listOfNotNull(previous) + DpiStrategy.entries).distinct()
-        var failure: ServiceFailure? = null
-        for (strategy in strategies) {
-            try {
-                val result = process.use(strategy, directClient) { client -> fetch(client, SearchRoute.ByeDpi, strategy) }
-                if (result.status in 200..299 && key != null && (measurement == null || measurement.retune)) {
-                    remember(key, strategy, activeGeneration)
-                }
-                return result
+
+        suspend fun viaProxy(strategy: DpiStrategy, addresses: List<InetAddress>?): HttpReply {
+            measurement?.failurePhase = null
+            val result = try {
+                process.use(strategy, directClient) { fetch(it, SearchRoute.ByeDpi, strategy, addresses) }
             } catch (error: DpiProcessFailure) {
-                failure = ServiceFailure(service, cause = error)
-                break
+                throw ServiceFailure(service, cause = error)
+            }
+            if (result.status in 200..299 && key != null && (measurement == null || measurement.retune)) {
+                remember(key, strategy, activeGeneration)
+            }
+            return result
+        }
+
+        var remaining = strategies
+        var failure: ServiceFailure? = null
+        if (selected == AdaptiveMode.Forced && eligibleForSecureDns && dnsMode == SearchDnsMode.Fallback) {
+            try {
+                return viaProxy(strategies.first(), null)
+            } catch (error: ServiceFailure) {
+                failure = error
+                secureAddresses = recoverDns(error)
+                if (secureAddresses == null) {
+                    if (!error.canTryAnotherRoute()) throw error
+                    remaining = strategies.drop(1)
+                }
+            }
+        }
+
+        for (strategy in remaining) {
+            try {
+                return viaProxy(strategy, secureAddresses)
             } catch (error: ServiceFailure) {
                 val proxyFailed = error.failureChain().any { it is DpiProcessFailure }
                 if (!proxyFailed && !error.canTryAnotherRoute()) throw error
@@ -143,8 +217,8 @@ class AdaptiveSearchNetwork(
                 if (proxyFailed) break
             }
         }
-        if (canReturnToDirect) {
-            val result = fetch(if (measurement == null) quickClient else testClient, SearchRoute.Direct)
+        if (selected == AdaptiveMode.Auto && previous != null && !tryDirectFirst) {
+            val result = fetch(direct, SearchRoute.Direct)
             if (key != null && measurement == null) synchronized(strategyLock) {
                 if (generation == activeGeneration) memory.edit { remove(key) }
             }
@@ -216,5 +290,29 @@ internal fun ServiceFailure.canTryAnotherRoute(): Boolean {
     val causes = failureChain()
     if (causes.any { it is SSLPeerUnverifiedException || it is CertificateException ||
             it is UnknownHostException || it is PrivateSearchAddress || it is DpiProcessFailure }) return false
+    val socks = causes.filterIsInstance<SocksConnectFailure>().firstOrNull()
+    if (socks != null) return socks.reply in setOf(null, 1, 4, 5)
     return causes.any { it is SocketException || it is InterruptedIOException || it is EOFException || it is SSLException }
+}
+
+internal fun ServiceFailure.canTrySecureDns(): Boolean {
+    if (canTryAnotherRoute()) return true
+    if (retryAfterMillis != null || status != 0) return false
+    return failureChain().any { it is UnknownHostException || it is SSLPeerUnverifiedException || it is CertificateException }
+}
+
+internal fun ServiceFailure.searchFailure(phase: SearchProbeError?): SearchProbeError {
+    val causes = failureChain()
+    return when {
+        causes.any { it is DpiProcessFailure } -> SearchProbeError.Proxy
+        causes.any { it is PrivateSearchAddress } -> SearchProbeError.Local
+        causes.any { it is SocksConnectFailure } -> SearchProbeError.Socks
+        causes.any { it is UnknownHostException } -> SearchProbeError.Dns
+        causes.any { it is SSLException } -> SearchProbeError.Tls
+        causes.any { it is ConnectException || it is NoRouteToHostException } -> SearchProbeError.Tcp
+        status == 408 -> phase ?: SearchProbeError.Timeout
+        status > 0 -> SearchProbeError.Http
+        status < 0 -> SearchProbeError.Response
+        else -> phase ?: SearchProbeError.Network
+    }
 }

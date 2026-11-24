@@ -11,7 +11,8 @@ interface Probe {
   millis: number;
   routes: ("ByeDpi" | "Local" | "Direct")[];
   strategies: string[];
-  error: "Timeout" | "Dns" | "Tls" | "Http" | "Response" | "Network" | "Proxy" | "Local" | null;
+  secureDnsUsed?: boolean;
+  error: "Timeout" | "Dns" | "Tcp" | "Socks" | "Tls" | "Http" | "Response" | "Network" | "Proxy" | "Local" | null;
   httpStatus: number | null;
 }
 interface Report {
@@ -21,7 +22,7 @@ interface Report {
   proxiedUnique: number | null;
   directOnly: number;
   proxyOnly: number;
-  sources: { name: string; first: Probe; second: Probe | null }[];
+  sources: { name: string; first: Probe; second: Probe | null; secureDirect?: Probe | null }[];
 }
 
 const modes = () => ({
@@ -30,10 +31,14 @@ const modes = () => ({
   Forced: t("Принудительный", "Forced"),
 });
 
-function ProbeLine({ label, probe }: { label: string; probe: Probe }) {
+const secureDnsLabel = () => t("DNS через HTTPS", "DNS over HTTPS");
+
+function ProbeLine({ label, probe, showDns = true }: { label: string; probe: Probe; showDns?: boolean }) {
   const error = {
     Timeout: t("Тайм-аут", "Timed out"),
     Dns: t("Ошибка DNS", "DNS error"),
+    Tcp: t("Ошибка соединения TCP", "TCP connection error"),
+    Socks: t("Ошибка соединения SOCKS", "SOCKS connection error"),
     Tls: t("Ошибка TLS", "TLS error"),
     Http: `HTTP ${probe.httpStatus}`,
     Response: t("Некорректный ответ", "Invalid response"),
@@ -50,7 +55,9 @@ function ProbeLine({ label, probe }: { label: string; probe: Probe }) {
   const result = probe.ok ? t("Доступен", "Available") : error[probe.error ?? "Network"];
   return (
     <div className="muted">
-      {label} · {routeLabel} · {result} · {probe.count} {t("раздач", "torrents")} · {probe.millis} {t("мс", "ms")}
+      {label} · {routeLabel}
+      {showDns && probe.secureDnsUsed && ` · ${secureDnsLabel()}`}
+      {" · "}{result} · {probe.count} {t("раздач", "torrents")} · {probe.millis} {t("мс", "ms")}
       {probe.strategies.length > 0 && <span> · {probe.strategies.join(" / ")}</span>}
     </div>
   );
@@ -124,13 +131,14 @@ export function AdaptiveSearchSettings({ mode, onMode, actions, state, unsaved }
           {report.proxiedUnique === null ? <p>{t("Уникальных раздач", "Unique torrents")}: {report.unique}</p> : (
             <>
               <p>{t("Уникальные раздачи", "Unique torrents")} · {t("напрямую", "direct")} {report.unique} · ByeDPI {report.proxiedUnique} · {t("разница", "difference")} {report.proxiedUnique - report.unique}</p>
-              <p className="muted">{t("Только напрямую", "Direct run only")}: {report.directOnly} · {t("только во втором прогоне", "second run only")}: {report.proxyOnly}</p>
+              <p className="muted">{t("Только напрямую", "Direct run only")}: {report.directOnly} · {t("только через ByeDPI", "ByeDPI only")}: {report.proxyOnly}</p>
             </>
           )}
           <ul>
             {report.sources.map((source) => <li key={source.name}>
               <strong>{source.name}</strong>
-              <ProbeLine label={modeLabels[report.firstMode]} probe={source.first} />
+              <ProbeLine label={source.secureDirect ? t("Системный DNS", "System DNS") : modeLabels[report.firstMode]} probe={source.first} />
+              {source.secureDirect && <ProbeLine label={secureDnsLabel()} probe={source.secureDirect} showDns={false} />}
               {source.second && <ProbeLine label="ByeDPI" probe={source.second} />}
             </li>)}
           </ul>

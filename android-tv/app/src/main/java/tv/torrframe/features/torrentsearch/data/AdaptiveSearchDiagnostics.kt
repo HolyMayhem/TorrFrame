@@ -21,11 +21,9 @@ import tv.torrserve.torrentsearch.model.SearchTarget
 import tv.torrserve.torrentsearch.model.TorrentIdentity
 import tv.torrserve.torrentsearch.model.TorrentSearchOptions
 import tv.torrserve.torrentsearch.provider.SearchProvider
-import java.net.UnknownHostException
-import javax.net.ssl.SSLException
 
 enum class AdaptiveDiagnostic { Check, Retune, Compare }
-enum class SearchProbeError { Timeout, Dns, Tls, Http, Response, Network, Proxy, Local }
+enum class SearchProbeError { Timeout, Dns, Tcp, Socks, Tls, Http, Response, Network, Proxy, Local }
 
 data class SearchProbe(
     val ok: Boolean,
@@ -34,10 +32,11 @@ data class SearchProbe(
     val routes: Set<SearchRoute>,
     val strategies: Set<DpiStrategy>,
     val error: SearchProbeError?,
-    val httpStatus: Int?
+    val httpStatus: Int?,
+    val secureDnsUsed: Boolean
 )
 
-data class SearchProbeSource(val name: String, val first: SearchProbe, val second: SearchProbe?)
+data class SearchProbeSource(val name: String, val first: SearchProbe, val second: SearchProbe?, val secureDirect: SearchProbe?)
 data class SearchComparison(
     val query: String,
     val firstMode: AdaptiveMode,
@@ -54,6 +53,7 @@ class AdaptiveSearchDiagnostics(
     private val preferredJacRed: () -> String?
 ) {
     private data class Measurement(val probe: SearchProbe, val keys: Set<String>)
+    private data class ProviderRuns(val name: String, val first: Measurement, val proxied: Measurement?, val secureDirect: Measurement?)
     private val state = MutableStateFlow(false)
     val busy = state.asStateFlow()
 
@@ -75,18 +75,26 @@ class AdaptiveSearchDiagnostics(
                 val results = coroutineScope {
                     providers.map { provider -> async {
                         slots.withPermit {
+                            val compare = diagnostic == AdaptiveDiagnostic.Compare
+                            val secure = compare && provider.id in secureDnsSources
                             val first = measure(provider, target, options, SearchMeasurement(
-                                firstMode, saved.jacRed, preferred, diagnostic == AdaptiveDiagnostic.Retune))
-                            val second = if (diagnostic == AdaptiveDiagnostic.Compare) measure(provider, target, options,
-                                SearchMeasurement(AdaptiveMode.Forced, saved.jacRed, preferred, false)) else null
-                            Triple(provider.name, first, second)
+                                firstMode, saved.jacRed, preferred, diagnostic == AdaptiveDiagnostic.Retune,
+                                if (compare) SearchDnsMode.System else SearchDnsMode.Fallback))
+                            val directSecure = if (secure) measure(provider, target, options,
+                                SearchMeasurement(AdaptiveMode.Off, saved.jacRed, preferred, false, SearchDnsMode.Secure)) else null
+                            val proxied = if (compare) measure(provider, target, options,
+                                SearchMeasurement(AdaptiveMode.Forced, saved.jacRed, preferred, false,
+                                    if (secure) SearchDnsMode.Secure else SearchDnsMode.System)) else null
+                            ProviderRuns(provider.name, first, proxied, directSecure)
                         }
                     } }.awaitAll()
                 }
-                val direct = results.flatMapTo(hashSetOf()) { it.second.keys }
+                val direct = results.flatMapTo(hashSetOf()) { it.first.keys }
                 val compare = diagnostic == AdaptiveDiagnostic.Compare
-                val proxied = if (compare) results.flatMapTo(hashSetOf()) { it.third?.keys.orEmpty() } else emptySet()
-                SearchComparison(target.title, firstMode, results.map { (name, a, b) -> SearchProbeSource(name, a.probe, b?.probe) },
+                val proxied = if (compare) results.flatMapTo(hashSetOf()) { it.proxied?.keys.orEmpty() } else emptySet()
+                SearchComparison(target.title, firstMode, results.map { (name, first, proxy, directSecure) ->
+                    SearchProbeSource(name, first.probe, proxy?.probe, directSecure?.probe)
+                },
                     direct.size, proxied.size.takeIf { compare },
                     if (compare) direct.count { it !in proxied } else 0, proxied.count { it !in direct })
             }
@@ -116,20 +124,11 @@ class AdaptiveSearchDiagnostics(
             if (completed == null) error = SearchProbeError.Timeout
         } catch (failure: Exception) {
             if (failure is CancellationException) throw failure
-            val causes = failure.failureChain()
-            val code = (failure as? ServiceFailure)?.status
-            error = when {
-                causes.any { it is DpiProcessFailure } -> SearchProbeError.Proxy
-                causes.any { it is PrivateSearchAddress } -> SearchProbeError.Local
-                code == 408 -> SearchProbeError.Timeout
-                code != null && code > 0 -> SearchProbeError.Http.also { status = code }
-                causes.any { it is UnknownHostException } -> SearchProbeError.Dns
-                causes.any { it is SSLException } -> SearchProbeError.Tls
-                failure !is ServiceFailure || code != null && code < 0 -> SearchProbeError.Response
-                else -> SearchProbeError.Network
-            }
+            val serviceFailure = failure as? ServiceFailure
+            error = serviceFailure?.searchFailure(context.failurePhase) ?: SearchProbeError.Response
+            if (error == SearchProbeError.Http) status = serviceFailure?.status
         }
         Measurement(SearchProbe(error == null, keys.size, SystemClock.elapsedRealtime() - start, context.routes.toSet(),
-            context.strategies.toSet(), error, status), keys)
+            context.strategies.toSet(), error, status, context.secureDnsUsed), keys)
     }
 }

@@ -408,7 +408,7 @@
     <string name="dpi_no_sources">Включите хотя бы один источник для этого типа поиска.</string>
     <string name="dpi_total">Уникальных раздач: %1$d</string>
     <string name="dpi_comparison">Уникальные раздачи · напрямую %1$d · ByeDPI %2$d · разница %3$d</string>
-    <string name="dpi_difference">Только напрямую: %1$d · только во втором прогоне: %2$d</string>
+    <string name="dpi_difference">Только напрямую: %1$d · только через ByeDPI: %2$d</string>
     <string name="dpi_direct">напрямую</string>
     <string name="dpi_local">локальная сеть</string>
     <string name="dpi_available">Доступен</string>
@@ -420,4 +420,8 @@
     <string name="dpi_local_error">Локальный адрес исключён</string>
     <string name="dpi_network_error">Ошибка сети</string>
     <string name="dpi_result">%1$s · %2$s · %3$s · %4$d раздач · %5$d мс</string>
+    <string name="dpi_system_dns">Системный DNS</string>
+    <string name="dpi_secure_dns">DNS через HTTPS</string>
+    <string name="dpi_tcp">Ошибка соединения TCP</string>
+    <string name="dpi_socks">Ошибка соединения SOCKS</string>
 </resources>

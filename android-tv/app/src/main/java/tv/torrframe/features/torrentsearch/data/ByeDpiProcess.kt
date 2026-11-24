@@ -34,7 +34,8 @@ enum class DpiStrategy(val arguments: List<String>) {
 }
 
 enum class DpiProcessState { Idle, Starting, Running, Failed }
-internal class DpiProcessFailure : IOException()
+internal class DpiProcessFailure(cause: IOException? = null) : IOException(cause)
+internal class SocksConnectFailure(val reply: Int? = null, cause: IOException? = null) : IOException(cause)
 internal class PrivateSearchAddress : IOException()
 
 internal fun InetAddress.isPublicSearchAddress(): Boolean {
@@ -164,7 +165,11 @@ private class ProxySockets(private val proxyPort: Int, private val token: ByteAr
             val previousTimeout = soTimeout
             val wait = timeout.takeIf { it > 0 } ?: 2_800
             try {
-                super.connect(InetSocketAddress("127.0.0.1", proxyPort), wait)
+                try {
+                    super.connect(InetSocketAddress("127.0.0.1", proxyPort), wait)
+                } catch (failure: IOException) {
+                    throw DpiProcessFailure(failure)
+                }
                 soTimeout = wait
                 val input = DataInputStream(getInputStream())
                 val output = getOutputStream()
@@ -173,18 +178,23 @@ private class ProxySockets(private val proxyPort: Int, private val token: ByteAr
                 val ip = address.address
                 output.write(byteArrayOf(5, 1, 0, if (ip.size == 4) 1 else 4) + ip +
                     byteArrayOf((target.port shr 8).toByte(), target.port.toByte()))
-                if (input.readUnsignedByte() != 5 || input.readUnsignedByte() != 0) throw IOException()
+                if (input.readUnsignedByte() != 5) throw SocksConnectFailure()
+                val reply = input.readUnsignedByte()
+                if (reply != 0) throw SocksConnectFailure(reply)
                 input.readUnsignedByte()
                 val addressBytes = when (input.readUnsignedByte()) {
                     1 -> 4
                     4 -> 16
-                    else -> throw IOException()
+                    else -> throw SocksConnectFailure()
                 }
                 input.readFully(ByteArray(addressBytes + 2))
                 soTimeout = previousTimeout
             } catch (failure: IOException) {
                 runCatching { close() }
-                throw failure
+                throw when (failure) {
+                    is DpiProcessFailure, is SocksConnectFailure -> failure
+                    else -> SocksConnectFailure(cause = failure)
+                }
             }
         }
     }

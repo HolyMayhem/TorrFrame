@@ -404,7 +404,7 @@
     <string name="dpi_no_sources">Enable at least one source for this type of search.</string>
     <string name="dpi_total">Unique torrents: %1$d</string>
     <string name="dpi_comparison">Unique torrents · direct %1$d · ByeDPI %2$d · difference %3$d</string>
-    <string name="dpi_difference">Direct run only: %1$d · second run only: %2$d</string>
+    <string name="dpi_difference">Direct run only: %1$d · ByeDPI only: %2$d</string>
     <string name="dpi_direct">direct</string>
     <string name="dpi_local">local network</string>
     <string name="dpi_available">Available</string>
@@ -416,4 +416,8 @@
     <string name="dpi_local_error">Local address excluded</string>
     <string name="dpi_network_error">Network error</string>
     <string name="dpi_result">%1$s · %2$s · %3$s · %4$d torrents · %5$d ms</string>
+    <string name="dpi_system_dns">System DNS</string>
+    <string name="dpi_secure_dns">DNS over HTTPS</string>
+    <string name="dpi_tcp">TCP connection error</string>
+    <string name="dpi_socks">SOCKS connection error</string>
 </resources>

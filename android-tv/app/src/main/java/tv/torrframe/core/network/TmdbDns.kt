@@ -22,10 +22,10 @@ class TmdbDns(
         .callTimeout(4, TimeUnit.SECONDS).followRedirects(false).build(),
     private val endpoint: HttpUrl = "https://dns.google/resolve".toHttpUrl(),
     private val now: () -> Long = { System.nanoTime() / 1_000_000 },
+    private val hosts: Set<String> = setOf("api.themoviedb.org", "image.tmdb.org", "tmdb.cub.best", "torrents-csv.com") +
+        CatalogNetworkSettings.PUBLIC_IMAGE_MIRRORS.map { it.toHttpUrl().host },
 ) : Dns {
     private data class Cached(val addresses: List<InetAddress>, val expires: Long)
-    private val hosts = setOf("api.themoviedb.org", "image.tmdb.org", "tmdb.cub.best", "torrents-csv.com") +
-        CatalogNetworkSettings.PUBLIC_IMAGE_MIRRORS.map { it.toHttpUrl().host }
     private val cache = ConcurrentHashMap<String, Cached>()
     // A stalled lookup must not hold up another host, including its cached answer.
     // The fixed allowlist also bounds the number of locks and cache entries.
@@ -33,16 +33,30 @@ class TmdbDns(
 
     override fun lookup(hostname: String): List<InetAddress> {
         val host = hostname.lowercase(Locale.ROOT).trimEnd('.')
-        if (host !in hosts) return system.lookup(hostname)
-        return synchronized(lookups.getValue(host)) { lookupTmdb(host, hostname) }
+        val lock = lookups[host] ?: return system.lookup(hostname)
+        return synchronized(lock) {
+            cached(host) ?: systemAddresses(hostname).ifEmpty { resolveSecure(host) }
+        }
     }
 
-    private fun lookupTmdb(host: String, hostname: String): List<InetAddress> {
-        cache[host]?.takeIf { it.expires > now() }?.let { return it.addresses }
-        cache.remove(host)
-        val ordinary = try { system.lookup(hostname).filter(::publicAddress) } catch (_: UnknownHostException) { emptyList() }
-        if (ordinary.isNotEmpty()) return ordinary
+    /** A caller that observed a connection failure can ask for a second DNS opinion. */
+    internal fun lookupSecure(hostname: String): List<InetAddress> {
+        val host = hostname.lowercase(Locale.ROOT).trimEnd('.')
+        val lock = lookups[host] ?: throw UnknownHostException(host)
+        return synchronized(lock) { cached(host) ?: resolveSecure(host) }
+    }
 
+    private fun systemAddresses(hostname: String) =
+        try { system.lookup(hostname).filter(::publicAddress) } catch (_: UnknownHostException) { emptyList() }
+
+    private fun cached(host: String): List<InetAddress>? {
+        val hit = cache[host] ?: return null
+        if (hit.expires > now()) return hit.addresses
+        cache.remove(host)
+        return null
+    }
+
+    private fun resolveSecure(host: String): List<InetAddress> {
         // Separate synchronous client prevents recursion through this resolver and does not send API keys.
         val url = endpoint.newBuilder().addQueryParameter("name", host).addQueryParameter("type", "A")
             // Do not forward the client's subnet: ordinary ECS answers can redirect TMDB to loopback.
@@ -88,7 +102,7 @@ class TmdbDns(
             }
         } catch (e: Exception) {
             if (e !is IOException && e !is org.json.JSONException) throw e
-            throw UnknownHostException("Cannot resolve catalog host using system or secure DNS").apply { initCause(e) }
+            throw UnknownHostException("Secure DNS lookup failed").apply { initCause(e) }
         }
     }
 
