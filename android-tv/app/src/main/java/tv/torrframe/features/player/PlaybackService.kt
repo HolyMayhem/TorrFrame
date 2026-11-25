@@ -1,5 +1,6 @@
 package tv.torrframe.features.player
 
+import tv.torrframe.core.telemetry.TelemetryFeature
 import android.content.Context
 import tv.torrframe.core.localization.withUiLanguage
 import android.content.Intent
@@ -45,7 +46,9 @@ class PlaybackService : MediaSessionService() {
                 .setPreferredAudioLanguage(s.audioLanguage.ifBlank { null })
                 .setPreferredTextLanguage(s.subtitleLanguage.ifBlank { null }).build()
             addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(isPlaying: Boolean) { if (!isPlaying) checkpoint() }
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isPlaying) graph.telemetry.record(TelemetryFeature.BuiltinPlayer) else checkpoint()
+                }
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                     if (playWhenReady && !graph.playback.hasVisibleHost) pause()
                 }

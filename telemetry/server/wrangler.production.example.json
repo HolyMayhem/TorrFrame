@@ -1,0 +1,22 @@
+{
+  "name": "torrframe-telemetry",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-23",
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "secrets": { "required": ["IDENTITY_HMAC_SECRET"] },
+  "routes": [{ "pattern": "analytics.example.com", "custom_domain": true }],
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true, "html_handling": "none" },
+  "triggers": { "crons": ["20 1,7,13,19 * * *"] },
+  "vars": {
+    "ENVIRONMENT": "production", "LATEST_BUILD": "12", "DAILY_LIMIT": "1000",
+    "ACCESS_ISSUER": "https://YOUR-TEAM.cloudflareaccess.com", "ACCESS_AUDIENCE": "REPLACE_WITH_ACCESS_AUD"
+  },
+  "d1_databases": [{ "binding": "DB", "database_name": "torrframe-analytics", "database_id": "REPLACE_WITH_NEW_D1_ID" }],
+  "ratelimits": [
+    { "name": "INGRESS", "namespace_id": "8121", "simple": { "limit": 180, "period": 60 } },
+    { "name": "INSTALLATION", "namespace_id": "8122", "simple": { "limit": 8, "period": 60 } },
+    { "name": "ADMIN", "namespace_id": "8123", "simple": { "limit": 4, "period": 60 } }
+  ]
+}

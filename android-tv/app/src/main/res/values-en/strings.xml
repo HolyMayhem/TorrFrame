@@ -420,4 +420,17 @@
     <string name="dpi_secure_dns">DNS over HTTPS</string>
     <string name="dpi_tcp">TCP connection error</string>
     <string name="dpi_socks">SOCKS connection error</string>
+    <string name="telemetry_privacy">Privacy</string>
+    <string name="telemetry_description">Help improve TorrFrame by sharing anonymized app usage and device information. We do not collect viewing history, search queries, movie titles or torrent links.</string>
+    <string name="telemetry_enable">Usage statistics</string>
+    <string name="telemetry_accept">Share usage statistics</string>
+    <string name="telemetry_decline">Continue without sharing</string>
+    <string name="telemetry_later">You can change your choice in Privacy settings.</string>
+    <string name="telemetry_preview">What gets shared</string>
+    <string name="telemetry_preview_hint">Report for this installation. An ID is assigned after consent. Previewing sends no request.</string>
+    <string name="telemetry_reset">Reset statistics ID</string>
+    <string name="telemetry_reset_hint">This clears local statistics and assigns a new random ID. Previously sent data is retained until it expires.</string>
+    <string name="telemetry_reset_confirm">Reset</string>
+    <string name="telemetry_close">Close</string>
+    <string name="telemetry_cancel">Cancel</string>
 </resources>

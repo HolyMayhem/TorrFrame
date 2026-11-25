@@ -1,5 +1,6 @@
 package tv.torrframe
 
+import tv.torrframe.core.telemetry.TelemetryFeature
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
@@ -113,7 +114,8 @@ private class Models(private val graph: AppGraph, private val app: android.app.A
             configurationChanges = flow { graph.ready.await(); emitAll(graph.settings.state.map { it.catalogNetwork.connection() }) }) as T
         else if(modelClass == TorrentSearchViewModel::class.java) TorrentSearchViewModel(graph.torrentSearch,AppTorrentSearchActions(graph),extras.createSavedStateHandle(),
             options = { tv.torrframe.features.torrentsearch.data.TorrentSearchConfiguration(graph).options() },
-            prepare = { target, options -> tv.torrframe.features.torrentsearch.data.TorrentSearchConfiguration(graph).prepare(target,options) }, jackettEngine = graph.jackettSearch) as T
+            prepare = { target, options -> tv.torrframe.features.torrentsearch.data.TorrentSearchConfiguration(graph).prepare(target,options) }, jackettEngine = graph.jackettSearch,
+            onBuiltinSearch = { graph.telemetry.record(TelemetryFeature.TorrentSearch) }) as T
         else create(modelClass)
     @Suppress("UNCHECKED_CAST") override fun <T: ViewModel> create(modelClass: Class<T>): T = when(modelClass) {
         LibraryViewModel::class.java -> LibraryViewModel(graph)

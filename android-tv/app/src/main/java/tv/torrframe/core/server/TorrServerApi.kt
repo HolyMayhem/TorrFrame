@@ -11,12 +11,17 @@ import tv.torrframe.core.network.Http
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class TorrServerApi(private val http: Http, private val address: () -> String) {
+class TorrServerApi(private val http: Http, private val onInteraction: (String) -> Unit = {},
+    private val address: () -> String) {
     private fun url(path: String) = ServerAddress.endpoint(address(), path)
     fun at(address: String) = TorrServerApi(http) { address }
-    private suspend fun command(action: String, hash: String? = null, extra: JSONObject? = null): ByteArray {
+    private suspend fun <T> interact(action: String, hash: String? = null, extra: JSONObject? = null, parse: (ByteArray) -> T): T {
+        val target = address()
+        return parse(command(target, action, hash, extra)).also { onInteraction(target) }
+    }
+    private suspend fun command(target: String, action: String, hash: String? = null, extra: JSONObject? = null): ByteArray {
         val j = extra ?: JSONObject(); j.put("action", action); hash?.let { j.put("hash", it) }
-        return http.post(url("torrents"), j, "TorrServer")
+        return http.post(ServerAddress.endpoint(target, "torrents"), j, "TorrServer")
     }
     suspend fun version(): String {
         val data = http.bytes(Request.Builder().url(url("echo")).header("Cache-Control", "no-cache").build(), "TorrServer", 256)
@@ -26,22 +31,30 @@ class TorrServerApi(private val http: Http, private val address: () -> String) {
         return version
     }
     suspend fun list(): List<Torrent> = withContext(Dispatchers.Default) {
-        JSONArray(command("list").toString(Charsets.UTF_8)).let { a -> (0 until a.length()).map { a.getJSONObject(it).torrent() } }
+        interact("list") { payload ->
+            JSONArray(payload.toString(Charsets.UTF_8)).let { a -> (0 until a.length()).map { a.getJSONObject(it).torrent() } }
+        }
     }
-    suspend fun get(hash: String) = withContext(Dispatchers.Default) { JSONObject(command("get", hash).toString(Charsets.UTF_8)).torrent() }
+    suspend fun get(hash: String) = withContext(Dispatchers.Default) {
+        interact("get", hash) { JSONObject(it.toString(Charsets.UTF_8)).torrent() }
+    }
     suspend fun addMagnet(magnet: String, title: String): Torrent = withContext(Dispatchers.Default) {
         require(magnet.startsWith("magnet:?")) { "Enter a magnet link." }
-        JSONObject(command("add", extra = JSONObject().put("link", magnet).put("title", title)
-            .put("save_to_db", true)).toString(Charsets.UTF_8)).torrent()
+        interact("add", extra = JSONObject().put("link", magnet).put("title", title).put("save_to_db", true)) {
+            JSONObject(it.toString(Charsets.UTF_8)).torrent()
+        }
     }
     suspend fun upload(bytes: ByteArray, title: String): Torrent = withContext(Dispatchers.Default) {
         val body = MultipartBody.Builder().setType(MultipartBody.FORM).addFormDataPart("save", "true")
             .addFormDataPart("title", title).addFormDataPart("file", "download.torrent",
                 bytes.toRequestBody("application/x-bittorrent".toMediaType())).build()
-        val data = http.bytes(Request.Builder().url(url("torrent/upload")).post(body).build(), "TorrServer").toString(Charsets.UTF_8)
-        if (data.trimStart().startsWith("[")) JSONArray(data).getJSONObject(0).torrent() else JSONObject(data).torrent()
+        val target = address()
+        val endpoint = ServerAddress.endpoint(target, "torrent/upload")
+        val data = http.bytes(Request.Builder().url(endpoint).post(body).build(), "TorrServer").toString(Charsets.UTF_8)
+        val torrent = if (data.trimStart().startsWith("[")) JSONArray(data).getJSONObject(0).torrent() else JSONObject(data).torrent()
+        torrent.also { onInteraction(target) }
     }
-    suspend fun remove(hash: String) { command("rem", hash) }
+    suspend fun remove(hash: String) { interact("rem", hash) { Unit } }
     suspend fun settings(): JSONObject = withContext(Dispatchers.Default) {
         JSONObject(http.post(url("settings"), JSONObject().put("action", "get"), "TorrServer").toString(Charsets.UTF_8))
     }

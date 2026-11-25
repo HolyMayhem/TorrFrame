@@ -209,16 +209,19 @@ enum class SettingsCategory(val title: Int) {
                                                     tv.torrframe.features.developer.DeveloperSettings(vm.developer, onSetup)
                                                 }
                                             }
-                                            SettingsCategory.About -> item {
-                                                SettingsGroup(stringResource(category!!.title)) {
-                                                    Text(stringResource(R.string.settings_about_text, BuildConfig.VERSION_NAME), color = Muted)
-                                                    androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.tmdb_logo),
-                                                        contentDescription = "TMDB", modifier = Modifier.width(164.dp).height(24.dp))
-                                                    Text("This product uses the TMDB API but is not endorsed or certified by TMDB.", color = Muted, translate = false)
-                                                    TvAction(stringResource(R.string.setup_reopen), modifier = Modifier.testTag("settings:setup"), action = onSetup)
-                                                    TvAction(stringResource(R.string.settings_licenses)) { licenses = true }
-                                                    AboutLinks()
+                                            SettingsCategory.About -> {
+                                                item {
+                                                    SettingsGroup(stringResource(category!!.title)) {
+                                                        Text(stringResource(R.string.settings_about_text, BuildConfig.VERSION_NAME), color = Muted)
+                                                        androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.tmdb_logo),
+                                                            contentDescription = "TMDB", modifier = Modifier.width(164.dp).height(24.dp))
+                                                        Text("This product uses the TMDB API but is not endorsed or certified by TMDB.", color = Muted, translate = false)
+                                                        TvAction(stringResource(R.string.setup_reopen), modifier = Modifier.testTag("settings:setup"), action = onSetup)
+                                                        TvAction(stringResource(R.string.settings_licenses)) { licenses = true }
+                                                        AboutLinks()
+                                                    }
                                                 }
+                                                item("telemetry") { TelemetrySettings(vm.telemetry) }
                                             }
                                             null -> Unit
                                         }

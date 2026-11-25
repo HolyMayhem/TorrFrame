@@ -24,7 +24,8 @@ class TorrentSearchViewModel(private val engine: TorrentSearchEngine, private va
     private val saved: SavedStateHandle,
     private val options: suspend () -> TorrentSearchOptions = { TorrentSearchOptions() },
     private val prepare: suspend (SearchTarget,TorrentSearchOptions) -> SearchTarget = { target, _ -> target },
-    private val jackettEngine: TorrentSearchEngine? = null) : ViewModel() {
+    private val jackettEngine: TorrentSearchEngine? = null,
+    private val onBuiltinSearch: () -> Unit = {}) : ViewModel() {
     private val mutable = MutableStateFlow(TorrentSearchUi())
     val state = mutable.asStateFlow()
     private var searchJob: Job? = null
@@ -46,7 +47,16 @@ class TorrentSearchViewModel(private val engine: TorrentSearchEngine, private va
                 val queryTarget = if (searchEngine.activeProviders(target, config).isNotEmpty()) prepare(target, config) else target
                 if(version!=generation)return@launch
                 mutable.update { it.copy(options=config,queries=queryTarget.queries(config.titleMode)) }
-                searchEngine.search(queryTarget,config).collect { snapshot -> if (version == generation) mutable.update { it.copy(snapshot=snapshot,starting=false) } }
+                var used = false
+                searchEngine.search(queryTarget,config).collect { snapshot ->
+                    if (version == generation) {
+                        if (!used && source == TorrentSearchSource.Builtin && snapshot.sources.any { it.phase == SourcePhase.Complete }) {
+                            used = true
+                            onBuiltinSearch()
+                        }
+                        mutable.update { it.copy(snapshot=snapshot,starting=false) }
+                    }
+                }
             }
             catch (e: Exception) { if (e is CancellationException) throw e; if(version==generation) mutable.update { it.copy(starting=false,searchError=true) } }
         }

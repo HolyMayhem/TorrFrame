@@ -1,5 +1,6 @@
 package tv.torrframe.features.player
 
+import tv.torrframe.core.telemetry.TelemetryFeature
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -83,7 +84,7 @@ class PlayerActivity : ComponentActivity() {
         choosingSubtitle = savedInstanceState?.getBoolean("choosingSubtitle") == true
         resumeAfterRecreation = savedInstanceState?.getBoolean("playerResume") == true
         graph.playback.claimHost(playbackHost)
-        frameRate = FrameRateMatcher(window)
+        frameRate = FrameRateMatcher(window) { graph.telemetry.record(TelemetryFeature.Afr) }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         WindowInsetsControllerCompat(window, window.decorView).apply {

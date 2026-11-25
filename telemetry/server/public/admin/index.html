@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>TorrFrame Analytics</title>
+  <link rel="stylesheet" href="/admin/styles.css">
+  <script type="module" src="/admin/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="shell top-inner">
+      <a class="brand" href="/admin/"><img src="/admin/brand.png" alt="">TorrFrame <span>Analytics</span></a>
+      <div id="health" class="health" role="status" data-state="pending"><i></i><span>Проверка сервера</span></div>
+    </div>
+  </header>
+  <main class="shell">
+    <div class="page-title">
+      <div>
+        <h1>Использование TorrFrame</h1>
+        <p id="received" class="muted">Последний отчёт · —</p>
+      </div>
+      <button id="refresh" type="button">Обновить</button>
+    </div>
+    <form id="filters" class="filters">
+      <div class="segments" aria-label="Период">
+        <button type="button" data-days="7" aria-pressed="false">7 дней</button>
+        <button type="button" data-days="30" aria-pressed="true">30 дней</button>
+        <button type="button" data-days="90" aria-pressed="false">90 дней</button>
+      </div>
+      <div class="date-inputs">
+        <label>С <input type="date" id="from" required></label>
+        <label>По <input type="date" id="to" required></label>
+        <button type="submit">Применить</button><span class="muted">UTC</span>
+      </div>
+    </form>
+    <p id="notice" class="notice" role="status">Загрузка статистики…</p>
+    <div id="data" hidden>
+      <nav aria-label="Разделы">
+        <a href="#overview">Обзор</a><a href="#devices">Устройства</a><a href="#features">Функции</a>
+        <a href="#geo">География</a><a href="#versions">Версии</a><a href="#appearance">Локализация и темы</a>
+      </nav>
+      <section id="overview" aria-label="Обзор">
+        <dl class="metrics">
+          <div><dt title="Приблизительное количество случайных ID установок">Установки за всё время</dt><dd id="installations">—</dd></div>
+          <div><dt>Новые за период</dt><dd id="new">—</dd></div>
+          <div><dt title="Активные установки в последний выбранный день">DAU</dt><dd id="dau">—</dd></div>
+          <div><dt title="Уникальные установки за 7 дней до конца периода включительно">WAU</dt><dd id="wau">—</dd></div>
+          <div><dt title="Уникальные установки за 30 дней до конца периода включительно">MAU</dt><dd id="mau">—</dd></div>
+          <div><dt>На актуальной версии</dt><dd id="latest-percent">—</dd></div>
+        </dl>
+        <div class="panel trend">
+          <div class="section-title">
+            <div><h2>Ежедневная активность</h2><p class="muted" id="period"></p></div>
+            <div class="legend"><span>Активные</span><span>Новые</span></div>
+          </div>
+          <canvas id="chart" role="img" aria-label="График активных и новых установок. Точные значения доступны в таблице по дням."></canvas>
+          <details>
+            <summary>Таблица по дням</summary>
+            <table><thead><tr><th scope="col">Дата (UTC)</th><th scope="col">Активные</th><th scope="col">Новые</th></tr></thead>
+              <tbody id="daily-rows"></tbody></table>
+          </details>
+        </div>
+      </section>
+      <section id="devices">
+        <div class="section-title"><h2>Устройства</h2><p class="muted" id="device-sample"></p></div>
+        <div id="device-cards" class="grid"></div>
+      </section>
+      <section id="features">
+        <div class="section-title"><h2>Использование функций</h2><p class="muted">Среди установок с дневными отчётами</p></div>
+        <div id="feature-cards" class="panel feature-list"></div>
+      </section>
+      <section id="geo">
+        <div class="section-title"><h2>География</h2><p class="muted">VPN и прокси могут влиять на определение страны</p></div>
+        <div id="country-cards" class="grid"></div>
+      </section>
+      <section id="versions">
+        <div class="section-title"><h2>Версии TorrFrame</h2><p class="muted" id="version-caption"></p></div>
+        <div id="version-cards" class="grid"></div>
+      </section>
+      <section id="appearance">
+        <div class="section-title"><h2>Локализация и оформление</h2></div>
+        <div id="appearance-cards" class="grid"></div>
+      </section>
+      <footer>Учитываются случайные ID установок. Распределения используют последний отчёт установки в выбранном периоде. Редкие значения объединены в «Другие».</footer>
+    </div>
+  </main>
+</body>
+</html>

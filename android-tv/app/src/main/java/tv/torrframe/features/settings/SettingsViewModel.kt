@@ -66,6 +66,7 @@ class SettingsViewModel(private val graph: AppGraph): ViewModel() {
             }
         }
     }
+    val telemetry get() = graph.telemetry
     fun restartSetup() = graph.setup.restart()
     val developer get() = graph.developer
     val externalPlayers get() = graph.externalPlayers

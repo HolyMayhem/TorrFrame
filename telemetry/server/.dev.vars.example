@@ -1,0 +1,3 @@
+# Generate distinct local values with openssl rand -hex 32.
+IDENTITY_HMAC_SECRET=
+LOCAL_ADMIN_PASSWORD=

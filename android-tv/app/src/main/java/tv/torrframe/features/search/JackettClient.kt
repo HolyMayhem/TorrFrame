@@ -13,7 +13,7 @@ sealed interface TorrentPayload {
     data class Magnet(val value: String) : TorrentPayload
     data class File(val value: ByteArray) : TorrentPayload
 }
-class JackettClient(private val http: Http) {
+class JackettClient(private val http: Http, private val onSearch: () -> Unit = {}) {
     fun endpoint(s: Settings, type: String, query: String? = null, category: String? = null): HttpUrl {
         val base = s.jackettUrl.trim().toHttpUrlOrNull()
         require(base != null && base.username.isEmpty() && base.password.isEmpty() && base.query == null && base.fragment == null) {
@@ -33,6 +33,7 @@ class JackettClient(private val http: Http) {
         require(s.jackettEnabled) { "Jackett is disabled." }
         val category = when(filter) { "Movies" -> "2000"; "TV Shows" -> "5000"; else -> null }
         TorznabParser.results(http.get(endpoint(s, "search", query, category), "Jackett").toString(Charsets.UTF_8))
+            .also { onSearch() }
     }
     suspend fun download(result: SearchResult): TorrentPayload = withContext(Dispatchers.Default) {
         if (result.link.startsWith("magnet:?", true)) return@withContext TorrentPayload.Magnet(result.link)

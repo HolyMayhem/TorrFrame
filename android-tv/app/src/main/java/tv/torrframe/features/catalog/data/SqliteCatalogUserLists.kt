@@ -14,7 +14,8 @@ import org.json.JSONObject
 import tv.torrframe.features.catalog.domain.*
 
 /** User choices never expire and are independent of the disposable TMDB cache. */
-class SqliteCatalogUserLists(context: Context, name: String = "catalog-user-lists.sqlite") :
+class SqliteCatalogUserLists(context: Context, name: String = "catalog-user-lists.sqlite",
+    private val onToggle: (CatalogUserList) -> Unit = {}) :
     SQLiteOpenHelper(context, name, null, 1), CatalogUserLists {
     private val mutable = MutableStateFlow<List<CatalogListEntry>>(emptyList())
     override val entries: StateFlow<List<CatalogListEntry>> = mutable
@@ -46,6 +47,7 @@ class SqliteCatalogUserLists(context: Context, name: String = "catalog-user-list
                 db.setTransactionSuccessful()
             } finally { db.endTransaction() }
             mutable.value = read(db)
+            onToggle(list)
         }
     }
     override suspend fun localize(item: CatalogItem, language: String) = lock.withLock {

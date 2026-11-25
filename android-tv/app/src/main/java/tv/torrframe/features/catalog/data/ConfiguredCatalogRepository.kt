@@ -17,6 +17,7 @@ class ConfiguredCatalogRepository(
     private val tmdb: TmdbClient,
     private val cache: CatalogCache,
     private val scope: CoroutineScope,
+    private val onUse: (CatalogOrigin) -> Unit = {},
 ) : CatalogRepository {
     private class Sources(val config: CatalogNetworkSettings, val primary: CatalogRepository, val backup: CatalogRepository) {
         private val feeds = linkedMapOf<String, CatalogSource>()
@@ -75,7 +76,7 @@ class ConfiguredCatalogRepository(
                 }
             }
         }
-    }
+    }.onEach { if (it.data != null) onUse(it.source) }
     override fun section(section: CatalogSection, language: String, page: Int, force: Boolean) =
         browse("section:${section.name}:$language", page, language) { it.section(section, language, page, force) }
     override fun search(query: String, language: String, page: Int, force: Boolean) =
@@ -98,6 +99,7 @@ class ConfiguredCatalogRepository(
         }
     }
     override fun related(ref: CatalogRef, source: CatalogRelatedSource, language: String, page: Int, force: Boolean) = flow {
-        emitAll(sources().primary.related(ref, source, language, page, force))
+        emitAll(sources().primary.related(ref, source, language, page, force)
+            .onEach { if (it.data != null) onUse(CatalogOrigin.Tmdb) })
     }
 }

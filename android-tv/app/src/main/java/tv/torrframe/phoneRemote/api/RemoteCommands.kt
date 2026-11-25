@@ -1,5 +1,6 @@
 package tv.torrframe.phoneRemote.api
 
+import tv.torrframe.core.telemetry.TelemetryFeature
 import tv.torrframe.core.localization.withUiLanguage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -62,6 +63,7 @@ class RemoteCommands(private val graph: AppGraph) {
                     val target = if (graph.torrentSearch.activeProviders(requested, options).isEmpty()) requested
                         else config.prepare(requested, options)
                     val page = graph.torrentSearch.search(target, options).last()
+                    if (page.sources.any { it.phase == SourcePhase.Complete }) graph.telemetry.record(TelemetryFeature.TorrentSearch)
                     JSONObject().put("partial", page.sources.any { it.phase in listOf(SourcePhase.Failed, SourcePhase.TimedOut) })
                         .put("sources", JSONArray(page.sources.map { JSONObject().put("name", it.name).put("phase", it.phase.name).put("count", it.count) }))
                         .put("items", JSONArray(page.results.take(200).map { result ->

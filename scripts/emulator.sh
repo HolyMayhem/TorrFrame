@@ -23,4 +23,8 @@ if [ -z "${TORRFRAME_AVD:-}" ]; then
         TASK_AVD=TorrServe_TV_API36
     fi
 fi
+if [ "${1:-}" = --print-avd ]; then
+    printf '%s\n' "$TASK_AVD"
+    exit 0
+fi
 exec "$EMULATOR_BIN" -avd "$TASK_AVD" -gpu "$EMULATOR_GPU" -memory 2048 -cores 4 -use-keycode-forwarding -crash-report-mode disabled "$@"

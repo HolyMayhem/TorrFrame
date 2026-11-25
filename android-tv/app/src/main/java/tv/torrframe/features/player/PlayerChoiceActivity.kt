@@ -1,5 +1,6 @@
 package tv.torrframe.features.player
 
+import tv.torrframe.core.telemetry.TelemetryFeature
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -91,6 +92,7 @@ class PlayerChoiceActivity : ComponentActivity() {
                     LocalServerService.start(this@PlayerChoiceActivity)
                 }
                 startActivity(graph.externalPlayers.intent(player, requireNotNull(intent.getStringExtra("stream")), intent.getStringExtra("title").orEmpty()))
+                graph.telemetry.record(TelemetryFeature.ExternalPlayer)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 releaseLease(); waiting = false; externalBackgrounded = false

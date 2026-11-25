@@ -1,5 +1,6 @@
 package tv.torrframe.phoneRemote.server
 
+import tv.torrframe.core.telemetry.TelemetryFeature
 import tv.torrframe.core.localization.uiString
 import android.content.Intent
 import android.net.*
@@ -100,7 +101,9 @@ class PhoneRemoteManager(private val graph: AppGraph) {
                     mutable.value = PhoneRemoteState(PhoneRemoteStatus.Starting, address, preference.port)
                     if (preference.port == graph.settings.state.value.port) { error(); return@withLock }
                     val backend = StateSyncManager(graph, scope, sessions)
-                    val created = PhoneRemoteServer(RequestGuard(address, preference.port), sessions, pairing, backend, AndroidWebAssets(graph.app.assets))
+                    val created = PhoneRemoteServer(RequestGuard(address, preference.port), sessions, pairing, backend, AndroidWebAssets(graph.app.assets)) {
+                        graph.telemetry.record(TelemetryFeature.PhoneRemote)
+                    }
                     try { created.start(); runtime = created; mutable.value = PhoneRemoteState(PhoneRemoteStatus.Running, address, preference.port) }
                     catch (e: Exception) {
                         created.stop()

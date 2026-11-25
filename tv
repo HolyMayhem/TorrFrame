@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+export ANDROID_HOME=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-"$root/.tools/sdk"}}
+adb=${ADB:-"$ANDROID_HOME/platform-tools/adb"}
+if [ ! -x "$adb" ]; then adb=$(command -v adb || true); fi
+fail() { printf '%s\n' "$*" >&2; exit 1; }
+[ -n "$adb" ] || fail 'ADB not found. Set ANDROID_HOME to your Android SDK.'
+
+avd=$("$root/scripts/emulator.sh" --print-avd)
+find_emulator() {
+    local serial name
+    for serial in $("$adb" devices | awk '$1 ~ /^emulator-[0-9]+$/ { print $1 }'); do
+        name=$("$adb" -s "$serial" emu avd name 2>/dev/null | tr -d '\r' | sed -n '1p') || continue
+        if [ "$name" = "$avd" ]; then
+            printf '%s\n' "$serial"
+            return
+        fi
+    done
+}
+
+serial=$(find_emulator)
+emulator_pid=
+if [ -z "$serial" ]; then
+    mkdir -p "$root/.tools"
+    emulator_log="$root/.tools/emulator-launch.log"
+    printf 'Starting %s…\n' "$avd"
+    emulator_pid=$(TORRFRAME_AVD="$avd" python3 - "$root/scripts/emulator.sh" "$emulator_log" <<'PY'
+import subprocess
+import sys
+
+with open(sys.argv[2], "wb") as log:
+    emulator = subprocess.Popen([sys.argv[1]], stdin=subprocess.DEVNULL, stdout=log,
+                                stderr=subprocess.STDOUT, start_new_session=True)
+print(emulator.pid)
+PY
+    )
+fi
+
+case $(uname -s) in
+    Darwin) build_root="$HOME/Library/Caches/TorrFrameAndroidTV/build" ;;
+    *) build_root="$root/android-tv/build" ;;
+esac
+"$root/scripts/build-local.sh" :app:assembleDebug "-PtorrframeBuildRoot=$build_root"
+
+deadline=$((SECONDS + 180))
+until [ -n "$serial" ] && [ "$("$adb" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" = 1 ]; do
+    if [ -n "$emulator_pid" ] && ! kill -0 "$emulator_pid" 2>/dev/null; then
+        fail "Could not start $avd. See $emulator_log."
+    fi
+    [ "$SECONDS" -lt "$deadline" ] || fail "Timed out waiting for $avd to boot."
+    sleep 1
+    serial=$(find_emulator)
+done
+
+"$adb" -s "$serial" install -r "$build_root/app/outputs/apk/debug/app-debug.apk"
+"$adb" -s "$serial" shell input keyevent KEYCODE_WAKEUP
+launch=$("$adb" -s "$serial" shell am start -S -W -n tv.torrframe/.MainActivity)
+printf '%s\n' "$launch"
+printf '%s\n' "$launch" | tr -d '\r' | grep -qx 'Status: ok' || fail 'Android could not open TorrFrame.'
+
+if [ "$(uname -s)" = Darwin ]; then
+    # Bring the selected emulator to the front when reusing its window.
+    window_pid=$(ps -axo pid=,args= | awk -v avd="$avd" '!found && /qemu-system-/ {
+        for (i = 2; i < NF; i++) if ($i == "-avd" && $(i+1) == avd) { print $1; found = 1; break }
+    }') || window_pid=
+    if [ -n "$window_pid" ]; then
+        /usr/bin/osascript -l JavaScript - "$window_pid" >/dev/null 2>&1 <<'JS' || true
+ObjC.import('AppKit')
+function run(argv) {
+    $.NSRunningApplication.runningApplicationWithProcessIdentifier(Number(argv[0])).activateWithOptions(2)
+}
+JS
+    fi
+fi

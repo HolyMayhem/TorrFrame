@@ -1,0 +1,101 @@
+:root {
+  color-scheme: dark;
+  --bg: #111412;
+  --panel: #1a1e1b;
+  --surface: #242a25;
+  --line: #343e36;
+  --ink: #eaf2ea;
+  --muted: #a7b7a9;
+  --green: #87e59b;
+  --moss: #5c9c7e;
+  --danger: #efae91;
+  font: 15px/1.5 system-ui, sans-serif;
+}
+* { box-sizing: border-box }
+body { margin: 0; color: var(--ink); background: var(--bg) }
+[hidden] { display: none !important }
+.shell { width: min(1330px, calc(100% - 64px)); margin-inline: auto }
+.top { background: #151916; border-bottom: 1px solid var(--line) }
+.top-inner, .page-title, .section-title, .filters, .date-inputs, .legend { display: flex; align-items: center; justify-content: space-between; gap: 14px }
+.top-inner { min-height: 68px }
+.brand { display: flex; align-items: center; gap: .38em; text-decoration: none; color: var(--ink); font-weight: 700; font-size: 20px }
+.brand img { width: 24px; margin-inline-end: .3em; object-fit: contain }
+.brand span { color: var(--green); font-weight: 550 }
+.health { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .87rem; white-space: nowrap }
+.health i, .legend span::before { width: 8px; height: 8px; background: var(--green); border-radius: 50%; display: inline-block; content: "" }
+.health[data-state="pending"] i { background: var(--muted) }
+.health[data-state="error"] i { background: var(--danger) }
+.page-title { margin-top: 42px; margin-bottom: 23px }
+h1, h2, h3, p, dl, dt, dd { margin: 0 }
+h1 { font-size: clamp(28px, 4vw, 47px); letter-spacing: -.038em; line-height: 1.07; margin-bottom: 7px }
+h2 { font-size: 21px; letter-spacing: -.02em; line-height: 1.3 }
+h3 { font-size: 15px }
+.muted, dt, footer { color: var(--muted) }
+button, input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; min-height: 39px }
+button { cursor: pointer; font-weight: 600; white-space: nowrap }
+button:hover { background: #303a33 }
+button[aria-pressed="true"] { background: #2b4231; color: var(--green); border-color: #44664d }
+button:disabled { opacity: .65; cursor: wait }
+:focus-visible { outline: 2px solid var(--green); outline-offset: 3px }
+.filters { padding-block: 12px; border-block: 1px solid var(--line); flex-wrap: wrap; margin-bottom: 10px }
+.segments { display: flex; gap: 6px }
+.date-inputs { flex-wrap: wrap; justify-content: flex-start; font-size: .88rem }
+input { max-width: 100%; min-width: 0 }
+.date-inputs label { display: flex; align-items: center; gap: 5px }
+.notice { color: var(--muted); padding: 12px 0 }
+.notice[data-state="error"] { color: var(--danger) }
+nav { display: flex; flex-wrap: wrap; column-gap: 22px; row-gap: 8px; padding: 10px 0 20px; font-size: .9rem }
+nav a { color: var(--muted); text-underline-offset: 4px }
+nav a:hover { color: var(--green) }
+.metrics { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); margin-bottom: 14px; border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: var(--panel) }
+.metrics > div { min-width: 0; padding: 13px 15px; border-inline-end: 1px solid var(--line) }
+.metrics > div:last-child { border-inline-end: 0 }
+.metrics dt { font-size: .84rem }
+.metrics dd { font-size: clamp(24px, 3vw, 35px); font-weight: 650; letter-spacing: -.04em; font-variant-numeric: tabular-nums }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 13px; padding: 17px 18px; min-width: 0 }
+.trend .section-title { padding-bottom: 12px }
+.legend { white-space: nowrap; justify-content: flex-start; font-size: .84rem; color: var(--muted) }
+.legend span { display: flex; align-items: center; gap: 6px }
+.legend span:last-child::before { background: var(--moss) }
+#chart { width: 100%; height: 214px; display: block }
+details { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 9px }
+summary { color: var(--muted); cursor: pointer; padding: 3px 0 }
+table { border-collapse: collapse; width: 100%; margin-top: 8px; font-variant-numeric: tabular-nums }
+th, td { text-align: right; padding: 6px 5px; border-bottom: 1px solid var(--line) }
+th:first-child, td:first-child { text-align: left }
+section + section { margin-top: 32px }
+section > .section-title { margin-bottom: 12px; flex-wrap: wrap; justify-content: flex-start }
+.grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px }
+#country-cards { grid-template-columns: minmax(0, 1fr) }
+.feature-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 19px 25px }
+.bar-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px }
+.bar-label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; min-width: 0 }
+.bar-label strong { overflow-wrap: anywhere; font-weight: 550 }
+.bar-label span, .sample { color: var(--muted); font-size: .85rem; white-space: nowrap; font-variant-numeric: tabular-nums }
+progress { border: 0; width: 100%; height: 5px; background-color: var(--surface); display: block; border-radius: 4px; margin-top: 4px; overflow: hidden; accent-color: var(--green) }
+progress::-webkit-progress-bar { background-color: var(--surface) }
+progress::-webkit-progress-value { background-color: var(--green); border-radius: 4px }
+progress::-moz-progress-bar { background-color: var(--green) }
+footer { margin-block: 34px 26px; border-top: 1px solid var(--line); padding-top: 12px; font-size: .87rem; max-width: 84ch }
+@media(max-width: 960px) {
+  .metrics { grid-template-columns: repeat(3,minmax(0,1fr)) }
+  .metrics > div:nth-child(-n + 3) { border-bottom: 1px solid var(--line) }
+  .metrics > div:nth-child(3) { border-inline-end: 0 }
+  .grid, .feature-list { grid-template-columns: repeat(2,minmax(0,1fr)) }
+}
+@media(max-width: 570px) {
+  .shell { width: calc(100% - 28px) }
+  .top-inner { min-height: 57px; gap: 8px }
+  .brand { font-size: 16px }
+  .brand img { width: 18px }
+  .health { font-size: .73rem }
+  .page-title { margin-top: 28px; align-items: flex-start }
+  .page-title p { font-size: .84rem }
+  .metrics { grid-template-columns: repeat(2,minmax(0,1fr)) }
+  .metrics > div:nth-child(n) { border-bottom: 1px solid var(--line); border-inline-end: 1px solid var(--line) }
+  .metrics > div:nth-child(even) { border-inline-end: 0 }
+  .metrics > div:nth-last-child(-n + 2) { border-bottom: 0 }
+  .grid, .feature-list { grid-template-columns: minmax(0,1fr) }
+  .trend .section-title { align-items: flex-start; flex-direction: column; gap: 5px }
+  #chart { height: 165px }
+}

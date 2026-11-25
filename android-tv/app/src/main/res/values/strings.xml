@@ -424,4 +424,17 @@
     <string name="dpi_secure_dns">DNS через HTTPS</string>
     <string name="dpi_tcp">Ошибка соединения TCP</string>
     <string name="dpi_socks">Ошибка соединения SOCKS</string>
+    <string name="telemetry_privacy">Конфиденциальность</string>
+    <string name="telemetry_description">Помогите улучшить TorrFrame, отправляя обезличенную статистику использования приложения и сведения об устройстве. Мы не собираем историю просмотра, поисковые запросы, названия фильмов и торрент-ссылки</string>
+    <string name="telemetry_enable">Статистика использования</string>
+    <string name="telemetry_accept">Разрешить отправку статистики</string>
+    <string name="telemetry_decline">Продолжить без статистики</string>
+    <string name="telemetry_later">Выбор можно изменить в настройках конфиденциальности.</string>
+    <string name="telemetry_preview">Какие данные отправляются</string>
+    <string name="telemetry_preview_hint">Отчёт для этой установки. Идентификатор появляется после согласия. Предпросмотр не отправляет запрос.</string>
+    <string name="telemetry_reset">Сбросить идентификатор статистики</string>
+    <string name="telemetry_reset_hint">Локальная история статистики будет очищена, а приложению будет выдан новый случайный идентификатор. Уже отправленные данные останутся на сервере до окончания срока хранения.</string>
+    <string name="telemetry_reset_confirm">Сбросить</string>
+    <string name="telemetry_close">Закрыть</string>
+    <string name="telemetry_cancel">Отмена</string>
 </resources>
